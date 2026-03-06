@@ -30,5 +30,13 @@
     "tags": ["Three.js", "Web Audio", "MIDI", "3D"],
     "path": "projects/piano/",
     "thumbnail": "thumbnails/piano.png"
+  },
+  {
+    "id": "brightonhub",
+    "title": "Brighton Hub",
+    "description": "Live city dashboard for Brighton & Hove with real-time transport, environment, crime, housing, health, events, and schools data from public APIs.",
+    "tags": ["Next.js", "Dashboard", "Data Viz", "Live Data"],
+    "path": "https://brightonhub.ai",
+    "thumbnail": "thumbnails/brightonhub.png"
   }
 ]
