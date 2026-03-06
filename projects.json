@@ -22,5 +22,13 @@
     "tags": ["Canvas", "Game", "Retro", "Gamepad API"],
     "path": "projects/shoothemup/",
     "thumbnail": "thumbnails/shoothemup.png"
+  },
+  {
+    "id": "piano",
+    "title": "Piano",
+    "description": "3D piano studio with MIDI playback, waterfall note visualisation, multiple camera angles, and tempo controls. Upload any MIDI file and watch it play.",
+    "tags": ["Three.js", "Web Audio", "MIDI", "3D"],
+    "path": "projects/piano/",
+    "thumbnail": "thumbnails/piano.png"
   }
 ]
