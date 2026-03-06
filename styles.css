@@ -1,0 +1,184 @@
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #f5f5f3;
+  --text: #1a1a1a;
+  --text-muted: #888;
+  --gap: 6px;
+}
+
+html { font-size: 16px; }
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 32px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+}
+
+.site-logo {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.site-nav a {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text);
+  text-decoration: none;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.site-nav a:hover,
+.site-nav a.active {
+  opacity: 1;
+}
+
+/* ── Grid — Wannerstedt-style ── */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+  padding: 0 var(--gap) var(--gap);
+}
+
+/* ── Tile ── */
+.tile {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  background: #e0e0dc;
+  cursor: pointer;
+  text-decoration: none;
+  color: #fff;
+}
+
+.tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.tile:hover img {
+  transform: scale(1.04);
+}
+
+/* Title overlay */
+.tile-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0);
+  transition: background 0.35s;
+  pointer-events: none;
+}
+
+.tile-label span {
+  font-size: clamp(1.1rem, 2.2vw, 1.8rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.35s, transform 0.35s;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+
+.tile:hover .tile-label {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.tile:hover .tile-label span {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Fallback when no thumbnail */
+.tile-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tile-fallback[data-color="0"] { background: linear-gradient(135deg, #1a1040, #2d1b69); }
+.tile-fallback[data-color="1"] { background: linear-gradient(135deg, #0f2027, #203a43); }
+.tile-fallback[data-color="2"] { background: linear-gradient(135deg, #1a0a2e, #3a1c71); }
+.tile-fallback[data-color="3"] { background: linear-gradient(135deg, #0d1117, #1b3a4b); }
+.tile-fallback[data-color="4"] { background: linear-gradient(135deg, #1a1a2e, #16213e); }
+
+/* ── Footer ── */
+.site-footer {
+  padding: 32px;
+  text-align: center;
+}
+
+.site-footer p {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ── Back-to-top ── */
+.back-to-top {
+  display: none;
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  cursor: pointer;
+  z-index: 200;
+  transition: opacity 0.2s;
+}
+
+.back-to-top.visible {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .site-header {
+    padding: 16px 20px;
+  }
+  .tile {
+    aspect-ratio: 16 / 11;
+  }
+}

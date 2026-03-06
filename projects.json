@@ -1,0 +1,26 @@
+[
+  {
+    "id": "earth",
+    "title": "Earth Atlas",
+    "description": "Interactive 3D globe with country-level data overlays including life expectancy, CO2 emissions, renewable energy, and more. Built with React and Three.js.",
+    "tags": ["React", "Three.js", "Data Viz", "WebGL"],
+    "path": "projects/earth/",
+    "thumbnail": "thumbnails/earth.png"
+  },
+  {
+    "id": "abalone",
+    "title": "Abalone",
+    "description": "A polished 3D rendition of the classic marble-pushing board game. Features multiple camera angles, move previews, and complete rule enforcement.",
+    "tags": ["Three.js", "Game", "3D", "WebGL"],
+    "path": "projects/abalone/",
+    "thumbnail": "thumbnails/abalone.png"
+  },
+  {
+    "id": "shoothemup",
+    "title": "Star Reaper '86",
+    "description": "Retro side-scrolling shoot'em up with neon visuals, wave-based combat, boss encounters, and Xbox gamepad support.",
+    "tags": ["Canvas", "Game", "Retro", "Gamepad API"],
+    "path": "projects/shoothemup/",
+    "thumbnail": "thumbnails/shoothemup.png"
+  }
+]

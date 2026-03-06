@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Star Reaper '86</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <div class="backdrop"></div>
+    <main class="cabinet">
+      <section class="masthead">
+        <p class="kicker">Retro Side-Scrolling Shoot'em Up</p>
+        <h1>Star Reaper '86</h1>
+        <p class="subhead">Pilot an interceptor through neon debris fields, burn down raider waves, and plug in an Xbox pad when you want proper arcade controls.</p>
+      </section>
+
+      <section class="playfield-frame">
+        <div class="hud">
+          <div class="hud-card">
+            <span class="label">Score</span>
+            <strong id="score">000000</strong>
+          </div>
+          <div class="hud-card">
+            <span class="label">Best</span>
+            <strong id="best">000000</strong>
+          </div>
+          <div class="hud-card">
+            <span class="label">Wave</span>
+            <strong id="wave">01</strong>
+          </div>
+          <div class="hud-card hud-status">
+            <span class="label">Shield</span>
+            <div class="meter">
+              <div class="meter-fill" id="shieldFill"></div>
+            </div>
+          </div>
+          <div class="hud-card">
+            <span class="label">Lives</span>
+            <strong id="lives">3</strong>
+          </div>
+          <div class="hud-card">
+            <span class="label">Bombs</span>
+            <strong id="bombs">2</strong>
+          </div>
+          <div class="hud-card hud-status">
+            <span class="label">Controller</span>
+            <strong id="controller">Keyboard</strong>
+          </div>
+        </div>
+
+        <div class="canvas-wrap">
+          <canvas id="game" width="400" height="225" aria-label="Star Reaper 86 game canvas"></canvas>
+          <div class="scanlines"></div>
+          <div class="overlay" id="overlay">
+            <div class="title-card">
+              <p class="title-kicker">Sector breach detected</p>
+              <h2 id="overlayTitle">Press Start</h2>
+              <p id="overlayBody">Launch with Enter or the Xbox Start button, then hold Space or A to fire.</p>
+              <div class="control-grid">
+                <div>
+                  <span class="control-label">Move</span>
+                  <span>WASD / Arrows / Left Stick / D-Pad</span>
+                </div>
+                <div>
+                  <span class="control-label">Fire</span>
+                  <span>Space / J / Xbox A, RB, RT</span>
+                </div>
+                <div>
+                  <span class="control-label">Bomb</span>
+                  <span>X / K / Xbox B, LB</span>
+                </div>
+                <div>
+                  <span class="control-label">Pause</span>
+                  <span>P / Esc / Xbox Start</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <span>Clear waves, survive the dreadnought encounters, and keep the combo alive.</span>
+        <span>Gamepad API support activates as soon as an Xbox controller is connected.</span>
+      </footer>
+    </main>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
