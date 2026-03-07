@@ -40,6 +40,14 @@
     "thumbnail": "thumbnails/piano.png"
   },
   {
+    "id": "violin",
+    "title": "Violin Ensemble",
+    "description": "3D string ensemble visualiser that distributes MIDI notes across violins, violas, cellos, and contrabasses. Features bow animation, string vibration, and synthesised audio.",
+    "tags": ["Three.js", "Web Audio", "MIDI", "3D"],
+    "path": "projects/violin/",
+    "thumbnail": "thumbnails/violin.png"
+  },
+  {
     "id": "brightonhub",
     "title": "Brighton Hub",
     "description": "Live city dashboard for Brighton & Hove with real-time transport, environment, crime, housing, health, events, and schools data from public APIs.",

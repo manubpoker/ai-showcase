@@ -1,0 +1,1798 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎻</text></svg>" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Violin Ensemble</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a12;
+      color: #fff;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    /* Top toolbar */
+    #toolbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1rem;
+      background: rgba(10, 10, 18, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    #toolbar h1 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+      margin-right: 0.5rem;
+      white-space: nowrap;
+    }
+
+    .toolbar-btn {
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.8);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      white-space: nowrap;
+    }
+    .toolbar-btn:hover {
+      background: rgba(180,120,60,0.25);
+      border-color: rgba(180,120,60,0.4);
+      color: #fff;
+    }
+    .toolbar-btn svg { flex-shrink: 0; }
+
+    #file-input { display: none; }
+
+    .toolbar-spacer { flex: 1; }
+
+    #instrument-info {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.4);
+      white-space: nowrap;
+    }
+
+    /* Bottom playback bar */
+    #playback-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 1rem;
+      background: rgba(10, 10, 18, 0.85);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .play-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(180,120,60,0.3);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+    .play-btn:hover { background: rgba(180,120,60,0.5); }
+
+    #progress-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.15);
+      outline: none;
+      cursor: pointer;
+    }
+    #progress-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #c8834a;
+      cursor: pointer;
+    }
+    #progress-slider::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #c8834a;
+      cursor: pointer;
+      border: none;
+    }
+
+    #time-display {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.5);
+      min-width: 80px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #tempo-control {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    #tempo-control label {
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.4);
+    }
+    #tempo-slider {
+      width: 60px;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.15);
+      outline: none;
+    }
+    #tempo-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.6);
+      cursor: pointer;
+    }
+    #tempo-value {
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.5);
+      min-width: 28px;
+    }
+
+    /* Song title display */
+    #song-title {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.6);
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Modals */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal-panel {
+      background: #1a1a2e;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      width: 90vw;
+      max-width: 900px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .modal-panel h2 {
+      color: #fff;
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.5);
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .modal-close:hover { color: #fff; }
+
+    /* Song library modal */
+    #song-library-search {
+      width: 100%;
+      padding: 0.5rem 1rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-size: 0.875rem;
+      outline: none;
+      margin-bottom: 0.75rem;
+    }
+    #song-library-search::placeholder { color: rgba(255,255,255,0.3); }
+
+    #song-library-list {
+      overflow-y: auto;
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 0.5rem;
+      padding-right: 0.25rem;
+    }
+
+    .song-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem 0.85rem;
+      border-radius: 0.5rem;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      cursor: pointer;
+      transition: all 0.15s;
+      color: rgba(255,255,255,0.7);
+      font-size: 0.8rem;
+    }
+    .song-item:hover {
+      background: rgba(180,120,60,0.15);
+      border-color: rgba(180,120,60,0.3);
+      color: #fff;
+    }
+    .song-item.loading {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .song-composer {
+      color: rgba(255,255,255,0.4);
+      font-size: 0.7rem;
+      display: block;
+    }
+    .song-icon {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: rgba(180,120,60,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    /* Generate modal */
+    #generate-panel { max-width: 550px; }
+    #generate-prompt {
+      width: 100%;
+      height: 100px;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-size: 0.85rem;
+      outline: none;
+      resize: vertical;
+      font-family: inherit;
+      margin-bottom: 0.5rem;
+    }
+    #generate-prompt::placeholder { color: rgba(255,255,255,0.3); }
+
+    .preset-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 0.75rem;
+    }
+    .preset-chip {
+      padding: 0.3rem 0.6rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      color: rgba(255,255,255,0.6);
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .preset-chip:hover {
+      background: rgba(180,120,60,0.15);
+      border-color: rgba(180,120,60,0.3);
+      color: #fff;
+    }
+    #generate-submit {
+      width: 100%;
+      padding: 0.6rem;
+      border-radius: 0.5rem;
+      border: none;
+      background: rgba(180,120,60,0.4);
+      color: #fff;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #generate-submit:hover { background: rgba(180,120,60,0.6); }
+    #generate-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #generate-status {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.4);
+      margin-top: 0.5rem;
+      text-align: center;
+      min-height: 1.2em;
+    }
+
+    /* Welcome overlay */
+    #welcome-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10,10,18,0.7);
+      backdrop-filter: blur(6px);
+    }
+    #welcome-overlay.hidden { display: none; }
+    #welcome-box {
+      text-align: center;
+      max-width: 400px;
+      padding: 2rem;
+    }
+    #welcome-box h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: rgba(255,255,255,0.9);
+    }
+    #welcome-box p {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.15);
+      border-radius: 3px;
+    }
+
+    @media (max-width: 600px) {
+      #toolbar { padding: 0.4rem 0.5rem; gap: 0.3rem; }
+      #toolbar h1 { font-size: 0.85rem; }
+      .toolbar-btn { padding: 0.3rem 0.5rem; font-size: 0.72rem; }
+      #playback-bar { padding: 0.4rem 0.5rem; gap: 0.4rem; }
+      #tempo-control { display: none; }
+      #song-title { max-width: 100px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container"></div>
+
+  <!-- Top toolbar -->
+  <div id="toolbar">
+    <h1>Violin Ensemble</h1>
+    <input type="file" id="file-input" accept=".mid,.midi" />
+    <button class="toolbar-btn" id="btn-upload">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Upload
+    </button>
+    <button class="toolbar-btn" id="btn-library">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      Library
+    </button>
+    <button class="toolbar-btn" id="btn-generate">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      Generate
+    </button>
+    <div class="toolbar-spacer"></div>
+    <span id="instrument-info"></span>
+  </div>
+
+  <!-- Bottom playback bar -->
+  <div id="playback-bar">
+    <button class="play-btn" id="btn-play" title="Play/Pause">
+      <svg id="play-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      <svg id="pause-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+    </button>
+    <span id="song-title">No file loaded</span>
+    <input type="range" id="progress-slider" min="0" max="100" value="0" step="0.1" />
+    <span id="time-display">0:00 / 0:00</span>
+    <div id="tempo-control">
+      <label>Tempo</label>
+      <input type="range" id="tempo-slider" min="0.25" max="2" value="1" step="0.05" />
+      <span id="tempo-value">1x</span>
+    </div>
+  </div>
+
+  <!-- Welcome overlay -->
+  <div id="welcome-overlay">
+    <div id="welcome-box">
+      <h2>🎻 Violin Ensemble</h2>
+      <p>Load a MIDI file to see it performed by a virtual string ensemble. Notes are distributed across violins, violas, cellos, and contrabasses based on pitch range.</p>
+      <button class="toolbar-btn" onclick="document.getElementById('btn-library').click(); document.getElementById('welcome-overlay').classList.add('hidden');" style="margin:0 auto;padding:0.6rem 1.5rem;font-size:0.9rem;">
+        Browse Library
+      </button>
+    </div>
+  </div>
+
+  <!-- Song library modal -->
+  <div class="modal-overlay" id="library-overlay">
+    <div class="modal-panel" id="library-panel">
+      <button class="modal-close" id="library-close">&times;</button>
+      <h2>Song Library</h2>
+      <input id="song-library-search" type="text" placeholder="Search songs..." />
+      <div id="song-library-list"></div>
+    </div>
+  </div>
+
+  <!-- Generate modal -->
+  <div class="modal-overlay" id="generate-overlay">
+    <div class="modal-panel" id="generate-panel">
+      <button class="modal-close" id="generate-close">&times;</button>
+      <h2>AI Generate</h2>
+      <div class="preset-chips">
+        <span class="preset-chip" data-preset="A gentle, lyrical violin melody in the style of a Romantic nocturne">Romantic Nocturne</span>
+        <span class="preset-chip" data-preset="A lively string quartet passage with interweaving voices, allegro tempo">String Quartet</span>
+        <span class="preset-chip" data-preset="A melancholic cello-range solo with slow vibrato and expressive dynamics">Melancholic Solo</span>
+        <span class="preset-chip" data-preset="An energetic folk dance for strings with rhythmic bowing patterns">Folk Dance</span>
+        <span class="preset-chip" data-preset="A minimalist, meditative piece with long sustained notes and subtle shifts">Minimalist</span>
+        <span class="preset-chip" data-preset="A dramatic, virtuosic passage spanning the full range of a string orchestra">Virtuosic</span>
+      </div>
+      <textarea id="generate-prompt" placeholder="Describe the music you want to hear..."></textarea>
+      <button id="generate-submit">Generate</button>
+      <div id="generate-status"></div>
+    </div>
+  </div>
+
+  <!-- Three.js & MIDI parser -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.28/build/Midi.min.js"></script>
+
+  <script>
+  (function() {
+    'use strict';
+
+    // ========== SONGS DATABASE ==========
+    const SONGS = [
+      { file: "bach-prelude-c-major.mid", title: "Prelude in C Major", composer: "J.S. Bach" },
+      { file: "bach-prelude-c-minor.mid", title: "Prelude in C Minor", composer: "J.S. Bach" },
+      { file: "bach-invention-no4.mid", title: "Invention No. 4", composer: "J.S. Bach" },
+      { file: "bach-invention-no13.mid", title: "Invention No. 13", composer: "J.S. Bach" },
+      { file: "bach-fugue-g-minor-piano.mid", title: "Fugue in G Minor", composer: "J.S. Bach" },
+      { file: "bach-toccata-fugue-dm.mid", title: "Toccata & Fugue in D Minor", composer: "J.S. Bach" },
+      { file: "bach-cello-suite1-piano.mid", title: "Cello Suite No. 1 (Piano)", composer: "J.S. Bach" },
+      { file: "bach-badinerie-piano.mid", title: "Badinerie (Piano)", composer: "J.S. Bach" },
+      { file: "bwv846.mid", title: "Well-Tempered Clavier BWV 846", composer: "J.S. Bach" },
+      { file: "cpe-bach-solfeggietto.mid", title: "Solfeggietto", composer: "C.P.E. Bach" },
+      { file: "beethoven-moonlight-sonata.mid", title: "Moonlight Sonata", composer: "Beethoven" },
+      { file: "beethoven-pathetique-2.mid", title: "Pathetique Sonata, Mvt. 2", composer: "Beethoven" },
+      { file: "beethoven-ode-to-joy-piano.mid", title: "Ode to Joy (Piano)", composer: "Beethoven" },
+      { file: "beethoven-symphony7-2-piano.mid", title: "Symphony No. 7, Mvt. 2 (Liszt)", composer: "Beethoven" },
+      { file: "beethoven-minuet-g.mid", title: "Minuet in G", composer: "Beethoven" },
+      { file: "furelise.mid", title: "Fur Elise", composer: "Beethoven" },
+      { file: "chopin-nocturne-op9-no2.mid", title: "Nocturne Op. 9 No. 2", composer: "Chopin" },
+      { file: "chopin-nocturne-no20.mid", title: "Nocturne No. 20", composer: "Chopin" },
+      { file: "chopin-prelude-4-e-minor.mid", title: "Prelude No. 4 in E Minor", composer: "Chopin" },
+      { file: "chopin-prelude-6.mid", title: "Prelude No. 6", composer: "Chopin" },
+      { file: "chopin-prelude-15-raindrop.mid", title: "Raindrop Prelude", composer: "Chopin" },
+      { file: "chopin-prelude-20.mid", title: "Prelude No. 20 in C Minor", composer: "Chopin" },
+      { file: "chopin-waltz-op18.mid", title: "Grande Valse Brillante", composer: "Chopin" },
+      { file: "chopin-minute-waltz.mid", title: "Minute Waltz", composer: "Chopin" },
+      { file: "chopin-waltz-op64-no2.mid", title: "Waltz Op. 64 No. 2", composer: "Chopin" },
+      { file: "chopin-etude-op10-no4.mid", title: "Etude Op. 10 No. 4", composer: "Chopin" },
+      { file: "chopin-funeral-march.mid", title: "Funeral March", composer: "Chopin" },
+      { file: "debussy-clair-de-lune.mid", title: "Clair de Lune", composer: "Debussy" },
+      { file: "debussy-arabesque-1.mid", title: "Arabesque No. 1", composer: "Debussy" },
+      { file: "debussy-doctor-gradus.mid", title: "Doctor Gradus ad Parnassum", composer: "Debussy" },
+      { file: "debussy-golliwogs-cakewalk.mid", title: "Golliwog's Cakewalk", composer: "Debussy" },
+      { file: "debussy-reverie.mid", title: "Reverie", composer: "Debussy" },
+      { file: "debussy-reflections.mid", title: "Reflections in the Water", composer: "Debussy" },
+      { file: "satie-gymnopedie-1.mid", title: "Gymnopedie No. 1", composer: "Satie" },
+      { file: "satie-gnossienne-1.mid", title: "Gnossienne No. 1", composer: "Satie" },
+      { file: "gymnop01.mid", title: "Gymnopedie No. 1 (alt)", composer: "Satie" },
+      { file: "gymnop02.mid", title: "Gymnopedie No. 2", composer: "Satie" },
+      { file: "gnoss.mid", title: "Gnossienne No. 1 (alt)", composer: "Satie" },
+      { file: "gnossie4.mid", title: "Gnossienne No. 4", composer: "Satie" },
+      { file: "gnossie5.mid", title: "Gnossienne No. 5", composer: "Satie" },
+      { file: "mozart-alla-turca.mid", title: "Rondo alla Turca", composer: "Mozart" },
+      { file: "mozart-sonata-c-major.mid", title: "Sonata in C Major", composer: "Mozart" },
+      { file: "mozart-sonata-k333.mid", title: "Sonata K.333", composer: "Mozart" },
+      { file: "mozart-elvira-madigan-piano.mid", title: "Elvira Madigan (Piano)", composer: "Mozart" },
+      { file: "liszt-liebestraum-3.mid", title: "Liebestraum No. 3", composer: "Liszt" },
+      { file: "rachmaninoff-prelude-csharp-minor.mid", title: "Prelude in C# Minor", composer: "Rachmaninoff" },
+      { file: "rachmaninoff-prelude-g-minor.mid", title: "Prelude in G Minor", composer: "Rachmaninoff" },
+      { file: "rach0302.mid", title: "Piano Concerto No. 3", composer: "Rachmaninoff" },
+      { file: "racp23-4.mid", title: "Prelude Op. 23 No. 4", composer: "Rachmaninoff" },
+      { file: "r2310.mid", title: "Prelude Op. 23 No. 10", composer: "Rachmaninoff" },
+      { file: "brahms-intermezzo-op118.mid", title: "Intermezzo Op. 118 No. 2", composer: "Brahms" },
+      { file: "brahms-waltz-15.mid", title: "Waltz No. 15", composer: "Brahms" },
+      { file: "brahms-lullaby-piano.mid", title: "Lullaby (Piano)", composer: "Brahms" },
+      { file: "brahms-symphony3-3-piano.mid", title: "Symphony No. 3, Mvt. 3 (Piano)", composer: "Brahms" },
+      { file: "grieg-arietta.mid", title: "Arietta (Lyric Piece)", composer: "Grieg" },
+      { file: "grieg-notturno.mid", title: "Notturno (Lyric Piece)", composer: "Grieg" },
+      { file: "grieg-morning-mood-piano.mid", title: "Morning Mood (Piano)", composer: "Grieg" },
+      { file: "grieg-wedding-day.mid", title: "Wedding Day at Troldhaugen", composer: "Grieg" },
+      { file: "tchaikovsky-album-leaf.mid", title: "Feuillet d'Album", composer: "Tchaikovsky" },
+      { file: "tchaikovsky-waltz-op39.mid", title: "Waltz Op. 39 No. 8", composer: "Tchaikovsky" },
+      { file: "tchaikovsky-chanson-triste.mid", title: "Chanson Triste", composer: "Tchaikovsky" },
+      { file: "tchaikovsky-sugar-plum-piano.mid", title: "Dance of the Sugar Plum Fairy", composer: "Tchaikovsky" },
+      { file: "schubert-impromptu-no2.mid", title: "Impromptu No. 2", composer: "Schubert" },
+      { file: "schumann-traumerei.mid", title: "Traumerei", composer: "Schumann" },
+      { file: "schumann-strange-lands.mid", title: "About Strange Lands and People", composer: "Schumann" },
+      { file: "joplin-maple-leaf-rag.mid", title: "Maple Leaf Rag", composer: "Joplin" },
+      { file: "joplin-solace.mid", title: "Solace", composer: "Joplin" },
+      { file: "joplin-elite-syncopations.mid", title: "Elite Syncopations", composer: "Joplin" },
+      { file: "Movie_Themes_-_The_Sting_-_The_Entertainer_by_Scott_Joplin.mid", title: "The Entertainer", composer: "Joplin" },
+      { file: "ravel-jeux-deau.mid", title: "Jeux d'eau", composer: "Ravel" },
+      { file: "ravel-menuet.mid", title: "Menuet", composer: "Ravel" },
+      { file: "scarlatti-sonata-k32.mid", title: "Sonata K.32 in D Minor", composer: "Scarlatti" },
+      { file: "scarlatti-sonata-k159.mid", title: "Sonata K.159 in C Major", composer: "Scarlatti" },
+      { file: "scarlatti-sonata-k185.mid", title: "Sonata K.185 in F Minor", composer: "Scarlatti" },
+      { file: "dvorak-humoresque-piano.mid", title: "Humoresque No. 7", composer: "Dvorak" },
+      { file: "handel-sarabande.mid", title: "Sarabande in D Minor", composer: "Handel" },
+      { file: "handel-largo-piano.mid", title: "Largo (Piano)", composer: "Handel" },
+      { file: "pachelbel-canon-piano.mid", title: "Canon in D (Piano)", composer: "Pachelbel" },
+      { file: "purcell-ground-c-minor.mid", title: "Ground in C Minor", composer: "Purcell" },
+      { file: "purcell-didos-lament-piano.mid", title: "Dido's Lament (Piano)", composer: "Purcell" },
+      { file: "elgar-nimrod-piano.mid", title: "Nimrod (Piano)", composer: "Elgar" },
+      { file: "elgar-salut-damour-piano.mid", title: "Salut d'Amour (Piano)", composer: "Elgar" },
+      { file: "field-nocturne-5.mid", title: "Nocturne No. 5", composer: "Field" },
+      { file: "filtsch-romance-op3.mid", title: "Romance Op. 3 No. 1", composer: "Filtsch" },
+      { file: "faure-berceuse-piano.mid", title: "Berceuse (Dolly Suite)", composer: "Faure" },
+      { file: "massenet-meditation-piano.mid", title: "Meditation from Thais", composer: "Massenet" },
+      { file: "mendelssohn-song-without-words-6.mid", title: "Song Without Words No. 6", composer: "Mendelssohn" },
+      { file: "mendelssohn-song-without-words-34.mid", title: "Song Without Words No. 34", composer: "Mendelssohn" },
+      { file: "mussorgsky-promenade.mid", title: "Promenade (Pictures)", composer: "Mussorgsky" },
+      { file: "petzold-minuet-g-major.mid", title: "Minuet in G Major", composer: "Petzold" },
+      { file: "petzold-minuet-g-minor.mid", title: "Minuet in G Minor", composer: "Petzold" },
+      { file: "earle-of-salisbury.mid", title: "The Earle of Salisbury", composer: "Byrd" },
+      { file: "bumbleb.mid", title: "Flight of the Bumblebee", composer: "Rimsky-Korsakov" },
+      { file: "Find My Way (Instrumental).mid", title: "Find My Way", composer: "Instrumental" },
+    ];
+
+    // ========== THREE.JS SCENE ==========
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a12);
+    scene.fog = new THREE.FogExp2(0x0a0a12, 0.015);
+
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 6, 10);
+    camera.lookAt(0, 1, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    container.appendChild(renderer.domElement);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x2a2a4a, 0.6);
+    scene.add(ambientLight);
+
+    const spotlight = new THREE.SpotLight(0xfff5e6, 2.5, 30, Math.PI / 4, 0.5, 1);
+    spotlight.position.set(0, 12, 2);
+    spotlight.castShadow = true;
+    spotlight.shadow.mapSize.set(1024, 1024);
+    scene.add(spotlight);
+
+    const fillLight1 = new THREE.PointLight(0xb4783c, 0.8, 15);
+    fillLight1.position.set(-5, 3, 3);
+    scene.add(fillLight1);
+
+    const fillLight2 = new THREE.PointLight(0x6a8ccc, 0.5, 15);
+    fillLight2.position.set(5, 3, 3);
+    scene.add(fillLight2);
+
+    // Floor
+    const floorGeo = new THREE.PlaneGeometry(40, 40);
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0x111118,
+      roughness: 0.3,
+      metalness: 0.6,
+    });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // Orbit controls (manual lightweight implementation)
+    let orbitTheta = 0, orbitPhi = Math.PI / 6, orbitRadius = 12;
+    let isDragging = false, lastMX = 0, lastMY = 0;
+    let targetTheta = 0, targetPhi = Math.PI / 6, targetRadius = 12;
+
+    function updateCamera() {
+      orbitTheta += (targetTheta - orbitTheta) * 0.08;
+      orbitPhi += (targetPhi - orbitPhi) * 0.08;
+      orbitRadius += (targetRadius - orbitRadius) * 0.08;
+      orbitPhi = Math.max(0.05, Math.min(Math.PI / 2.1, orbitPhi));
+      orbitRadius = Math.max(4, Math.min(25, orbitRadius));
+      camera.position.x = orbitRadius * Math.sin(orbitPhi) * Math.sin(orbitTheta);
+      camera.position.y = orbitRadius * Math.cos(orbitPhi);
+      camera.position.z = orbitRadius * Math.sin(orbitPhi) * Math.cos(orbitTheta);
+      camera.lookAt(0, 1.2, 0);
+    }
+
+    renderer.domElement.addEventListener('pointerdown', e => {
+      isDragging = true;
+      lastMX = e.clientX;
+      lastMY = e.clientY;
+    });
+    window.addEventListener('pointermove', e => {
+      if (!isDragging) return;
+      const dx = e.clientX - lastMX;
+      const dy = e.clientY - lastMY;
+      targetTheta -= dx * 0.005;
+      targetPhi -= dy * 0.005;
+      lastMX = e.clientX;
+      lastMY = e.clientY;
+    });
+    window.addEventListener('pointerup', () => isDragging = false);
+    renderer.domElement.addEventListener('wheel', e => {
+      e.preventDefault();
+      targetRadius += e.deltaY * 0.005;
+    }, { passive: false });
+
+    // Touch support
+    let lastTouchDist = 0;
+    renderer.domElement.addEventListener('touchstart', e => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        lastMX = e.touches[0].clientX;
+        lastMY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        lastTouchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+      }
+    }, { passive: true });
+    renderer.domElement.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (e.touches.length === 1 && isDragging) {
+        const dx = e.touches[0].clientX - lastMX;
+        const dy = e.touches[0].clientY - lastMY;
+        targetTheta -= dx * 0.005;
+        targetPhi -= dy * 0.005;
+        lastMX = e.touches[0].clientX;
+        lastMY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        targetRadius -= (dist - lastTouchDist) * 0.02;
+        lastTouchDist = dist;
+      }
+    }, { passive: false });
+    renderer.domElement.addEventListener('touchend', () => isDragging = false);
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ========== VIOLIN 3D MODEL BUILDER ==========
+    const WOOD_COLOR = 0x8B4513;
+    const DARK_WOOD = 0x3d1c02;
+    const STRING_COLOR = 0xc0c0c0;
+    const FINGERBOARD_COLOR = 0x1a1a1a;
+
+    function buildViolin(scale) {
+      const group = new THREE.Group();
+      const s = scale || 1;
+
+      // Body - extrude from a violin-shaped path
+      const bodyShape = new THREE.Shape();
+      // Upper bout
+      bodyShape.moveTo(0, -0.7 * s);
+      bodyShape.bezierCurveTo(0.4 * s, -0.7 * s, 0.55 * s, -0.4 * s, 0.55 * s, -0.15 * s);
+      // Waist (C-bout)
+      bodyShape.bezierCurveTo(0.55 * s, 0.0, 0.35 * s, 0.05 * s, 0.32 * s, 0.15 * s);
+      // Lower bout
+      bodyShape.bezierCurveTo(0.35 * s, 0.3 * s, 0.6 * s, 0.45 * s, 0.6 * s, 0.65 * s);
+      bodyShape.bezierCurveTo(0.6 * s, 0.85 * s, 0.35 * s, 1.0 * s, 0 * s, 1.0 * s);
+      // Mirror
+      bodyShape.bezierCurveTo(-0.35 * s, 1.0 * s, -0.6 * s, 0.85 * s, -0.6 * s, 0.65 * s);
+      bodyShape.bezierCurveTo(-0.6 * s, 0.45 * s, -0.35 * s, 0.3 * s, -0.32 * s, 0.15 * s);
+      bodyShape.bezierCurveTo(-0.35 * s, 0.05 * s, -0.55 * s, 0.0, -0.55 * s, -0.15 * s);
+      bodyShape.bezierCurveTo(-0.55 * s, -0.4 * s, -0.4 * s, -0.7 * s, 0, -0.7 * s);
+
+      const extrudeSettings = { depth: 0.12 * s, bevelEnabled: true, bevelThickness: 0.02 * s, bevelSize: 0.02 * s, bevelSegments: 3 };
+      const bodyGeo = new THREE.ExtrudeGeometry(bodyShape, extrudeSettings);
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color: WOOD_COLOR,
+        roughness: 0.35,
+        metalness: 0.1,
+      });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.rotation.x = -Math.PI / 2;
+      body.position.y = 0.06 * s;
+      body.castShadow = true;
+      group.add(body);
+
+      // F-holes (dark indentations)
+      for (let side = -1; side <= 1; side += 2) {
+        const fShape = new THREE.Shape();
+        fShape.moveTo(0, -0.15 * s);
+        fShape.bezierCurveTo(0.04 * s, -0.15 * s, 0.04 * s, 0.15 * s, 0, 0.15 * s);
+        fShape.bezierCurveTo(-0.02 * s, 0.15 * s, -0.02 * s, -0.15 * s, 0, -0.15 * s);
+        const fGeo = new THREE.ShapeGeometry(fShape);
+        const fMat = new THREE.MeshBasicMaterial({ color: 0x0a0500, side: THREE.DoubleSide });
+        const fHole = new THREE.Mesh(fGeo, fMat);
+        fHole.position.set(side * 0.2 * s, 0.19 * s, 0.15 * s);
+        fHole.rotation.z = side * 0.15;
+        group.add(fHole);
+      }
+
+      // Neck
+      const neckGeo = new THREE.BoxGeometry(0.1 * s, 0.08 * s, 0.8 * s);
+      const neckMat = new THREE.MeshStandardMaterial({ color: WOOD_COLOR, roughness: 0.4 });
+      const neck = new THREE.Mesh(neckGeo, neckMat);
+      neck.position.set(0, 0.14 * s, -1.1 * s);
+      neck.castShadow = true;
+      group.add(neck);
+
+      // Fingerboard
+      const fbGeo = new THREE.BoxGeometry(0.12 * s, 0.025 * s, 0.85 * s);
+      const fbMat = new THREE.MeshStandardMaterial({ color: FINGERBOARD_COLOR, roughness: 0.9, metalness: 0 });
+      const fingerboard = new THREE.Mesh(fbGeo, fbMat);
+      fingerboard.position.set(0, 0.19 * s, -1.05 * s);
+      group.add(fingerboard);
+      group.userData.fingerboard = fingerboard;
+
+      // Scroll (spiral at top)
+      const scrollGeo = new THREE.SphereGeometry(0.07 * s, 12, 12);
+      const scrollMat = new THREE.MeshStandardMaterial({ color: DARK_WOOD, roughness: 0.3 });
+      const scroll = new THREE.Mesh(scrollGeo, scrollMat);
+      scroll.position.set(0, 0.14 * s, -1.55 * s);
+      scroll.scale.set(1, 0.7, 1.3);
+      group.add(scroll);
+
+      // Pegs
+      for (let i = 0; i < 4; i++) {
+        const pegGeo = new THREE.CylinderGeometry(0.015 * s, 0.015 * s, 0.12 * s, 8);
+        const pegMat = new THREE.MeshStandardMaterial({ color: DARK_WOOD, roughness: 0.3 });
+        const peg = new THREE.Mesh(pegGeo, pegMat);
+        const side = i < 2 ? -1 : 1;
+        const z = -1.4 * s + (i % 2) * 0.08 * s;
+        peg.position.set(side * 0.08 * s, 0.14 * s, z);
+        peg.rotation.z = Math.PI / 2;
+        group.add(peg);
+      }
+
+      // Tailpiece
+      const tpGeo = new THREE.BoxGeometry(0.1 * s, 0.02 * s, 0.25 * s);
+      const tpMat = new THREE.MeshStandardMaterial({ color: FINGERBOARD_COLOR, roughness: 0.8 });
+      const tp = new THREE.Mesh(tpGeo, tpMat);
+      tp.position.set(0, 0.19 * s, 0.55 * s);
+      group.add(tp);
+
+      // Bridge
+      const bridgeGeo = new THREE.BoxGeometry(0.15 * s, 0.06 * s, 0.015 * s);
+      const bridgeMat = new THREE.MeshStandardMaterial({ color: 0xd4b896, roughness: 0.6 });
+      const bridge = new THREE.Mesh(bridgeGeo, bridgeMat);
+      bridge.position.set(0, 0.22 * s, 0.15 * s);
+      group.add(bridge);
+
+      // Chinrest
+      const chinGeo = new THREE.SphereGeometry(0.12 * s, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+      const chinMat = new THREE.MeshStandardMaterial({ color: DARK_WOOD, roughness: 0.4 });
+      const chin = new THREE.Mesh(chinGeo, chinMat);
+      chin.position.set(-0.2 * s, 0.12 * s, 0.7 * s);
+      chin.scale.set(1, 0.3, 1.2);
+      group.add(chin);
+
+      // Strings
+      const strings = [];
+      const stringPositions = [-0.04, -0.013, 0.013, 0.04]; // G, D, A, E
+      for (let i = 0; i < 4; i++) {
+        const pts = [];
+        const segments = 32;
+        for (let j = 0; j <= segments; j++) {
+          const t = j / segments;
+          const z = 0.55 * s - t * 2.0 * s; // tailpiece to scroll
+          const x = stringPositions[i] * s;
+          const y = 0.22 * s + (t < 0.1 || t > 0.9 ? 0 : 0.01 * s * Math.sin(t * Math.PI));
+          pts.push(new THREE.Vector3(x, y, z));
+        }
+        const curve = new THREE.CatmullRomCurve3(pts);
+        const tubeGeo = new THREE.TubeGeometry(curve, segments, 0.003 * s, 6, false);
+        const tubeMat = new THREE.MeshStandardMaterial({
+          color: STRING_COLOR,
+          roughness: 0.2,
+          metalness: 0.8,
+          emissive: 0x000000,
+          emissiveIntensity: 0,
+        });
+        const stringMesh = new THREE.Mesh(tubeGeo, tubeMat);
+        group.add(stringMesh);
+        strings.push({
+          mesh: stringMesh,
+          material: tubeMat,
+          basePoints: pts.map(p => p.clone()),
+          segments,
+          scale: s,
+          stringIndex: i,
+          xPos: stringPositions[i] * s,
+        });
+      }
+      group.userData.strings = strings;
+
+      // Bow
+      const bowGroup = new THREE.Group();
+      // Stick
+      const bowStickGeo = new THREE.CylinderGeometry(0.006 * s, 0.004 * s, 1.6 * s, 8);
+      const bowStickMat = new THREE.MeshStandardMaterial({ color: DARK_WOOD, roughness: 0.3 });
+      const bowStick = new THREE.Mesh(bowStickGeo, bowStickMat);
+      bowStick.rotation.z = Math.PI / 2;
+      bowGroup.add(bowStick);
+      // Hair
+      const bowHairGeo = new THREE.BoxGeometry(1.4 * s, 0.003 * s, 0.012 * s);
+      const bowHairMat = new THREE.MeshStandardMaterial({ color: 0xf5f0e0, roughness: 0.8 });
+      const bowHair = new THREE.Mesh(bowHairGeo, bowHairMat);
+      bowHair.position.y = -0.015 * s;
+      bowGroup.add(bowHair);
+      // Frog
+      const frogGeo = new THREE.BoxGeometry(0.06 * s, 0.025 * s, 0.025 * s);
+      const frogMat = new THREE.MeshStandardMaterial({ color: FINGERBOARD_COLOR, roughness: 0.5 });
+      const frog = new THREE.Mesh(frogGeo, frogMat);
+      frog.position.set(0.72 * s, -0.005 * s, 0);
+      bowGroup.add(frog);
+
+      bowGroup.position.set(0, 0.26 * s, 0.05 * s);
+      bowGroup.rotation.y = Math.PI / 2;
+      group.add(bowGroup);
+      group.userData.bow = bowGroup;
+      group.userData.bowBaseY = 0.26 * s;
+      group.userData.bowBaseX = 0;
+
+      // Finger marker (invisible until note plays)
+      const fingerGeo = new THREE.SphereGeometry(0.02 * s, 12, 12);
+      const fingerMat = new THREE.MeshStandardMaterial({
+        color: 0xff8c00,
+        emissive: 0xff6600,
+        emissiveIntensity: 0.8,
+        transparent: true,
+        opacity: 0,
+      });
+      const finger = new THREE.Mesh(fingerGeo, fingerMat);
+      finger.position.set(0, 0.21 * s, -0.5 * s);
+      group.add(finger);
+      group.userData.finger = finger;
+      group.userData.fingerMat = fingerMat;
+
+      // Label sprite
+      group.userData.scale = s;
+
+      return group;
+    }
+
+    // ========== LABEL HELPER ==========
+    function createLabel(text, subtext) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 80;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(text, 128, 32);
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.font = '18px sans-serif';
+      ctx.fillText(subtext, 128, 58);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(1.5, 0.5, 1);
+      return sprite;
+    }
+
+    // ========== VIOLIN SYNTH (Web Audio) ==========
+    let audioCtx = null;
+    let masterGain = null;
+    let reverbNode = null;
+
+    function initAudio() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      // Master gain
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.35;
+
+      // Create reverb
+      const reverbLen = 2;
+      const sampleRate = audioCtx.sampleRate;
+      const impulse = audioCtx.createBuffer(2, sampleRate * reverbLen, sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = impulse.getChannelData(ch);
+        for (let i = 0; i < data.length; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2.5);
+        }
+      }
+      reverbNode = audioCtx.createConvolver();
+      reverbNode.buffer = impulse;
+
+      const reverbGain = audioCtx.createGain();
+      reverbGain.gain.value = 0.25;
+
+      const dryGain = audioCtx.createGain();
+      dryGain.gain.value = 0.8;
+
+      masterGain.connect(dryGain);
+      dryGain.connect(audioCtx.destination);
+      masterGain.connect(reverbGain);
+      reverbGain.connect(reverbNode);
+      reverbNode.connect(audioCtx.destination);
+    }
+
+    class ViolinSynth {
+      constructor(pan) {
+        this.pan = pan;
+        this.activeNotes = new Map();
+      }
+
+      noteOn(midi, velocity, time) {
+        if (!audioCtx) return;
+        const t = time || audioCtx.currentTime;
+        const freq = 440 * Math.pow(2, (midi - 69) / 12);
+        const vel = (velocity || 80) / 127;
+
+        // Two sawtooth oscillators (detuned for chorus)
+        const osc1 = audioCtx.createOscillator();
+        osc1.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(freq, t);
+
+        const osc2 = audioCtx.createOscillator();
+        osc2.type = 'sawtooth';
+        osc2.frequency.setValueAtTime(freq * 1.003, t); // slight detune
+
+        // Sub oscillator (triangle, octave lower for warmth)
+        const sub = audioCtx.createOscillator();
+        sub.type = 'triangle';
+        sub.frequency.setValueAtTime(freq * 0.5, t);
+
+        // Gain for each
+        const g1 = audioCtx.createGain();
+        g1.gain.value = 0.3 * vel;
+        const g2 = audioCtx.createGain();
+        g2.gain.value = 0.25 * vel;
+        const gSub = audioCtx.createGain();
+        gSub.gain.value = 0.12 * vel;
+
+        // Low-pass filter
+        const lpf = audioCtx.createBiquadFilter();
+        lpf.type = 'lowpass';
+        lpf.frequency.setValueAtTime(3000 + freq * 1.5, t);
+        lpf.Q.value = 0.8;
+
+        // Body resonance peak
+        const peak = audioCtx.createBiquadFilter();
+        peak.type = 'peaking';
+        peak.frequency.setValueAtTime(1200, t);
+        peak.gain.value = 4;
+        peak.Q.value = 2;
+
+        // High shelf rolloff
+        const hshelf = audioCtx.createBiquadFilter();
+        hshelf.type = 'highshelf';
+        hshelf.frequency.setValueAtTime(5000, t);
+        hshelf.gain.value = -6;
+
+        // Envelope gain
+        const env = audioCtx.createGain();
+        env.gain.setValueAtTime(0, t);
+        env.gain.linearRampToValueAtTime(0.75 * vel, t + 0.08);
+
+        // Vibrato LFO (5.5Hz, delayed onset)
+        const lfo = audioCtx.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.value = 5.5;
+        const lfoGain = audioCtx.createGain();
+        lfoGain.gain.setValueAtTime(0, t);
+        lfoGain.gain.linearRampToValueAtTime(freq * 0.006, t + 0.3); // ~10 cents
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc1.frequency);
+        lfoGain.connect(osc2.frequency);
+
+        // Stereo panning
+        const panner = audioCtx.createStereoPanner();
+        panner.pan.value = this.pan;
+
+        // Signal chain
+        osc1.connect(g1);
+        osc2.connect(g2);
+        sub.connect(gSub);
+        g1.connect(lpf);
+        g2.connect(lpf);
+        gSub.connect(lpf);
+        lpf.connect(peak);
+        peak.connect(hshelf);
+        hshelf.connect(env);
+        env.connect(panner);
+        panner.connect(masterGain);
+
+        osc1.start(t);
+        osc2.start(t);
+        sub.start(t);
+        lfo.start(t);
+
+        this.activeNotes.set(midi, { osc1, osc2, sub, lfo, env, g1, g2, gSub, lfoGain, panner });
+      }
+
+      noteOff(midi, time) {
+        if (!audioCtx) return;
+        const note = this.activeNotes.get(midi);
+        if (!note) return;
+        const t = time || audioCtx.currentTime;
+
+        note.env.gain.cancelScheduledValues(t);
+        note.env.gain.setValueAtTime(note.env.gain.value, t);
+        note.env.gain.linearRampToValueAtTime(0, t + 0.15);
+
+        const stopTime = t + 0.2;
+        note.osc1.stop(stopTime);
+        note.osc2.stop(stopTime);
+        note.sub.stop(stopTime);
+        note.lfo.stop(stopTime);
+        this.activeNotes.delete(midi);
+      }
+
+      allOff() {
+        for (const midi of [...this.activeNotes.keys()]) {
+          this.noteOff(midi);
+        }
+      }
+    }
+
+    // ========== VIOLIN DISTRIBUTION ALGORITHM ==========
+    function classifyInstrument(midNote) {
+      if (midNote < 36) return { name: 'Contrabass', scale: 1.6 };
+      if (midNote < 48) return { name: 'Cello', scale: 1.3 };
+      if (midNote < 60) return { name: 'Viola', scale: 1.1 };
+      return { name: 'Violin', scale: 1.0 };
+    }
+
+    function distributeNotes(allNotes) {
+      if (allNotes.length === 0) return [];
+
+      let minNote = 127, maxNote = 0;
+      for (const n of allNotes) {
+        if (n.midi < minNote) minNote = n.midi;
+        if (n.midi > maxNote) maxNote = n.midi;
+      }
+
+      const range = maxNote - minNote;
+      const step = 20; // 24 semitones per violin, 4 overlap
+      const count = Math.max(1, Math.ceil(range / step));
+
+      const instruments = [];
+      for (let i = 0; i < count; i++) {
+        const lo = minNote + i * step;
+        const hi = lo + 24;
+        const mid = (lo + hi) / 2;
+        const info = classifyInstrument(mid);
+        instruments.push({
+          index: i,
+          lo,
+          hi,
+          mid,
+          name: info.name,
+          scale: info.scale,
+          notes: [],
+        });
+      }
+
+      // Assign notes to nearest instrument
+      for (const n of allNotes) {
+        let bestIdx = 0;
+        let bestDist = Infinity;
+        for (let i = 0; i < instruments.length; i++) {
+          const dist = Math.abs(n.midi - instruments[i].mid);
+          // Prefer instruments that actually cover this note
+          const inRange = n.midi >= instruments[i].lo && n.midi <= instruments[i].hi;
+          const effectiveDist = inRange ? dist : dist + 100;
+          if (effectiveDist < bestDist) {
+            bestDist = effectiveDist;
+            bestIdx = i;
+          }
+        }
+        instruments[bestIdx].notes.push(n);
+      }
+
+      // Remove empty instruments
+      return instruments.filter(inst => inst.notes.length > 0);
+    }
+
+    // ========== STATE ==========
+    let violinObjects = [];  // { group, synth, instrument, activeNotes }
+    let allEvents = [];      // sorted timeline [{time, type, midi, velocity, instrumentIdx, duration}]
+    let totalDuration = 0;
+    let isPlaying = false;
+    let playStartTime = 0;
+    let playOffset = 0;
+    let eventIndex = 0;
+    let tempoMultiplier = 1;
+    let animTime = 0;
+
+    // ========== SCENE MANAGEMENT ==========
+    function clearScene() {
+      // Stop all audio
+      for (const v of violinObjects) {
+        v.synth.allOff();
+      }
+      // Remove violin groups, labels, and dispose GPU resources
+      for (const v of violinObjects) {
+        if (v.group.userData.label) {
+          scene.remove(v.group.userData.label);
+          v.group.userData.label.material.map.dispose();
+          v.group.userData.label.material.dispose();
+        }
+        v.group.traverse(child => {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (child.material.map) child.material.map.dispose();
+            child.material.dispose();
+          }
+        });
+        scene.remove(v.group);
+      }
+      violinObjects = [];
+      allEvents = [];
+      totalDuration = 0;
+      isPlaying = false;
+      playOffset = 0;
+      eventIndex = 0;
+    }
+
+    function spawnViolins(instruments) {
+      clearScene();
+      initAudio();
+
+      const count = instruments.length;
+      // Semicircle layout - lower instruments on right, higher on left
+      const radius = 1.5 + count * 0.6;
+
+      // Sort: lowest range on right, highest on left
+      instruments.sort((a, b) => a.mid - b.mid);
+
+      for (let i = 0; i < count; i++) {
+        const inst = instruments[i];
+        const group = buildViolin(inst.scale);
+
+        // Semicircle angle: rightmost = -PI/3, leftmost = PI/3
+        const t = count === 1 ? 0.5 : i / (count - 1);
+        const angle = (t - 0.5) * (Math.PI * 0.6);
+        const x = Math.sin(angle) * radius;
+        const z = Math.cos(angle) * radius * 0.4;
+
+        group.position.set(x, 0, z);
+        // Face center
+        group.rotation.y = -angle * 0.5;
+        // Tilt slightly
+        group.rotation.x = 0.3;
+        group.rotation.z = -0.15;
+
+        scene.add(group);
+
+        // Label
+        const rangeStr = noteNameFromMidi(inst.lo) + ' - ' + noteNameFromMidi(inst.hi);
+        const label = createLabel(inst.name, rangeStr);
+        label.position.set(x, 2.2 * inst.scale, z);
+        scene.add(label);
+        group.userData.label = label;
+
+        // Synth with panning based on position
+        const pan = count === 1 ? 0 : (t - 0.5) * 1.4; // -0.7 to 0.7
+        const synth = new ViolinSynth(pan);
+
+        violinObjects.push({
+          group,
+          synth,
+          instrument: inst,
+          activeNotes: new Set(),
+          bowDirection: 1,
+          bowPhase: 0,
+        });
+      }
+
+      // Update info
+      const names = instruments.map(i => i.name);
+      const unique = [...new Set(names)];
+      const counts = unique.map(n => {
+        const c = names.filter(x => x === n).length;
+        return c > 1 ? `${c} ${n}s` : n;
+      });
+      document.getElementById('instrument-info').textContent = counts.join(', ');
+    }
+
+    function noteNameFromMidi(midi) {
+      const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      return names[midi % 12] + Math.floor(midi / 12 - 1);
+    }
+
+    // ========== MIDI PARSER ==========
+    function parseMidi(arrayBuffer) {
+      const midi = new Midi(arrayBuffer);
+      const allNotes = [];
+
+      for (const track of midi.tracks) {
+        for (const note of track.notes) {
+          allNotes.push({
+            midi: note.midi,
+            time: note.time,
+            duration: note.duration,
+            velocity: Math.round(note.velocity * 127),
+          });
+        }
+      }
+
+      return allNotes;
+    }
+
+    function buildTimeline(instruments) {
+      const events = [];
+
+      for (let idx = 0; idx < instruments.length; idx++) {
+        for (const note of instruments[idx].notes) {
+          events.push({
+            time: note.time,
+            type: 'on',
+            midi: note.midi,
+            velocity: note.velocity,
+            instrumentIdx: idx,
+            duration: note.duration,
+          });
+          events.push({
+            time: note.time + note.duration,
+            type: 'off',
+            midi: note.midi,
+            velocity: 0,
+            instrumentIdx: idx,
+            duration: 0,
+          });
+        }
+      }
+
+      events.sort((a, b) => a.time - b.time || (a.type === 'off' ? -1 : 1));
+      return events;
+    }
+
+    // ========== LOAD MIDI FILE ==========
+    async function loadMidiFile(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const allNotes = parseMidi(arrayBuffer);
+
+      if (allNotes.length === 0) {
+        alert('No notes found in MIDI file.');
+        return;
+      }
+
+      const instruments = distributeNotes(allNotes);
+      spawnViolins(instruments);
+
+      allEvents = buildTimeline(instruments);
+      totalDuration = allEvents.length > 0 ? allEvents[allEvents.length - 1].time + 1 : 0;
+
+      // Update UI
+      document.getElementById('song-title').textContent = file.name.replace(/\.midi?$/i, '');
+      document.getElementById('progress-slider').max = totalDuration;
+      document.getElementById('progress-slider').value = 0;
+      updateTimeDisplay(0);
+      document.getElementById('welcome-overlay').classList.add('hidden');
+    }
+
+    // ========== PLAYBACK ENGINE ==========
+    function play() {
+      if (allEvents.length === 0) return;
+      if (!audioCtx) initAudio();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      isPlaying = true;
+      playStartTime = audioCtx.currentTime - playOffset;
+      document.getElementById('play-icon').style.display = 'none';
+      document.getElementById('pause-icon').style.display = 'block';
+    }
+
+    function pause() {
+      isPlaying = false;
+      for (const v of violinObjects) {
+        v.synth.allOff();
+        v.activeNotes.clear();
+      }
+      document.getElementById('play-icon').style.display = 'block';
+      document.getElementById('pause-icon').style.display = 'none';
+    }
+
+    function seek(time) {
+      const wasPlaying = isPlaying;
+      if (wasPlaying) pause();
+
+      playOffset = time;
+      // Find event index at this time
+      eventIndex = 0;
+      for (let i = 0; i < allEvents.length; i++) {
+        if (allEvents[i].time > time) break;
+        eventIndex = i + 1;
+      }
+
+      // Reset visuals
+      for (const v of violinObjects) {
+        v.activeNotes.clear();
+        resetViolinVisuals(v);
+      }
+
+      updateTimeDisplay(time);
+      if (wasPlaying) play();
+    }
+
+    function updateTimeDisplay(current) {
+      const fmt = t => {
+        const m = Math.floor(t / 60);
+        const s = Math.floor(t % 60);
+        return m + ':' + String(s).padStart(2, '0');
+      };
+      document.getElementById('time-display').textContent = fmt(current) + ' / ' + fmt(totalDuration);
+    }
+
+    // ========== VISUAL FEEDBACK ==========
+    function updateViolinVisuals(v, dt) {
+      const s = v.instrument.scale;
+      const group = v.group;
+      const bow = group.userData.bow;
+      const strings = group.userData.strings;
+      const finger = group.userData.finger;
+      const fingerMat = group.userData.fingerMat;
+
+      if (v.activeNotes.size > 0) {
+        // Get the most recent active note
+        const notes = [...v.activeNotes];
+        const noteMidi = notes[notes.length - 1];
+
+        // Determine which string this note plays on
+        // Open strings: G3=55, D4=62, A4=69, E5=76 (for violin)
+        // Scale open strings based on instrument range
+        const basePitch = v.instrument.lo;
+        const openStrings = [basePitch, basePitch + 7, basePitch + 14, basePitch + 21];
+        let stringIdx = 0;
+        for (let i = 3; i >= 0; i--) {
+          if (noteMidi >= openStrings[i]) {
+            stringIdx = i;
+            break;
+          }
+        }
+
+        // String glow
+        for (let i = 0; i < 4; i++) {
+          const str = strings[i];
+          if (i === stringIdx) {
+            str.material.emissive.setHex(0xd4862a);
+            str.material.emissiveIntensity = 0.6;
+          } else {
+            str.material.emissive.setHex(0x000000);
+            str.material.emissiveIntensity = 0;
+          }
+        }
+
+        // String vibration
+        const vibStr = strings[stringIdx];
+        const vibFreq = 440 * Math.pow(2, (noteMidi - 69) / 12);
+        const vibSpeed = Math.min(vibFreq / 100, 8);
+        const pts = [];
+        for (let j = 0; j <= vibStr.segments; j++) {
+          const t = j / vibStr.segments;
+          const bp = vibStr.basePoints[j];
+          const amp = (t > 0.1 && t < 0.9) ? 0.004 * s * Math.sin(t * Math.PI) : 0;
+          pts.push(new THREE.Vector3(
+            bp.x + amp * Math.sin(animTime * vibSpeed * 20 + t * 8),
+            bp.y + amp * Math.cos(animTime * vibSpeed * 15 + t * 6),
+            bp.z
+          ));
+        }
+        const curve = new THREE.CatmullRomCurve3(pts);
+        vibStr.mesh.geometry.dispose();
+        vibStr.mesh.geometry = new THREE.TubeGeometry(curve, vibStr.segments, 0.003 * s, 6, false);
+
+        // Finger position
+        const fingerPos = (noteMidi - openStrings[stringIdx]) / 24;
+        const fingerZ = 0.1 * s - fingerPos * 1.3 * s;
+        finger.position.set(vibStr.xPos, 0.21 * s, Math.max(-1.4 * s, fingerZ));
+        fingerMat.opacity = 0.9;
+
+        // Bow movement
+        v.bowPhase += dt * 2 * v.bowDirection;
+        if (Math.abs(v.bowPhase) > 1) {
+          v.bowDirection *= -1;
+        }
+        const bowX = v.bowPhase * 0.4 * s;
+        bow.position.x = group.userData.bowBaseX + bowX;
+        bow.position.y = group.userData.bowBaseY - 0.02 * s;
+
+        // Move bow to active string
+        const targetZ = vibStr.basePoints[Math.floor(vibStr.segments * 0.4)].z;
+        bow.position.z += (targetZ - bow.position.z) * 0.15;
+      } else {
+        // No active notes - reset
+        resetViolinVisuals(v);
+      }
+    }
+
+    function resetViolinVisuals(v) {
+      const group = v.group;
+      const strings = group.userData.strings;
+      const fingerMat = group.userData.fingerMat;
+      const bow = group.userData.bow;
+      const s = v.instrument.scale;
+
+      for (const str of strings) {
+        str.material.emissive.setHex(0x000000);
+        str.material.emissiveIntensity = 0;
+      }
+      fingerMat.opacity = 0;
+      bow.position.x = group.userData.bowBaseX;
+      bow.position.y = group.userData.bowBaseY;
+      bow.position.z = 0.05 * s;
+    }
+
+    // ========== ANIMATION LOOP ==========
+    let lastTime = performance.now();
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt = Math.min((now - lastTime) / 1000, 0.05);
+      lastTime = now;
+      animTime += dt;
+
+      // Process playback events
+      if (isPlaying && audioCtx) {
+        const currentTime = (audioCtx.currentTime - playStartTime) * tempoMultiplier;
+        playOffset = currentTime;
+
+        // Process events
+        while (eventIndex < allEvents.length && allEvents[eventIndex].time <= currentTime) {
+          const ev = allEvents[eventIndex];
+          const v = violinObjects[ev.instrumentIdx];
+          if (v) {
+            if (ev.type === 'on') {
+              v.synth.noteOn(ev.midi, ev.velocity);
+              v.activeNotes.add(ev.midi);
+            } else {
+              v.synth.noteOff(ev.midi);
+              v.activeNotes.delete(ev.midi);
+            }
+          }
+          eventIndex++;
+        }
+
+        // Update slider + time
+        document.getElementById('progress-slider').value = currentTime;
+        updateTimeDisplay(currentTime);
+
+        // Check end
+        if (currentTime >= totalDuration) {
+          pause();
+          seek(0);
+        }
+      }
+
+      // Update visuals
+      for (const v of violinObjects) {
+        updateViolinVisuals(v, dt);
+      }
+
+      // Subtle idle animation for violins
+      for (let i = 0; i < violinObjects.length; i++) {
+        const v = violinObjects[i];
+        if (v.activeNotes.size === 0) {
+          v.group.rotation.z = -0.15 + Math.sin(animTime * 0.5 + i) * 0.01;
+        }
+      }
+
+      updateCamera();
+      renderer.render(scene, camera);
+    }
+    requestAnimationFrame(animate);
+
+    // ========== UI EVENT HANDLERS ==========
+
+    // File upload
+    document.getElementById('btn-upload').addEventListener('click', () => {
+      document.getElementById('file-input').click();
+    });
+    document.getElementById('file-input').addEventListener('change', e => {
+      if (e.target.files[0]) {
+        pause();
+        loadMidiFile(e.target.files[0]);
+      }
+    });
+
+    // Play/Pause
+    document.getElementById('btn-play').addEventListener('click', () => {
+      if (isPlaying) pause();
+      else play();
+    });
+
+    // Progress slider
+    const progressSlider = document.getElementById('progress-slider');
+    progressSlider.addEventListener('input', () => {
+      seek(parseFloat(progressSlider.value));
+    });
+
+    // Tempo
+    const tempoSlider = document.getElementById('tempo-slider');
+    const tempoValue = document.getElementById('tempo-value');
+    tempoSlider.addEventListener('input', () => {
+      tempoMultiplier = parseFloat(tempoSlider.value);
+      tempoValue.textContent = tempoMultiplier.toFixed(2) + 'x';
+      if (isPlaying) {
+        playStartTime = audioCtx.currentTime - playOffset / tempoMultiplier;
+      }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (isPlaying) pause();
+        else play();
+      }
+    });
+
+    // ========== SONG LIBRARY ==========
+    const libOverlay = document.getElementById('library-overlay');
+    const libList = document.getElementById('song-library-list');
+    const libSearch = document.getElementById('song-library-search');
+
+    function renderSongs(filter) {
+      const q = (filter || '').toLowerCase();
+      const filtered = SONGS.filter(s =>
+        s.title.toLowerCase().includes(q) || s.composer.toLowerCase().includes(q)
+      );
+      libList.innerHTML = filtered.map(s => `
+        <div class="song-item" data-file="${s.file}">
+          <div class="song-icon">&#9835;</div>
+          <div>
+            <div>${s.title}</div>
+            <span class="song-composer">${s.composer}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openLibrary() {
+      renderSongs('');
+      libSearch.value = '';
+      libOverlay.classList.add('open');
+      libSearch.focus();
+    }
+    function closeLibrary() {
+      libOverlay.classList.remove('open');
+    }
+
+    async function loadSongFromLibrary(filename) {
+      const item = libList.querySelector(`[data-file="${CSS.escape(filename)}"]`);
+      if (item) item.classList.add('loading');
+      try {
+        const resp = await fetch('../piano/mid/' + encodeURIComponent(filename));
+        if (!resp.ok) throw new Error('Failed to fetch');
+        const blob = await resp.blob();
+        const file = new File([blob], filename, { type: 'audio/midi' });
+        closeLibrary();
+        pause();
+        await loadMidiFile(file);
+      } catch (e) {
+        console.error('Failed to load song:', e);
+        if (item) item.classList.remove('loading');
+      }
+    }
+
+    document.getElementById('btn-library').addEventListener('click', openLibrary);
+    document.getElementById('library-close').addEventListener('click', closeLibrary);
+    libOverlay.addEventListener('click', e => { if (e.target === libOverlay) closeLibrary(); });
+    libSearch.addEventListener('input', () => renderSongs(libSearch.value));
+    libList.addEventListener('click', e => {
+      const item = e.target.closest('.song-item');
+      if (item) loadSongFromLibrary(item.dataset.file);
+    });
+
+    // ========== GENERATE MODAL ==========
+    const genOverlay = document.getElementById('generate-overlay');
+    const genPrompt = document.getElementById('generate-prompt');
+    const genSubmit = document.getElementById('generate-submit');
+    const genStatus = document.getElementById('generate-status');
+
+    document.getElementById('btn-generate').addEventListener('click', () => {
+      genOverlay.classList.add('open');
+      genPrompt.focus();
+    });
+    document.getElementById('generate-close').addEventListener('click', () => {
+      genOverlay.classList.remove('open');
+    });
+    genOverlay.addEventListener('click', e => { if (e.target === genOverlay) genOverlay.classList.remove('open'); });
+
+    // Preset chips
+    document.querySelectorAll('.preset-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        genPrompt.value = chip.dataset.preset;
+      });
+    });
+
+    genSubmit.addEventListener('click', async () => {
+      const prompt = genPrompt.value.trim();
+      if (!prompt) return;
+
+      genSubmit.disabled = true;
+      genStatus.textContent = 'Composing... this may take a minute...';
+
+      try {
+        const resp = await fetch('/api/generate-midi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: prompt + ' (Compose for a string ensemble with notes spanning multiple octaves for rich distribution across violin, viola, cello, and contrabass ranges.)',
+          }),
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.error || 'Generation failed');
+        }
+
+        const data = await resp.json();
+        genStatus.textContent = 'Building MIDI...';
+
+        // Convert notes array to MIDI file
+        const midiFile = notesToMidi(data.notes);
+        const blob = new Blob([midiFile], { type: 'audio/midi' });
+        const file = new File([blob], 'AI Generated.mid', { type: 'audio/midi' });
+
+        genOverlay.classList.remove('open');
+        pause();
+        await loadMidiFile(file);
+        genStatus.textContent = '';
+      } catch (e) {
+        genStatus.textContent = 'Error: ' + e.message;
+      } finally {
+        genSubmit.disabled = false;
+      }
+    });
+
+    // ========== NOTES TO MIDI CONVERTER ==========
+    function notesToMidi(notes) {
+      // Build a minimal MIDI file from note array
+      // Format 0, single track
+      const events = [];
+
+      // Sort by time
+      notes.sort((a, b) => a.time - b.time);
+
+      // Convert to delta-time MIDI events
+      const ticksPerBeat = 480;
+      const tempo = 500000; // 120 BPM in microseconds
+      const secToTick = t => Math.round(t * ticksPerBeat * 2); // at 120 BPM
+
+      // Tempo event
+      events.push({ tick: 0, data: [0xFF, 0x51, 0x03, (tempo >> 16) & 0xFF, (tempo >> 8) & 0xFF, tempo & 0xFF] });
+
+      // Note events
+      for (const n of notes) {
+        const startTick = secToTick(n.time);
+        const endTick = secToTick(n.time + n.dur);
+        const vel = Math.min(127, Math.max(1, n.vel || 80));
+        events.push({ tick: startTick, data: [0x90, n.midi, vel] });
+        events.push({ tick: endTick, data: [0x80, n.midi, 0] });
+      }
+
+      // Sort by tick
+      events.sort((a, b) => a.tick - b.tick);
+
+      // Build track data with delta times
+      const trackBytes = [];
+      let lastTick = 0;
+      for (const ev of events) {
+        const delta = ev.tick - lastTick;
+        lastTick = ev.tick;
+        // Variable-length delta
+        writeVarLen(trackBytes, delta);
+        for (const b of ev.data) trackBytes.push(b);
+      }
+      // End of track
+      writeVarLen(trackBytes, 0);
+      trackBytes.push(0xFF, 0x2F, 0x00);
+
+      // Build file
+      const header = [
+        0x4D, 0x54, 0x68, 0x64, // MThd
+        0x00, 0x00, 0x00, 0x06, // chunk length
+        0x00, 0x00, // format 0
+        0x00, 0x01, // 1 track
+        (ticksPerBeat >> 8) & 0xFF, ticksPerBeat & 0xFF,
+      ];
+
+      const trackHeader = [
+        0x4D, 0x54, 0x72, 0x6B, // MTrk
+        (trackBytes.length >> 24) & 0xFF,
+        (trackBytes.length >> 16) & 0xFF,
+        (trackBytes.length >> 8) & 0xFF,
+        trackBytes.length & 0xFF,
+      ];
+
+      const result = new Uint8Array(header.length + trackHeader.length + trackBytes.length);
+      result.set(header, 0);
+      result.set(trackHeader, header.length);
+      result.set(trackBytes, header.length + trackHeader.length);
+      return result;
+    }
+
+    function writeVarLen(arr, val) {
+      if (val < 0) val = 0;
+      const bytes = [];
+      bytes.push(val & 0x7F);
+      val >>= 7;
+      while (val > 0) {
+        bytes.push((val & 0x7F) | 0x80);
+        val >>= 7;
+      }
+      bytes.reverse();
+      for (const b of bytes) arr.push(b);
+    }
+
+    // ========== ESC CLOSES MODALS ==========
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        closeLibrary();
+        genOverlay.classList.remove('open');
+      }
+    });
+
+  })();
+  </script>
+</body>
+</html>
