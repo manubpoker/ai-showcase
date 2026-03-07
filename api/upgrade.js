@@ -28,7 +28,7 @@ async function generateUpgradedImage(apiKey, monster, upgrade) {
   const prompt = `A fantasy creature portrait: ${monster.originalDescription}. It has now mutated with ${upgrade.mutation}. The creature looks more powerful and evolved. Epic dramatic lighting, detailed digital painting style, square portrait composition, no text or words.`;
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
