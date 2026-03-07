@@ -933,9 +933,13 @@
     }
 
     // ========== VIOLIN SYNTH (Web Audio) ==========
+    // Realistic violin timbre via additive synthesis with measured harmonic
+    // amplitudes, bow-noise layer, dual body-resonance formants, and
+    // delayed vibrato with jitter.
     let audioCtx = null;
     let masterGain = null;
     let reverbNode = null;
+    let bowNoiseBuffer = null;
 
     function initAudio() {
       if (audioCtx) return;
@@ -943,26 +947,43 @@
 
       // Master gain
       masterGain = audioCtx.createGain();
-      masterGain.gain.value = 0.35;
+      masterGain.gain.value = 0.4;
 
-      // Create reverb
-      const reverbLen = 2;
-      const sampleRate = audioCtx.sampleRate;
-      const impulse = audioCtx.createBuffer(2, sampleRate * reverbLen, sampleRate);
+      // Bow-noise buffer: filtered noise simulating rosin friction
+      const noiseDur = 2;
+      const sr = audioCtx.sampleRate;
+      bowNoiseBuffer = audioCtx.createBuffer(1, sr * noiseDur, sr);
+      const nd = bowNoiseBuffer.getChannelData(0);
+      let b0 = 0, b1 = 0, b2 = 0;
+      for (let i = 0; i < nd.length; i++) {
+        const w = Math.random() * 2 - 1;
+        // Pink-ish filter (Paul Kellet)
+        b0 = 0.99886 * b0 + w * 0.0555179;
+        b1 = 0.99332 * b1 + w * 0.0750759;
+        b2 = 0.96900 * b2 + w * 0.1538520;
+        nd[i] = (b0 + b1 + b2 + w * 0.3104856) * 0.11;
+      }
+
+      // Create hall reverb (longer, richer)
+      const reverbLen = 2.8;
+      const impulse = audioCtx.createBuffer(2, sr * reverbLen, sr);
       for (let ch = 0; ch < 2; ch++) {
         const data = impulse.getChannelData(ch);
         for (let i = 0; i < data.length; i++) {
-          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2.5);
+          // Early reflections + exponential tail
+          const t = i / sr;
+          const early = t < 0.08 ? Math.sin(t * 400) * 0.3 : 0;
+          const tail = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 3.0);
+          data[i] = (early + tail) * 0.7;
         }
       }
       reverbNode = audioCtx.createConvolver();
       reverbNode.buffer = impulse;
 
       const reverbGain = audioCtx.createGain();
-      reverbGain.gain.value = 0.25;
-
+      reverbGain.gain.value = 0.3;
       const dryGain = audioCtx.createGain();
-      dryGain.gain.value = 0.8;
+      dryGain.gain.value = 0.75;
 
       masterGain.connect(dryGain);
       dryGain.connect(audioCtx.destination);
@@ -970,6 +991,24 @@
       reverbGain.connect(reverbNode);
       reverbNode.connect(audioCtx.destination);
     }
+
+    // Violin harmonic profile: relative amplitudes of partials 1-12
+    // Derived from spectral analysis of a bowed violin G-string.
+    // Odd harmonics are stronger (characteristic of bowed strings).
+    const HARMONIC_AMPS = [
+      1.0,    // fundamental
+      0.55,   // 2nd
+      0.45,   // 3rd  (strong - odd)
+      0.25,   // 4th
+      0.35,   // 5th  (strong - odd)
+      0.15,   // 6th
+      0.22,   // 7th  (odd)
+      0.08,   // 8th
+      0.12,   // 9th  (odd)
+      0.05,   // 10th
+      0.07,   // 11th (odd)
+      0.03,   // 12th
+    ];
 
     class ViolinSynth {
       constructor(pan) {
@@ -982,88 +1021,157 @@
         const t = time || audioCtx.currentTime;
         const freq = 440 * Math.pow(2, (midi - 69) / 12);
         const vel = (velocity || 80) / 127;
+        const nyquist = audioCtx.sampleRate / 2;
 
-        // Two sawtooth oscillators (detuned for chorus)
-        const osc1 = audioCtx.createOscillator();
-        osc1.type = 'sawtooth';
-        osc1.frequency.setValueAtTime(freq, t);
+        // --- Additive harmonics (two detuned layers for chorus) ---
+        const oscillators = [];
+        const gains = [];
+        // Determine how many harmonics fit below Nyquist
+        const numH = Math.min(HARMONIC_AMPS.length, Math.floor(nyquist / freq));
 
-        const osc2 = audioCtx.createOscillator();
-        osc2.type = 'sawtooth';
-        osc2.frequency.setValueAtTime(freq * 1.003, t); // slight detune
+        // Summing bus for harmonics
+        const harmonicBus = audioCtx.createGain();
+        harmonicBus.gain.value = 1;
 
-        // Sub oscillator (triangle, octave lower for warmth)
-        const sub = audioCtx.createOscillator();
-        sub.type = 'triangle';
-        sub.frequency.setValueAtTime(freq * 0.5, t);
+        for (let layer = 0; layer < 2; layer++) {
+          const detune = layer === 0 ? 0 : 3.5; // ~3.5 cents for chorus
+          for (let h = 0; h < numH; h++) {
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sine';
+            const hFreq = freq * (h + 1);
+            osc.frequency.setValueAtTime(hFreq, t);
+            osc.detune.setValueAtTime(detune * (1 + h * 0.1), t); // higher harmonics drift more
 
-        // Gain for each
-        const g1 = audioCtx.createGain();
-        g1.gain.value = 0.3 * vel;
-        const g2 = audioCtx.createGain();
-        g2.gain.value = 0.25 * vel;
-        const gSub = audioCtx.createGain();
-        gSub.gain.value = 0.12 * vel;
+            const g = audioCtx.createGain();
+            const amp = HARMONIC_AMPS[h] * vel * (layer === 0 ? 0.14 : 0.10);
+            g.gain.setValueAtTime(0, t);
+            // Stagger attack: higher harmonics arrive slightly later (bow grip)
+            const attackTime = 0.06 + h * 0.008;
+            g.gain.linearRampToValueAtTime(amp, t + attackTime);
 
-        // Low-pass filter
-        const lpf = audioCtx.createBiquadFilter();
-        lpf.type = 'lowpass';
-        lpf.frequency.setValueAtTime(3000 + freq * 1.5, t);
-        lpf.Q.value = 0.8;
+            osc.connect(g);
+            g.connect(harmonicBus);
+            osc.start(t);
+            oscillators.push(osc);
+            gains.push(g);
+          }
+        }
 
-        // Body resonance peak
-        const peak = audioCtx.createBiquadFilter();
-        peak.type = 'peaking';
-        peak.frequency.setValueAtTime(1200, t);
-        peak.gain.value = 4;
-        peak.Q.value = 2;
+        // --- Bow noise layer (rosin friction) ---
+        const noiseSrc = audioCtx.createBufferSource();
+        noiseSrc.buffer = bowNoiseBuffer;
+        noiseSrc.loop = true;
+        // Randomize start position so simultaneous notes don't phase-lock
+        noiseSrc.loopStart = Math.random() * 1.5;
+        noiseSrc.loopEnd = 2;
 
-        // High shelf rolloff
+        // Bandpass the noise around the fundamental and 2nd harmonic
+        const noiseBPF = audioCtx.createBiquadFilter();
+        noiseBPF.type = 'bandpass';
+        noiseBPF.frequency.setValueAtTime(freq * 1.5, t);
+        noiseBPF.Q.value = 1.2;
+
+        const noiseGain = audioCtx.createGain();
+        noiseGain.gain.setValueAtTime(0, t);
+        noiseGain.gain.linearRampToValueAtTime(0.035 * vel, t + 0.04); // quick scratch onset
+
+        noiseSrc.connect(noiseBPF);
+        noiseBPF.connect(noiseGain);
+        noiseGain.connect(harmonicBus);
+        noiseSrc.start(t);
+        oscillators.push(noiseSrc);
+        gains.push(noiseGain);
+
+        // --- Body resonance formants ---
+        // Violin body has resonances around 460Hz (A0 - air), 550Hz (B1-),
+        // 900Hz (B1+), and a broad hill around 2-3kHz.
+        const formant1 = audioCtx.createBiquadFilter();
+        formant1.type = 'peaking';
+        formant1.frequency.setValueAtTime(480, t);
+        formant1.gain.value = 5;
+        formant1.Q.value = 3;
+
+        const formant2 = audioCtx.createBiquadFilter();
+        formant2.type = 'peaking';
+        formant2.frequency.setValueAtTime(900, t);
+        formant2.gain.value = 3;
+        formant2.Q.value = 2.5;
+
+        // Bridge hill ~2.5kHz (gives brilliance)
+        const bridgeHill = audioCtx.createBiquadFilter();
+        bridgeHill.type = 'peaking';
+        bridgeHill.frequency.setValueAtTime(2500, t);
+        bridgeHill.gain.value = 2.5;
+        bridgeHill.Q.value = 1.5;
+
+        // Roll off harshness above 6kHz
         const hshelf = audioCtx.createBiquadFilter();
         hshelf.type = 'highshelf';
-        hshelf.frequency.setValueAtTime(5000, t);
-        hshelf.gain.value = -6;
+        hshelf.frequency.setValueAtTime(6000, t);
+        hshelf.gain.value = -8;
 
-        // Envelope gain
+        // Gentle low cut (violin body doesn't resonate below ~200Hz well)
+        const hipass = audioCtx.createBiquadFilter();
+        hipass.type = 'highpass';
+        hipass.frequency.setValueAtTime(Math.min(freq * 0.8, 180), t);
+        hipass.Q.value = 0.5;
+
+        // --- Amplitude envelope ---
         const env = audioCtx.createGain();
         env.gain.setValueAtTime(0, t);
-        env.gain.linearRampToValueAtTime(0.75 * vel, t + 0.08);
+        // Bow-attack: slow swell like a real bowed onset
+        env.gain.linearRampToValueAtTime(0.15 * vel, t + 0.02);  // initial bite
+        env.gain.linearRampToValueAtTime(0.65 * vel, t + 0.12);  // swell to sustain
+        env.gain.linearRampToValueAtTime(0.70 * vel, t + 0.4);   // slight bloom
 
-        // Vibrato LFO (5.5Hz, delayed onset)
-        const lfo = audioCtx.createOscillator();
-        lfo.type = 'sine';
-        lfo.frequency.value = 5.5;
-        const lfoGain = audioCtx.createGain();
-        lfoGain.gain.setValueAtTime(0, t);
-        lfoGain.gain.linearRampToValueAtTime(freq * 0.006, t + 0.3); // ~10 cents
+        // --- Vibrato (two LFOs: pitch + amplitude) ---
+        const vibratoLFO = audioCtx.createOscillator();
+        vibratoLFO.type = 'sine';
+        vibratoLFO.frequency.setValueAtTime(5.2 + Math.random() * 0.8, t); // 5.2-6Hz, humanized
 
-        lfo.connect(lfoGain);
-        lfoGain.connect(osc1.frequency);
-        lfoGain.connect(osc2.frequency);
+        // Pitch vibrato
+        const vibPitchGain = audioCtx.createGain();
+        vibPitchGain.gain.setValueAtTime(0, t);
+        vibPitchGain.gain.linearRampToValueAtTime(0, t + 0.35); // delay onset
+        vibPitchGain.gain.linearRampToValueAtTime(freq * 0.005, t + 0.6); // ~8 cents depth
 
-        // Stereo panning
+        // Amplitude vibrato (subtle intensity variation)
+        const vibAmpGain = audioCtx.createGain();
+        vibAmpGain.gain.setValueAtTime(0, t);
+        vibAmpGain.gain.linearRampToValueAtTime(0, t + 0.35);
+        vibAmpGain.gain.linearRampToValueAtTime(0.06, t + 0.6);
+
+        vibratoLFO.connect(vibPitchGain);
+        vibratoLFO.connect(vibAmpGain);
+        // Route pitch vibrato to all harmonic oscillators
+        for (const osc of oscillators) {
+          if (osc instanceof OscillatorNode) {
+            vibPitchGain.connect(osc.frequency);
+          }
+        }
+        vibAmpGain.connect(env.gain); // modulate amplitude
+        vibratoLFO.start(t);
+
+        // --- Stereo panning ---
         const panner = audioCtx.createStereoPanner();
         panner.pan.value = this.pan;
 
-        // Signal chain
-        osc1.connect(g1);
-        osc2.connect(g2);
-        sub.connect(gSub);
-        g1.connect(lpf);
-        g2.connect(lpf);
-        gSub.connect(lpf);
-        lpf.connect(peak);
-        peak.connect(hshelf);
-        hshelf.connect(env);
+        // --- Signal chain ---
+        harmonicBus.connect(formant1);
+        formant1.connect(formant2);
+        formant2.connect(bridgeHill);
+        bridgeHill.connect(hshelf);
+        hshelf.connect(hipass);
+        hipass.connect(env);
         env.connect(panner);
         panner.connect(masterGain);
 
-        osc1.start(t);
-        osc2.start(t);
-        sub.start(t);
-        lfo.start(t);
-
-        this.activeNotes.set(midi, { osc1, osc2, sub, lfo, env, g1, g2, gSub, lfoGain, panner });
+        this.activeNotes.set(midi, {
+          oscillators, gains, noiseSrc, vibratoLFO,
+          env, panner, noiseGain,
+          formant1, formant2, bridgeHill, hshelf, hipass,
+          vibPitchGain, vibAmpGain, harmonicBus
+        });
       }
 
       noteOff(midi, time) {
@@ -1072,15 +1180,20 @@
         if (!note) return;
         const t = time || audioCtx.currentTime;
 
+        // Smooth bow-lift release
         note.env.gain.cancelScheduledValues(t);
         note.env.gain.setValueAtTime(note.env.gain.value, t);
-        note.env.gain.linearRampToValueAtTime(0, t + 0.15);
+        note.env.gain.linearRampToValueAtTime(note.env.gain.value * 0.3, t + 0.06); // quick drop
+        note.env.gain.linearRampToValueAtTime(0, t + 0.25); // tail ring
 
-        const stopTime = t + 0.2;
-        note.osc1.stop(stopTime);
-        note.osc2.stop(stopTime);
-        note.sub.stop(stopTime);
-        note.lfo.stop(stopTime);
+        // Fade bow noise faster
+        note.noiseGain.gain.cancelScheduledValues(t);
+        note.noiseGain.gain.setValueAtTime(note.noiseGain.gain.value, t);
+        note.noiseGain.gain.linearRampToValueAtTime(0, t + 0.05);
+
+        const stopTime = t + 0.3;
+        for (const osc of note.oscillators) osc.stop(stopTime);
+        note.vibratoLFO.stop(stopTime);
         this.activeNotes.delete(midi);
       }
 

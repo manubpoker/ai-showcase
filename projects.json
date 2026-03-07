@@ -1,13 +1,5 @@
 [
   {
-    "id": "monster-arena",
-    "title": "Monster Arena",
-    "description": "AI-powered monster battler. Describe a creature, watch Gemini paint it, then fight through endless opponents. Evolve your monster with mutations after each victory.",
-    "tags": ["Gemini", "Claude", "Game", "AI Art"],
-    "path": "projects/monster-arena/",
-    "thumbnail": "thumbnails/monster-arena.png"
-  },
-  {
     "id": "earth",
     "title": "Earth Atlas",
     "description": "Interactive 3D globe with country-level data overlays including life expectancy, CO2 emissions, renewable energy, and more. Built with React and Three.js.",
