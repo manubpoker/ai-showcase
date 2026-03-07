@@ -862,33 +862,91 @@
       }
       group.userData.strings = strings;
 
-      // Bow
+      // Bow - realistic with curved stick, ribbon hair, frog, tip, winding
       const bowGroup = new THREE.Group();
-      // Stick
-      const bowStickGeo = new THREE.CylinderGeometry(0.006 * s, 0.004 * s, 1.6 * s, 8);
-      const bowStickMat = new THREE.MeshStandardMaterial({ color: DARK_WOOD, roughness: 0.3 });
+
+      // Curved stick (pernambuco - slight camber towards hair)
+      const stickCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.78 * s, 0.02 * s, 0),
+        new THREE.Vector3(-0.4 * s, -0.012 * s, 0),
+        new THREE.Vector3(0, -0.02 * s, 0),
+        new THREE.Vector3(0.4 * s, -0.008 * s, 0),
+        new THREE.Vector3(0.78 * s, 0.015 * s, 0),
+      ]);
+      const bowStickGeo = new THREE.TubeGeometry(stickCurve, 24, 0.005 * s, 6, false);
+      const bowStickMat = new THREE.MeshStandardMaterial({
+        color: 0x5c2a0e, roughness: 0.25, metalness: 0.05
+      });
       const bowStick = new THREE.Mesh(bowStickGeo, bowStickMat);
-      bowStick.rotation.z = Math.PI / 2;
       bowGroup.add(bowStick);
-      // Hair
-      const bowHairGeo = new THREE.BoxGeometry(1.4 * s, 0.003 * s, 0.012 * s);
-      const bowHairMat = new THREE.MeshStandardMaterial({ color: 0xf5f0e0, roughness: 0.8 });
+
+      // Hair ribbon (taut between frog and tip, slightly below stick)
+      const hairCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.72 * s, -0.01 * s, 0),
+        new THREE.Vector3(-0.3 * s, -0.025 * s, 0),
+        new THREE.Vector3(0, -0.028 * s, 0),
+        new THREE.Vector3(0.3 * s, -0.022 * s, 0),
+        new THREE.Vector3(0.70 * s, -0.008 * s, 0),
+      ]);
+      const bowHairGeo = new THREE.TubeGeometry(hairCurve, 20, 0.004 * s, 4, false);
+      const bowHairMat = new THREE.MeshStandardMaterial({
+        color: 0xf5f0e0, roughness: 0.9, transparent: true, opacity: 0.85
+      });
       const bowHair = new THREE.Mesh(bowHairGeo, bowHairMat);
-      bowHair.position.y = -0.015 * s;
       bowGroup.add(bowHair);
-      // Frog
-      const frogGeo = new THREE.BoxGeometry(0.06 * s, 0.025 * s, 0.025 * s);
-      const frogMat = new THREE.MeshStandardMaterial({ color: FINGERBOARD_COLOR, roughness: 0.5 });
+
+      // Frog (ebony block at the heel)
+      const frogGeo = new THREE.BoxGeometry(0.065 * s, 0.03 * s, 0.028 * s);
+      const frogMat = new THREE.MeshStandardMaterial({
+        color: FINGERBOARD_COLOR, roughness: 0.4, metalness: 0.1
+      });
       const frog = new THREE.Mesh(frogGeo, frogMat);
-      frog.position.set(0.72 * s, -0.005 * s, 0);
+      frog.position.set(-0.75 * s, 0, 0);
       bowGroup.add(frog);
+
+      // Metal ferrule on frog
+      const ferruleGeo = new THREE.CylinderGeometry(0.008 * s, 0.008 * s, 0.03 * s, 8);
+      const ferruleMat = new THREE.MeshStandardMaterial({
+        color: 0xc0c0c0, roughness: 0.15, metalness: 0.9
+      });
+      const ferrule = new THREE.Mesh(ferruleGeo, ferruleMat);
+      ferrule.rotation.z = Math.PI / 2;
+      ferrule.position.set(-0.71 * s, 0, 0);
+      bowGroup.add(ferrule);
+
+      // Grip winding (leather + wire area)
+      const windGeo = new THREE.CylinderGeometry(0.007 * s, 0.007 * s, 0.16 * s, 8);
+      const windMat = new THREE.MeshStandardMaterial({
+        color: 0x2a2a2a, roughness: 0.7, metalness: 0.2
+      });
+      const winding = new THREE.Mesh(windGeo, windMat);
+      winding.rotation.z = Math.PI / 2;
+      winding.position.set(-0.6 * s, 0.005 * s, 0);
+      bowGroup.add(winding);
+
+      // Tip (ivory/bone wedge)
+      const tipGeo = new THREE.BoxGeometry(0.025 * s, 0.015 * s, 0.012 * s);
+      const tipMat = new THREE.MeshStandardMaterial({ color: 0xf0ead6, roughness: 0.5 });
+      const tip = new THREE.Mesh(tipGeo, tipMat);
+      tip.position.set(0.79 * s, 0.015 * s, 0);
+      bowGroup.add(tip);
+
+      // Screw (adjustment knob at heel)
+      const screwGeo = new THREE.CylinderGeometry(0.01 * s, 0.01 * s, 0.04 * s, 8);
+      const screwMat = new THREE.MeshStandardMaterial({
+        color: DARK_WOOD, roughness: 0.3
+      });
+      const screw = new THREE.Mesh(screwGeo, screwMat);
+      screw.rotation.z = Math.PI / 2;
+      screw.position.set(-0.82 * s, 0, 0);
+      bowGroup.add(screw);
 
       bowGroup.position.set(0, 0.26 * s, 0.05 * s);
       bowGroup.rotation.y = Math.PI / 2;
       group.add(bowGroup);
       group.userData.bow = bowGroup;
-      group.userData.bowBaseY = 0.26 * s;
-      group.userData.bowBaseX = 0;
+      group.userData.bowRestPos = new THREE.Vector3(0, 0.26 * s, 0.05 * s);
+      group.userData.bowRestRot = new THREE.Euler(0, Math.PI / 2, 0);
 
       // Finger marker (invisible until note plays)
       const fingerGeo = new THREE.SphereGeometry(0.02 * s, 12, 12);
@@ -1352,6 +1410,8 @@
           activeNotes: new Set(),
           bowDirection: 1,
           bowPhase: 0,
+          bowChangeTime: 0,
+          lastVelocity: 80,
         });
       }
 
@@ -1478,7 +1538,7 @@
       // Reset visuals
       for (const v of violinObjects) {
         v.activeNotes.clear();
-        resetViolinVisuals(v);
+        resetViolinVisuals(v, 0);
       }
 
       updateTimeDisplay(time);
@@ -1495,6 +1555,9 @@
     }
 
     // ========== VISUAL FEEDBACK ==========
+    // Bow physics: tracks contact point on string, smooth stroke with
+    // acceleration/deceleration, tilt changes at direction change,
+    // pressure (height) varies with velocity, and slight sway.
     function updateViolinVisuals(v, dt) {
       const s = v.instrument.scale;
       const group = v.group;
@@ -1502,38 +1565,41 @@
       const strings = group.userData.strings;
       const finger = group.userData.finger;
       const fingerMat = group.userData.fingerMat;
+      const restPos = group.userData.bowRestPos;
 
       if (v.activeNotes.size > 0) {
-        // Get the most recent active note
         const notes = [...v.activeNotes];
         const noteMidi = notes[notes.length - 1];
 
         // Determine which string this note plays on
-        // Open strings: G3=55, D4=62, A4=69, E5=76 (for violin)
-        // Scale open strings based on instrument range
         const basePitch = v.instrument.lo;
         const openStrings = [basePitch, basePitch + 7, basePitch + 14, basePitch + 21];
         let stringIdx = 0;
         for (let i = 3; i >= 0; i--) {
-          if (noteMidi >= openStrings[i]) {
-            stringIdx = i;
-            break;
-          }
+          if (noteMidi >= openStrings[i]) { stringIdx = i; break; }
         }
 
-        // String glow
+        // --- String glow (warm amber, intensity pulses slightly) ---
+        const glowPulse = 0.5 + 0.15 * Math.sin(animTime * 8);
         for (let i = 0; i < 4; i++) {
           const str = strings[i];
           if (i === stringIdx) {
             str.material.emissive.setHex(0xd4862a);
-            str.material.emissiveIntensity = 0.6;
+            str.material.emissiveIntensity = glowPulse;
           } else {
-            str.material.emissive.setHex(0x000000);
-            str.material.emissiveIntensity = 0;
+            // Sympathetic resonance: neighbouring strings glow faintly
+            const dist = Math.abs(i - stringIdx);
+            if (dist === 1) {
+              str.material.emissive.setHex(0xd4862a);
+              str.material.emissiveIntensity = 0.08;
+            } else {
+              str.material.emissive.setHex(0x000000);
+              str.material.emissiveIntensity = 0;
+            }
           }
         }
 
-        // String vibration
+        // --- String vibration ---
         const vibStr = strings[stringIdx];
         const vibFreq = 440 * Math.pow(2, (noteMidi - 69) / 12);
         const vibSpeed = Math.min(vibFreq / 100, 8);
@@ -1552,45 +1618,97 @@
         vibStr.mesh.geometry.dispose();
         vibStr.mesh.geometry = new THREE.TubeGeometry(curve, vibStr.segments, 0.003 * s, 6, false);
 
-        // Finger position
+        // --- Finger position ---
         const fingerPos = (noteMidi - openStrings[stringIdx]) / 24;
         const fingerZ = 0.1 * s - fingerPos * 1.3 * s;
         finger.position.set(vibStr.xPos, 0.21 * s, Math.max(-1.4 * s, fingerZ));
         fingerMat.opacity = 0.9;
 
-        // Bow movement
-        v.bowPhase += dt * 2 * v.bowDirection;
-        if (Math.abs(v.bowPhase) > 1) {
-          v.bowDirection *= -1;
-        }
-        const bowX = v.bowPhase * 0.4 * s;
-        bow.position.x = group.userData.bowBaseX + bowX;
-        bow.position.y = group.userData.bowBaseY - 0.02 * s;
+        // --- Realistic bow movement ---
+        // Smooth sinusoidal stroke with acceleration at ends (like a real bow arm)
+        const bowSpeed = 1.4 + (v.lastVelocity || 80) / 127 * 0.8; // faster stroke for louder notes
+        v.bowPhase += dt * bowSpeed * v.bowDirection;
 
-        // Move bow to active string
-        const targetZ = vibStr.basePoints[Math.floor(vibStr.segments * 0.4)].z;
-        bow.position.z += (targetZ - bow.position.z) * 0.15;
+        // Direction change with deceleration curve
+        if (Math.abs(v.bowPhase) > 1) {
+          v.bowPhase = Math.sign(v.bowPhase); // clamp
+          v.bowDirection *= -1;
+          v.bowChangeTime = animTime; // track when direction changed
+        }
+
+        // Sinusoidal easing: slow at ends, fast in middle (real bow motion)
+        const easedPhase = Math.sin(v.bowPhase * Math.PI / 2);
+        const bowTravel = 0.45 * s; // total bow stroke length
+        const bowX = easedPhase * bowTravel;
+
+        // Contact point on string (between bridge and fingerboard, ~1/3 from bridge)
+        const contactT = 0.35; // normalized position along string
+        const contactIdx = Math.floor(vibStr.segments * contactT);
+        const contactZ = vibStr.basePoints[contactIdx].z;
+
+        // Bow tilts slightly at direction changes (wrist rotation)
+        const timeSinceChange = animTime - (v.bowChangeTime || 0);
+        const tiltRecovery = Math.min(timeSinceChange / 0.3, 1); // 300ms to recover
+        const bowTilt = (1 - tiltRecovery) * v.bowDirection * 0.08; // tilt at reversal
+
+        // Bow height: pressed down onto string when playing, slight bounce with velocity
+        const pressureY = restPos.y - 0.045 * s; // contact height
+        const bounce = Math.sin(animTime * 3) * 0.002 * s; // subtle bow weight shift
+
+        // Lateral position across strings (move bow to correct string)
+        const stringSpacing = 0.027 * s;
+        const bowTargetLateral = (stringIdx - 1.5) * stringSpacing;
+
+        // Smooth interpolation for all bow transforms
+        const lerpSpeed = 0.12;
+        bow.position.x += (bowX - bow.position.x) * 0.25; // stroke follows easing
+        bow.position.y += (pressureY + bounce - bow.position.y) * lerpSpeed;
+        bow.position.z += (contactZ + bowTargetLateral - bow.position.z) * lerpSpeed;
+
+        // Bow rotation: slight rock around z-axis at stroke ends
+        bow.rotation.z += (bowTilt - bow.rotation.z) * 0.15;
+        // Subtle sway perpendicular to stroke direction
+        bow.rotation.x = Math.sin(animTime * 1.5) * 0.015;
+
+        v.lastVelocity = v.lastVelocity || 80;
       } else {
-        // No active notes - reset
-        resetViolinVisuals(v);
+        // --- No active notes: lift bow smoothly ---
+        resetViolinVisuals(v, dt);
       }
     }
 
-    function resetViolinVisuals(v) {
+    function resetViolinVisuals(v, dt) {
       const group = v.group;
       const strings = group.userData.strings;
       const fingerMat = group.userData.fingerMat;
       const bow = group.userData.bow;
       const s = v.instrument.scale;
+      const restPos = group.userData.bowRestPos;
 
+      // Fade string glows
       for (const str of strings) {
-        str.material.emissive.setHex(0x000000);
-        str.material.emissiveIntensity = 0;
+        if (str.material.emissiveIntensity > 0.01) {
+          str.material.emissiveIntensity *= 0.9; // smooth fade
+        } else {
+          str.material.emissive.setHex(0x000000);
+          str.material.emissiveIntensity = 0;
+        }
       }
-      fingerMat.opacity = 0;
-      bow.position.x = group.userData.bowBaseX;
-      bow.position.y = group.userData.bowBaseY;
-      bow.position.z = 0.05 * s;
+
+      // Fade finger marker
+      if (fingerMat.opacity > 0.01) {
+        fingerMat.opacity *= 0.88;
+      } else {
+        fingerMat.opacity = 0;
+      }
+
+      // Lift bow back to rest position smoothly
+      const liftSpeed = 0.06;
+      bow.position.x += (0 - bow.position.x) * liftSpeed;
+      bow.position.y += (restPos.y - bow.position.y) * liftSpeed;
+      bow.position.z += (0.05 * s - bow.position.z) * liftSpeed;
+      bow.rotation.z *= 0.92;
+      bow.rotation.x *= 0.92;
     }
 
     // ========== ANIMATION LOOP ==========
@@ -1615,6 +1733,7 @@
             if (ev.type === 'on') {
               v.synth.noteOn(ev.midi, ev.velocity);
               v.activeNotes.add(ev.midi);
+              v.lastVelocity = ev.velocity;
             } else {
               v.synth.noteOff(ev.midi);
               v.activeNotes.delete(ev.midi);
