@@ -199,7 +199,10 @@
       const res = await fetch(`${API}/api/fight`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player, opponent }),
+        body: JSON.stringify({
+          player: { name: player.name, hp: player.hp, maxHp: player.maxHp, attack: player.attack, defense: player.defense, speed: player.speed, special: player.special, specialDesc: player.specialDesc },
+          opponent: { name: opponent.name, hp: opponent.hp, maxHp: opponent.maxHp, attack: opponent.attack, defense: opponent.defense, speed: opponent.speed, special: opponent.special, specialDesc: opponent.specialDesc },
+        }),
       });
 
       if (!res.ok) throw new Error('Combat failed');
