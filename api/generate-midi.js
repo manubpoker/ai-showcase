@@ -69,7 +69,7 @@ pp: 25-35 | p: 36-50 | mp: 51-63 | mf: 64-79 | f: 80-95 | ff: 96-110
 Humanize: vary each velocity by +/-3-5 randomly
 
 ## Composition Rules
-- Generate 20-60 seconds of music
+- Generate at least 120 seconds (2 minutes) of music. Aim for 120-180 seconds. Structure it with multiple sections (e.g. ABA, AABB, intro-A-B-A-coda)
 - Use both hands: left for bass/chords (midi 36-59), right for melody (midi 60-84)
 - Choose an appropriate key, scale, tempo, and chord progression for the requested style
 - Shape dynamics as arcs within 4-8 bar phrases (grow toward middle, taper at end)
@@ -89,7 +89,7 @@ Humanize: vary each velocity by +/-3-5 randomly
       },
       body: JSON.stringify({
         model: 'claude-opus-4-6',
-        max_tokens: 16000,
+        max_tokens: 64000,
         system: systemPrompt,
         messages: [
           { role: 'user', content: `Compose a piano piece: ${prompt}` }
