@@ -5,14 +5,12 @@ export default async function handler(req, res) {
   if (!description) return res.status(400).json({ error: 'Missing description' });
 
   const geminiKey = process.env.GEMINI_API_KEY;
-  const claudeKey = process.env.ANTHROPIC_API_KEY;
-  if (!geminiKey || !claudeKey) return res.status(500).json({ error: 'API keys not configured' });
+  if (!geminiKey) return res.status(500).json({ error: 'API key not configured' });
 
   try {
-    // Generate image with Gemini and stats with Claude in parallel
     const [imageResult, statsResult] = await Promise.all([
       generateImage(geminiKey, description, type),
-      generateStats(claudeKey, description, type),
+      generateStats(geminiKey, description, type),
     ]);
 
     return res.status(200).json({
@@ -44,7 +42,7 @@ async function generateImage(apiKey, description, type) {
 
   if (!response.ok) {
     const err = await response.text();
-    console.error('Gemini error:', err);
+    console.error('Gemini image error:', err);
     throw new Error('Image generation failed');
   }
 
@@ -72,25 +70,22 @@ The JSON must have these fields:
 
 Stats should reflect the creature description logically. Big heavy creatures = high hp/attack, low speed. Quick creatures = high speed, lower hp. etc.`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 300,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: `Generate stats for: ${description}` }],
-    }),
-  });
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `Generate stats for: ${description}` }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: { responseMimeType: 'application/json' },
+      }),
+    }
+  );
 
   if (!response.ok) throw new Error('Stats generation failed');
   const data = await response.json();
-  const text = data.content[0].text;
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Failed to parse stats');
-  return JSON.parse(jsonMatch[0]);
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('No stats response');
+  return JSON.parse(text);
 }

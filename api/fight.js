@@ -4,11 +4,11 @@ export default async function handler(req, res) {
   const { player, opponent } = req.body;
   if (!player || !opponent) return res.status(400).json({ error: 'Missing combatants' });
 
-  const claudeKey = process.env.ANTHROPIC_API_KEY;
-  if (!claudeKey) return res.status(500).json({ error: 'API key not configured' });
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) return res.status(500).json({ error: 'API key not configured' });
 
   try {
-    const result = await resolveCombat(claudeKey, player, opponent);
+    const result = await resolveCombat(geminiKey, player, opponent);
     return res.status(200).json(result);
   } catch (err) {
     console.error('Fight error:', err);
@@ -45,25 +45,26 @@ Special: ${opponent.special} - ${opponent.specialDesc}
 
 Resolve this battle!`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 500,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: { responseMimeType: 'application/json' },
+      }),
+    }
+  );
 
-  if (!response.ok) throw new Error('Combat resolution failed');
+  if (!response.ok) {
+    const err = await response.text();
+    console.error('Gemini fight error:', err);
+    throw new Error('Combat resolution failed');
+  }
   const data = await response.json();
-  const text = data.content[0].text;
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Failed to parse combat result');
-  return JSON.parse(jsonMatch[0]);
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('No response from Gemini');
+  return JSON.parse(text);
 }

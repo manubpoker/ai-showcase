@@ -150,6 +150,7 @@
     $('player-img').src = player.image;
     $('player-name').textContent = player.name;
     $('player-hp-bar').style.width = '100%';
+    $('player-hp-bar').style.background = 'linear-gradient(90deg, var(--green), #4ade80)';
     $('player-atk').textContent = player.attack;
     $('player-def').textContent = player.defense;
     $('player-spd').textContent = player.speed;
@@ -159,6 +160,7 @@
     $('opponent-img').src = opponent.image;
     $('opponent-name').textContent = opponent.name;
     $('opponent-hp-bar').style.width = '100%';
+    $('opponent-hp-bar').style.background = 'linear-gradient(90deg, var(--green), #4ade80)';
     $('opponent-atk').textContent = opponent.attack;
     $('opponent-def').textContent = opponent.defense;
     $('opponent-spd').textContent = opponent.speed;
@@ -171,6 +173,7 @@
     $('combat-log').innerHTML = '';
     $('btn-fight').style.display = 'block';
     $('btn-fight').disabled = false;
+    $('btn-fight').textContent = 'Fight!';
 
     showScreen('screen-battle');
   }
@@ -183,6 +186,16 @@
     $('combat-log').innerHTML = '<p style="color:var(--muted)">The battle begins...</p>';
 
     try {
+      // Clash animation
+      const stage = $('battle-stage');
+      stage.classList.add('clash');
+      const flash = document.createElement('div');
+      flash.className = 'impact-flash';
+      document.body.appendChild(flash);
+      await delay(500);
+      stage.classList.remove('clash');
+      flash.remove();
+
       const res = await fetch(`${API}/api/fight`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -203,6 +216,11 @@
         p.textContent = lines[i];
         $('combat-log').appendChild(p);
         $('combat-log').scrollTop = $('combat-log').scrollHeight;
+
+        // Shake the card being hit
+        const target = i % 2 === 0 ? 'opponent-card' : 'player-card';
+        $(target).classList.add('shake');
+        setTimeout(() => $(target).classList.remove('shake'), 500);
       }
 
       await delay(800);

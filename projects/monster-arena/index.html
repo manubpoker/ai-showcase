@@ -24,7 +24,7 @@
         <button id="btn-create" class="btn-primary">Summon</button>
       </div>
       <div class="preset-row" id="presets"></div>
-      <p class="powered-by">Portraits by Gemini &middot; Game logic by Claude &middot; Code by Claude Code</p>
+      <p class="powered-by">Powered by Gemini &middot; Code by Claude Code</p>
     </div>
   </div>
 
@@ -38,46 +38,48 @@
 
   <!-- SCREEN: Battle -->
   <div id="screen-battle" class="screen">
-    <div class="battle-header">
-      <span id="round-badge">Round 1</span>
-      <span id="wins-badge">Wins: 0</span>
-    </div>
-    <div class="battle-stage">
-      <div class="monster-card" id="player-card">
-        <div class="card-portrait"><img id="player-img" alt="Your monster" /></div>
-        <div class="card-info">
-          <h2 id="player-name"></h2>
-          <div class="hp-bar"><div class="hp-fill" id="player-hp-bar"></div></div>
-          <div class="stat-row">
-            <span class="stat"><b id="player-atk">0</b> ATK</span>
-            <span class="stat"><b id="player-def">0</b> DEF</span>
-            <span class="stat"><b id="player-spd">0</b> SPD</span>
+    <div class="battle-layout">
+      <div class="battle-header">
+        <span id="round-badge">Round 1</span>
+        <span id="wins-badge">Wins: 0</span>
+      </div>
+      <div class="battle-stage" id="battle-stage">
+        <div class="monster-card" id="player-card">
+          <div class="card-portrait"><img id="player-img" alt="Your monster" /></div>
+          <div class="card-info">
+            <h2 id="player-name"></h2>
+            <div class="hp-bar"><div class="hp-fill" id="player-hp-bar"></div></div>
+            <div class="stat-row">
+              <span class="stat"><b id="player-atk">0</b> ATK</span>
+              <span class="stat"><b id="player-def">0</b> DEF</span>
+              <span class="stat"><b id="player-spd">0</b> SPD</span>
+            </div>
+            <div class="special-badge" id="player-special"></div>
           </div>
-          <div class="special-badge" id="player-special"></div>
+        </div>
+
+        <div class="vs-divider">
+          <span>VS</span>
+        </div>
+
+        <div class="monster-card enemy" id="opponent-card">
+          <div class="card-portrait"><img id="opponent-img" alt="Opponent monster" /></div>
+          <div class="card-info">
+            <h2 id="opponent-name"></h2>
+            <div class="hp-bar"><div class="hp-fill" id="opponent-hp-bar"></div></div>
+            <div class="stat-row">
+              <span class="stat"><b id="opponent-atk">0</b> ATK</span>
+              <span class="stat"><b id="opponent-def">0</b> DEF</span>
+              <span class="stat"><b id="opponent-spd">0</b> SPD</span>
+            </div>
+            <div class="special-badge" id="opponent-special"></div>
+          </div>
         </div>
       </div>
 
-      <div class="vs-divider">
-        <span>VS</span>
-      </div>
-
-      <div class="monster-card enemy" id="opponent-card">
-        <div class="card-portrait"><img id="opponent-img" alt="Opponent monster" /></div>
-        <div class="card-info">
-          <h2 id="opponent-name"></h2>
-          <div class="hp-bar"><div class="hp-fill" id="opponent-hp-bar"></div></div>
-          <div class="stat-row">
-            <span class="stat"><b id="opponent-atk">0</b> ATK</span>
-            <span class="stat"><b id="opponent-def">0</b> DEF</span>
-            <span class="stat"><b id="opponent-spd">0</b> SPD</span>
-          </div>
-          <div class="special-badge" id="opponent-special"></div>
-        </div>
-      </div>
+      <div class="combat-log" id="combat-log"></div>
+      <button id="btn-fight" class="btn-primary btn-fight">Fight!</button>
     </div>
-
-    <div class="combat-log" id="combat-log"></div>
-    <button id="btn-fight" class="btn-primary btn-fight">Fight!</button>
   </div>
 
   <!-- SCREEN: Upgrade -->
