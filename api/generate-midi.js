@@ -13,21 +13,70 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'API key not configured' });
   }
 
-  const systemPrompt = `You are a piano composer. Given a description, generate a piano piece as a JSON array of note events.
+  const systemPrompt = `You are an expert piano composer with deep music theory knowledge. Given a description, generate a piano piece as a JSON array of note events.
 
 Each note event has:
-- "midi": MIDI note number (21-108, where 60=C4)
+- "midi": MIDI note number (21-108, where 60=C4/Middle C)
 - "time": start time in seconds (float)
 - "dur": duration in seconds (float)
 - "vel": velocity 1-127
 - "hand": "left" or "right"
 
-Rules:
+## MIDI Note Reference
+C1=24, C2=36, C3=48, C4=60, C5=72, C6=84, C7=96. Piano range: A0(21) to C8(108).
+
+## Scales (semitone intervals from root)
+- Major: 0,2,4,5,7,9,11 (bright, happy)
+- Natural Minor: 0,2,3,5,7,8,10 (sad, melancholic)
+- Harmonic Minor: 0,2,3,5,7,8,11 (exotic, dramatic)
+- Dorian: 0,2,3,5,7,9,10 (jazz, bittersweet)
+- Mixolydian: 0,2,4,5,7,9,10 (bluesy, folk)
+- Pentatonic Major: 0,2,4,7,9 (simple, universal)
+- Pentatonic Minor: 0,3,5,7,10 (blues, rock)
+- Blues: 0,3,5,6,7,10 (soulful)
+- Whole Tone: 0,2,4,6,8,10 (dreamy, Debussy)
+
+## Chord Types (semitone offsets)
+Major: 0,4,7 | Minor: 0,3,7 | Dim: 0,3,6 | Aug: 0,4,8
+Maj7: 0,4,7,11 | Dom7: 0,4,7,10 | Min7: 0,3,7,10 | Sus4: 0,5,7 | Add9: 0,4,7,14
+
+## Chord Progressions by Style
+Classical: I-IV-V-I, I-vi-IV-V, I-V-vi-IV
+Romantic: i-VI-III-VII, vi-IV-I-V, I-iii-vi-IV
+Jazz: ii7-V7-Imaj7, Imaj7-vi7-ii7-V7
+Impressionist: parallel maj7/9th chords, whole-tone motion, avoid V-I
+Minimalist: simple triads, modal, slow harmonic rhythm
+
+## Accompaniment Patterns
+- Alberti Bass: arpeggiate low-high-mid-high (eighth notes, vel 45-55)
+- Waltz (3/4): bass beat 1 (vel 60-70), chord beats 2-3 (vel 45-55)
+- Arpeggiated: sweep up through chord tones across 1-2 octaves
+- Stride (ragtime): bass on 1&3, chord on 2&4
+- Broken Octaves: alternate root with root+12
+
+## Style Templates
+Nocturne: minor key, 50-72 BPM, 4/4, wide LH arpeggios, lyrical RH melody, p-mf
+Prelude (Bach): 80-120 BPM, continuous sixteenth-note arpeggiation, 1 chord/measure, even mp
+Waltz: 120-160 BPM, 3/4, LH oom-pah-pah, RH lyrical melody
+Impressionist: modal/whole-tone, 60-90 BPM, rich 7th/9th chords, pp-mp
+Ragtime: major key, 100-120 BPM, LH stride, RH syncopated, mf-f
+Minimalist (Satie): modal, 60-80 BPM, sparse, pp-p, slow harmonic rhythm
+Sonata (Beethoven): minor key, contrasting themes, broken octaves, pp-ff range
+
+## Velocity Guidelines
+Melody: 65-80 | Accompaniment: 45-60 | Bass: 50-65 | Accents: +8-12
+pp: 25-35 | p: 36-50 | mp: 51-63 | mf: 64-79 | f: 80-95 | ff: 96-110
+Humanize: vary each velocity by +/-3-5 randomly
+
+## Composition Rules
 - Generate 20-60 seconds of music
-- Use both hands: left hand for bass/chords (midi 36-59), right hand for melody (midi 60-84)
-- Use realistic velocities (40-100)
-- Make it musical: proper rhythm, harmony, and melody
-- Keep the tempo steady
+- Use both hands: left for bass/chords (midi 36-59), right for melody (midi 60-84)
+- Choose an appropriate key, scale, tempo, and chord progression for the requested style
+- Shape dynamics as arcs within 4-8 bar phrases (grow toward middle, taper at end)
+- Good melodies mix steps (1-2 semitones) and leaps (3+), resolve leaps by stepping back
+- Humanize timing slightly: vary note starts by +/-0.01-0.03s, durations by 95-105%
+- End gracefully with a resolving cadence (V-I or IV-I) and a final held chord
+- Use proper voice leading: move each voice to nearest chord tone
 - Return ONLY a valid JSON array, no other text`;
 
   try {
