@@ -7,8 +7,299 @@
     <title>Piano Studio</title>
     <script type="module" crossorigin src="./assets/index-DW8nBjR3.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-C4dELrRx.css">
+    <style>
+      #song-library-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 200;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(4px);
+        align-items: center;
+        justify-content: center;
+      }
+      #song-library-overlay.open { display: flex; }
+      #song-library-panel {
+        background: #1a1a2e;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        width: 90vw;
+        max-width: 900px;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+      }
+      #song-library-panel h2 {
+        color: #fff;
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+      }
+      #song-library-search {
+        width: 100%;
+        padding: 0.5rem 1rem;
+        border-radius: 0.75rem;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(255,255,255,0.06);
+        color: #fff;
+        font-size: 0.875rem;
+        outline: none;
+        margin-bottom: 0.75rem;
+      }
+      #song-library-search::placeholder { color: rgba(255,255,255,0.3); }
+      #song-library-list {
+        overflow-y: auto;
+        flex: 1;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 0.5rem;
+        padding-right: 0.25rem;
+      }
+      .song-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.6rem 0.85rem;
+        border-radius: 0.5rem;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.06);
+        cursor: pointer;
+        transition: all 0.15s;
+        color: rgba(255,255,255,0.7);
+        font-size: 0.8rem;
+      }
+      .song-item:hover {
+        background: rgba(139,92,246,0.15);
+        border-color: rgba(139,92,246,0.3);
+        color: #fff;
+      }
+      .song-item.loading {
+        opacity: 0.5;
+        pointer-events: none;
+      }
+      .song-composer {
+        color: rgba(255,255,255,0.4);
+        font-size: 0.7rem;
+        display: block;
+      }
+      .song-icon {
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: rgba(139,92,246,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+      }
+      #song-library-close {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: none;
+        border: none;
+        color: rgba(255,255,255,0.5);
+        font-size: 1.5rem;
+        cursor: pointer;
+        line-height: 1;
+      }
+      #song-library-close:hover { color: #fff; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <div id="song-library-overlay">
+      <div id="song-library-panel" style="position:relative">
+        <button id="song-library-close">&times;</button>
+        <h2>Song Library</h2>
+        <input id="song-library-search" type="text" placeholder="Search songs...">
+        <div id="song-library-list"></div>
+      </div>
+    </div>
+    <script>
+    (function() {
+      const SONGS = [
+        { file: "bach-prelude-c-major.mid", title: "Prelude in C Major", composer: "J.S. Bach" },
+        { file: "bach-prelude-c-minor.mid", title: "Prelude in C Minor", composer: "J.S. Bach" },
+        { file: "bach-invention-no4.mid", title: "Invention No. 4", composer: "J.S. Bach" },
+        { file: "bach-invention-no13.mid", title: "Invention No. 13", composer: "J.S. Bach" },
+        { file: "bach-fugue-g-minor-piano.mid", title: "Fugue in G Minor", composer: "J.S. Bach" },
+        { file: "bach-toccata-fugue-dm.mid", title: "Toccata & Fugue in D Minor", composer: "J.S. Bach" },
+        { file: "bach-cello-suite1-piano.mid", title: "Cello Suite No. 1 (Piano)", composer: "J.S. Bach" },
+        { file: "bach-badinerie-piano.mid", title: "Badinerie (Piano)", composer: "J.S. Bach" },
+        { file: "bwv846.mid", title: "Well-Tempered Clavier BWV 846", composer: "J.S. Bach" },
+        { file: "cpe-bach-solfeggietto.mid", title: "Solfeggietto", composer: "C.P.E. Bach" },
+        { file: "beethoven-moonlight-sonata.mid", title: "Moonlight Sonata", composer: "Beethoven" },
+        { file: "beethoven-pathetique-2.mid", title: "Pathetique Sonata, Mvt. 2", composer: "Beethoven" },
+        { file: "beethoven-ode-to-joy-piano.mid", title: "Ode to Joy (Piano)", composer: "Beethoven" },
+        { file: "beethoven-symphony7-2-piano.mid", title: "Symphony No. 7, Mvt. 2 (Liszt)", composer: "Beethoven" },
+        { file: "beethoven-minuet-g.mid", title: "Minuet in G", composer: "Beethoven" },
+        { file: "furelise.mid", title: "Fur Elise", composer: "Beethoven" },
+        { file: "chopin-nocturne-op9-no2.mid", title: "Nocturne Op. 9 No. 2", composer: "Chopin" },
+        { file: "chopin-nocturne-no20.mid", title: "Nocturne No. 20", composer: "Chopin" },
+        { file: "chopin-prelude-4-e-minor.mid", title: "Prelude No. 4 in E Minor", composer: "Chopin" },
+        { file: "chopin-prelude-6.mid", title: "Prelude No. 6", composer: "Chopin" },
+        { file: "chopin-prelude-15-raindrop.mid", title: "Raindrop Prelude", composer: "Chopin" },
+        { file: "chopin-prelude-20.mid", title: "Prelude No. 20 in C Minor", composer: "Chopin" },
+        { file: "chopin-waltz-op18.mid", title: "Grande Valse Brillante", composer: "Chopin" },
+        { file: "chopin-minute-waltz.mid", title: "Minute Waltz", composer: "Chopin" },
+        { file: "chopin-waltz-op64-no2.mid", title: "Waltz Op. 64 No. 2", composer: "Chopin" },
+        { file: "chopin-etude-op10-no4.mid", title: "Etude Op. 10 No. 4", composer: "Chopin" },
+        { file: "chopin-funeral-march.mid", title: "Funeral March", composer: "Chopin" },
+        { file: "debussy-clair-de-lune.mid", title: "Clair de Lune", composer: "Debussy" },
+        { file: "debussy-arabesque-1.mid", title: "Arabesque No. 1", composer: "Debussy" },
+        { file: "debussy-doctor-gradus.mid", title: "Doctor Gradus ad Parnassum", composer: "Debussy" },
+        { file: "debussy-golliwogs-cakewalk.mid", title: "Golliwog's Cakewalk", composer: "Debussy" },
+        { file: "debussy-reverie.mid", title: "Reverie", composer: "Debussy" },
+        { file: "debussy-reflections.mid", title: "Reflections in the Water", composer: "Debussy" },
+        { file: "satie-gymnopedie-1.mid", title: "Gymnopedie No. 1", composer: "Satie" },
+        { file: "satie-gnossienne-1.mid", title: "Gnossienne No. 1", composer: "Satie" },
+        { file: "gymnop01.mid", title: "Gymnopedie No. 1 (alt)", composer: "Satie" },
+        { file: "gymnop02.mid", title: "Gymnopedie No. 2", composer: "Satie" },
+        { file: "gnoss.mid", title: "Gnossienne No. 1 (alt)", composer: "Satie" },
+        { file: "gnossie4.mid", title: "Gnossienne No. 4", composer: "Satie" },
+        { file: "gnossie5.mid", title: "Gnossienne No. 5", composer: "Satie" },
+        { file: "mozart-alla-turca.mid", title: "Rondo alla Turca", composer: "Mozart" },
+        { file: "mozart-sonata-c-major.mid", title: "Sonata in C Major", composer: "Mozart" },
+        { file: "mozart-sonata-k333.mid", title: "Sonata K.333", composer: "Mozart" },
+        { file: "mozart-elvira-madigan-piano.mid", title: "Elvira Madigan (Piano)", composer: "Mozart" },
+        { file: "liszt-liebestraum-3.mid", title: "Liebestraum No. 3", composer: "Liszt" },
+        { file: "rachmaninoff-prelude-csharp-minor.mid", title: "Prelude in C# Minor", composer: "Rachmaninoff" },
+        { file: "rachmaninoff-prelude-g-minor.mid", title: "Prelude in G Minor", composer: "Rachmaninoff" },
+        { file: "rach0302.mid", title: "Piano Concerto No. 3", composer: "Rachmaninoff" },
+        { file: "racp23-4.mid", title: "Prelude Op. 23 No. 4", composer: "Rachmaninoff" },
+        { file: "r2310.mid", title: "Prelude Op. 23 No. 10", composer: "Rachmaninoff" },
+        { file: "brahms-intermezzo-op118.mid", title: "Intermezzo Op. 118 No. 2", composer: "Brahms" },
+        { file: "brahms-waltz-15.mid", title: "Waltz No. 15", composer: "Brahms" },
+        { file: "brahms-lullaby-piano.mid", title: "Lullaby (Piano)", composer: "Brahms" },
+        { file: "brahms-symphony3-3-piano.mid", title: "Symphony No. 3, Mvt. 3 (Piano)", composer: "Brahms" },
+        { file: "grieg-arietta.mid", title: "Arietta (Lyric Piece)", composer: "Grieg" },
+        { file: "grieg-notturno.mid", title: "Notturno (Lyric Piece)", composer: "Grieg" },
+        { file: "grieg-morning-mood-piano.mid", title: "Morning Mood (Piano)", composer: "Grieg" },
+        { file: "grieg-wedding-day.mid", title: "Wedding Day at Troldhaugen", composer: "Grieg" },
+        { file: "tchaikovsky-album-leaf.mid", title: "Feuillet d'Album", composer: "Tchaikovsky" },
+        { file: "tchaikovsky-waltz-op39.mid", title: "Waltz Op. 39 No. 8", composer: "Tchaikovsky" },
+        { file: "tchaikovsky-chanson-triste.mid", title: "Chanson Triste", composer: "Tchaikovsky" },
+        { file: "tchaikovsky-sugar-plum-piano.mid", title: "Dance of the Sugar Plum Fairy", composer: "Tchaikovsky" },
+        { file: "schubert-impromptu-no2.mid", title: "Impromptu No. 2", composer: "Schubert" },
+        { file: "schumann-traumerei.mid", title: "Traumerei", composer: "Schumann" },
+        { file: "schumann-strange-lands.mid", title: "About Strange Lands and People", composer: "Schumann" },
+        { file: "joplin-maple-leaf-rag.mid", title: "Maple Leaf Rag", composer: "Joplin" },
+        { file: "joplin-solace.mid", title: "Solace", composer: "Joplin" },
+        { file: "joplin-elite-syncopations.mid", title: "Elite Syncopations", composer: "Joplin" },
+        { file: "Movie_Themes_-_The_Sting_-_The_Entertainer_by_Scott_Joplin.mid", title: "The Entertainer", composer: "Joplin" },
+        { file: "ravel-jeux-deau.mid", title: "Jeux d'eau", composer: "Ravel" },
+        { file: "ravel-menuet.mid", title: "Menuet", composer: "Ravel" },
+        { file: "scarlatti-sonata-k32.mid", title: "Sonata K.32 in D Minor", composer: "Scarlatti" },
+        { file: "scarlatti-sonata-k159.mid", title: "Sonata K.159 in C Major", composer: "Scarlatti" },
+        { file: "scarlatti-sonata-k185.mid", title: "Sonata K.185 in F Minor", composer: "Scarlatti" },
+        { file: "dvorak-humoresque-piano.mid", title: "Humoresque No. 7", composer: "Dvorak" },
+        { file: "handel-sarabande.mid", title: "Sarabande in D Minor", composer: "Handel" },
+        { file: "handel-largo-piano.mid", title: "Largo (Piano)", composer: "Handel" },
+        { file: "pachelbel-canon-piano.mid", title: "Canon in D (Piano)", composer: "Pachelbel" },
+        { file: "purcell-ground-c-minor.mid", title: "Ground in C Minor", composer: "Purcell" },
+        { file: "purcell-didos-lament-piano.mid", title: "Dido's Lament (Piano)", composer: "Purcell" },
+        { file: "elgar-nimrod-piano.mid", title: "Nimrod (Piano)", composer: "Elgar" },
+        { file: "elgar-salut-damour-piano.mid", title: "Salut d'Amour (Piano)", composer: "Elgar" },
+        { file: "field-nocturne-5.mid", title: "Nocturne No. 5", composer: "Field" },
+        { file: "filtsch-romance-op3.mid", title: "Romance Op. 3 No. 1", composer: "Filtsch" },
+        { file: "faure-berceuse-piano.mid", title: "Berceuse (Dolly Suite)", composer: "Faure" },
+        { file: "massenet-meditation-piano.mid", title: "Meditation from Thais", composer: "Massenet" },
+        { file: "mendelssohn-song-without-words-6.mid", title: "Song Without Words No. 6", composer: "Mendelssohn" },
+        { file: "mendelssohn-song-without-words-34.mid", title: "Song Without Words No. 34", composer: "Mendelssohn" },
+        { file: "mussorgsky-promenade.mid", title: "Promenade (Pictures)", composer: "Mussorgsky" },
+        { file: "petzold-minuet-g-major.mid", title: "Minuet in G Major", composer: "Petzold" },
+        { file: "petzold-minuet-g-minor.mid", title: "Minuet in G Minor", composer: "Petzold" },
+        { file: "earle-of-salisbury.mid", title: "The Earle of Salisbury", composer: "Byrd" },
+        { file: "bumbleb.mid", title: "Flight of the Bumblebee", composer: "Rimsky-Korsakov" },
+        { file: "Find My Way (Instrumental).mid", title: "Find My Way", composer: "Instrumental" },
+      ];
+
+      const overlay = document.getElementById('song-library-overlay');
+      const list = document.getElementById('song-library-list');
+      const search = document.getElementById('song-library-search');
+      const closeBtn = document.getElementById('song-library-close');
+
+      function renderSongs(filter) {
+        const q = (filter || '').toLowerCase();
+        const filtered = SONGS.filter(s =>
+          s.title.toLowerCase().includes(q) || s.composer.toLowerCase().includes(q)
+        );
+        list.innerHTML = filtered.map(s => `
+          <div class="song-item" data-file="${s.file}">
+            <div class="song-icon">&#9835;</div>
+            <div>
+              <div>${s.title}</div>
+              <span class="song-composer">${s.composer}</span>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      function openLibrary() {
+        renderSongs('');
+        search.value = '';
+        overlay.classList.add('open');
+        search.focus();
+      }
+
+      function closeLibrary() {
+        overlay.classList.remove('open');
+      }
+
+      async function loadSong(filename) {
+        const item = list.querySelector(`[data-file="${CSS.escape(filename)}"]`);
+        if (item) item.classList.add('loading');
+        try {
+          const resp = await fetch('mid/' + encodeURIComponent(filename));
+          if (!resp.ok) throw new Error('Failed to fetch');
+          const blob = await resp.blob();
+          const file = new File([blob], filename, { type: 'audio/midi' });
+          const fileInput = document.querySelector('input[type="file"][accept*=".mid"]');
+          if (fileInput) {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            fileInput.files = dt.files;
+            fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          closeLibrary();
+        } catch (e) {
+          console.error('Failed to load song:', e);
+          if (item) item.classList.remove('loading');
+        }
+      }
+
+      search.addEventListener('input', () => renderSongs(search.value));
+      closeBtn.addEventListener('click', closeLibrary);
+      overlay.addEventListener('click', e => { if (e.target === overlay) closeLibrary(); });
+      list.addEventListener('click', e => {
+        const item = e.target.closest('.song-item');
+        if (item) loadSong(item.dataset.file);
+      });
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && overlay.classList.contains('open')) closeLibrary();
+      });
+
+      // Inject Library button into the toolbar after React renders
+      function injectButton() {
+        const toolbar = document.querySelector('[aria-label="Upload sheet music file"]');
+        if (!toolbar) return setTimeout(injectButton, 200);
+        if (document.getElementById('library-btn')) return;
+        const btn = document.createElement('button');
+        btn.id = 'library-btn';
+        btn.textContent = 'Library';
+        btn.className = 'px-3 py-1.5 rounded-lg text-sm text-white/80 transition-colors flex items-center gap-1.5';
+        btn.style.cssText = 'background:rgba(139,92,246,0.2);';
+        btn.onmouseenter = () => btn.style.background = 'rgba(139,92,246,0.4)';
+        btn.onmouseleave = () => btn.style.background = 'rgba(139,92,246,0.2)';
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Library';
+        btn.addEventListener('click', openLibrary);
+        toolbar.parentNode.insertBefore(btn, toolbar.nextSibling);
+      }
+      injectButton();
+    })();
+    </script>
   </body>
 </html>
