@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crypto Pulse — Live Market Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #09090b;
+      --surface: #18181b;
+      --surface2: #27272a;
+      --border: #2d2d30;
+      --text: #fafafa;
+      --text-dim: #a1a1aa;
+      --green: #22c55e;
+      --green-bg: rgba(34, 197, 94, 0.1);
+      --red: #ef4444;
+      --red-bg: rgba(239, 68, 68, 0.1);
+      --accent: #8b5cf6;
+      --accent-bg: rgba(139, 92, 246, 0.1);
+      --blue: #3b82f6;
+      --gold: #eab308;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ─── Header ────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .logo-icon {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .market-cap-badge {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .market-cap-badge span { color: var(--text); font-weight: 600; }
+
+    .live-dot {
+      width: 8px; height: 8px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .currency-toggle {
+      display: flex;
+      gap: 4px;
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 3px;
+    }
+
+    .currency-toggle button {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .currency-toggle button.active {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    /* ─── Summary strip ─────────────────────────── */
+    .summary-strip {
+      display: flex;
+      gap: 16px;
+      padding: 16px 28px;
+      overflow-x: auto;
+    }
+
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      min-width: 200px;
+      flex-shrink: 0;
+    }
+
+    .summary-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .summary-value {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .summary-change {
+      font-size: 13px;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    /* ─── Table ──────────────────────────────────── */
+    .table-container {
+      padding: 0 28px 28px;
+    }
+
+    .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 0 12px;
+    }
+
+    .table-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .search-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      color: var(--text);
+      font-size: 13px;
+      width: 220px;
+      outline: none;
+      transition: border 0.2s;
+    }
+
+    .search-box:focus { border-color: var(--accent); }
+    .search-box::placeholder { color: var(--text-dim); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    thead th {
+      text-align: left;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-dim);
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    thead th:hover { color: var(--text); }
+
+    thead th.rank { width: 50px; }
+    thead th.name-col { width: 22%; }
+    thead th.price-col { width: 14%; text-align: right; }
+    thead th.change-col { width: 10%; text-align: right; }
+    thead th.mcap-col { width: 16%; text-align: right; }
+    thead th.vol-col { width: 14%; text-align: right; }
+    thead th.chart-col { width: 14%; text-align: right; }
+    thead th.supply-col { width: 14%; text-align: right; }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+      cursor: pointer;
+    }
+
+    tbody tr:hover { background: var(--surface); }
+
+    td {
+      padding: 14px 12px;
+      font-size: 14px;
+      vertical-align: middle;
+    }
+
+    .coin-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .coin-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .coin-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .coin-symbol {
+      color: var(--text-dim);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .price-cell {
+      text-align: right;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .change-cell {
+      text-align: right;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .up { color: var(--green); }
+    .down { color: var(--red); }
+
+    .mcap-cell, .vol-cell, .supply-cell {
+      text-align: right;
+      color: var(--text-dim);
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .chart-cell {
+      text-align: right;
+    }
+
+    .sparkline {
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    .rank-cell {
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    /* ─── Price flash ───────────────────────────── */
+    @keyframes flashGreen {
+      0% { background: var(--green-bg); }
+      100% { background: transparent; }
+    }
+    @keyframes flashRed {
+      0% { background: var(--red-bg); }
+      100% { background: transparent; }
+    }
+    .flash-up { animation: flashGreen 1s ease-out; }
+    .flash-down { animation: flashRed 1s ease-out; }
+
+    /* ─── Detail modal ──────────────────────────── */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      width: 520px;
+      max-width: 90vw;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .modal-coin-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .modal-coin-header img { width: 48px; height: 48px; border-radius: 50%; }
+
+    .modal-coin-name {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .modal-coin-symbol {
+      color: var(--text-dim);
+      font-size: 14px;
+      text-transform: uppercase;
+    }
+
+    .modal-price {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .modal-chart-canvas {
+      width: 100%;
+      height: 180px;
+      margin: 20px 0;
+      border-radius: 8px;
+      background: var(--bg);
+    }
+
+    .modal-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .modal-stat {
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 8px;
+    }
+
+    .modal-stat-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .modal-stat-value {
+      font-size: 15px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    /* ─── Footer ─────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-dim);
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* ─── Loading ─────────────────────────────────── */
+    #loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 80px;
+      color: var(--text-dim);
+      font-size: 15px;
+      gap: 12px;
+    }
+
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Responsive ──────────────────────────────── */
+    @media (max-width: 900px) {
+      .summary-strip { padding: 12px 16px; }
+      .table-container { padding: 0 16px 16px; }
+      header { padding: 12px 16px; }
+      .market-cap-badge { display: none; }
+      thead th.mcap-col, td:nth-child(5),
+      thead th.vol-col, td:nth-child(6),
+      thead th.supply-col, td:nth-child(8) { display: none; }
+    }
+
+    @media (max-width: 600px) {
+      thead th.chart-col, td:nth-child(7) { display: none; }
+    }
+
+    /* ─── Scrollbar ────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">$</div>
+      Crypto Pulse
+    </div>
+    <div class="header-right">
+      <div class="market-cap-badge">
+        Global Market Cap: <span id="global-mcap">—</span>
+      </div>
+      <div class="currency-toggle">
+        <button class="active" data-cur="usd">USD</button>
+        <button data-cur="eur">EUR</button>
+        <button data-cur="gbp">GBP</button>
+      </div>
+      <div class="live-dot" title="Auto-refreshes every 60s"></div>
+    </div>
+  </header>
+
+  <div class="summary-strip" id="summary-strip"></div>
+
+  <div class="table-container">
+    <div class="table-header">
+      <div class="table-title">Top Cryptocurrencies by Market Cap</div>
+      <input type="text" class="search-box" id="search" placeholder="Search coins..." />
+    </div>
+    <div id="loading"><div class="spinner"></div> Loading market data...</div>
+    <table id="coin-table" style="display:none">
+      <thead>
+        <tr>
+          <th class="rank">#</th>
+          <th class="name-col" data-sort="name">Name</th>
+          <th class="price-col" data-sort="price">Price</th>
+          <th class="change-col" data-sort="change1h">1h</th>
+          <th class="change-col" data-sort="change24h">24h</th>
+          <th class="mcap-col" data-sort="mcap">Market Cap</th>
+          <th class="vol-col" data-sort="volume">24h Volume</th>
+          <th class="chart-col">7d Chart</th>
+          <th class="supply-col" data-sort="supply">Circulating</th>
+        </tr>
+      </thead>
+      <tbody id="coin-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal" id="modal">
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <footer>
+    Data from <a href="https://www.coingecko.com/" target="_blank">CoinGecko</a> &middot; Auto-refreshes every 60 seconds &middot; Prices may be delayed
+  </footer>
+
+  <script>
+    // ─── State ───────────────────────────────────────
+    let coins = [];
+    let prevPrices = {};
+    let currency = 'usd';
+    let sortKey = null;
+    let sortDir = 1;
+    let searchTerm = '';
+
+    const SYMBOLS = { usd: '$', eur: '€', gbp: '£' };
+
+    // ─── Formatting ──────────────────────────────────
+    function fmt(n, decimals = 2) {
+      if (n == null) return '—';
+      if (Math.abs(n) >= 1e12) return (n / 1e12).toFixed(2) + 'T';
+      if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+      if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+      if (Math.abs(n) >= 1e3) return n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      if (Math.abs(n) < 0.01) return n.toFixed(6);
+      return n.toFixed(decimals);
+    }
+
+    function fmtPrice(n) {
+      if (n == null) return '—';
+      const sym = SYMBOLS[currency];
+      if (n >= 1) return sym + fmt(n, 2);
+      if (n >= 0.01) return sym + n.toFixed(4);
+      return sym + n.toFixed(6);
+    }
+
+    function fmtPct(n) {
+      if (n == null) return '—';
+      const sign = n >= 0 ? '+' : '';
+      return sign + n.toFixed(2) + '%';
+    }
+
+    function changeClass(n) {
+      return n >= 0 ? 'up' : 'down';
+    }
+
+    // ─── Sparkline SVG ───────────────────────────────
+    function sparklineSVG(data, isUp) {
+      if (!data || data.length === 0) return '';
+      const w = 100, h = 36;
+      const min = Math.min(...data);
+      const max = Math.max(...data);
+      const range = max - min || 1;
+      const step = w / (data.length - 1);
+
+      const points = data.map((v, i) => {
+        const x = i * step;
+        const y = h - ((v - min) / range) * (h - 4) - 2;
+        return `${x},${y}`;
+      });
+
+      const color = isUp ? '#22c55e' : '#ef4444';
+      const lastY = h - ((data[data.length - 1] - min) / range) * (h - 4) - 2;
+
+      // Gradient fill
+      const fillPoints = `0,${h} ${points.join(' ')} ${w},${h}`;
+
+      return `<svg class="sparkline" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <defs>
+          <linearGradient id="grad-${isUp ? 'up' : 'down'}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${color}" stop-opacity="0.2"/>
+            <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <polygon points="${fillPoints}" fill="url(#grad-${isUp ? 'up' : 'down'})" />
+        <polyline points="${points.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" />
+        <circle cx="${w}" cy="${lastY}" r="2" fill="${color}" />
+      </svg>`;
+    }
+
+    // ─── Fetch data ──────────────────────────────────
+    async function fetchCoins() {
+      try {
+        const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currency}&order=market_cap_desc&per_page=50&page=1&sparkline=true&price_change_percentage=1h%2C24h%2C7d`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        // Store previous prices for flash effect
+        coins.forEach(c => { prevPrices[c.id] = c.current_price; });
+
+        coins = data;
+        renderSummary();
+        renderTable();
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('coin-table').style.display = 'table';
+      } catch (e) {
+        console.error('Fetch error:', e);
+        // If rate limited, show message but keep existing data
+        if (coins.length === 0) {
+          document.getElementById('loading').innerHTML =
+            '<span style="color: var(--red)">Rate limited by CoinGecko. Retrying in 60s...</span>';
+        }
+      }
+    }
+
+    async function fetchGlobal() {
+      try {
+        const res = await fetch('https://api.coingecko.com/api/v3/global');
+        const data = await res.json();
+        const mcap = data.data.total_market_cap[currency];
+        document.getElementById('global-mcap').textContent = SYMBOLS[currency] + fmt(mcap);
+      } catch (e) {}
+    }
+
+    // ─── Render summary cards ────────────────────────
+    function renderSummary() {
+      const top = coins.slice(0, 4);
+      document.getElementById('summary-strip').innerHTML = top.map(c => {
+        const change = c.price_change_percentage_24h_in_currency || c.price_change_percentage_24h || 0;
+        const cls = changeClass(change);
+        return `
+          <div class="summary-card" onclick="openModal('${c.id}')" style="cursor:pointer">
+            <div class="summary-label" style="display:flex;align-items:center;gap:6px">
+              <img src="${c.image}" width="18" height="18" style="border-radius:50%">
+              ${c.name} <span style="color:var(--text-dim)">${c.symbol.toUpperCase()}</span>
+            </div>
+            <div class="summary-value">${fmtPrice(c.current_price)}</div>
+            <div class="summary-change ${cls}">${fmtPct(change)}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ─── Render table ────────────────────────────────
+    function renderTable() {
+      let filtered = coins;
+      if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        filtered = coins.filter(c =>
+          c.name.toLowerCase().includes(q) ||
+          c.symbol.toLowerCase().includes(q)
+        );
+      }
+
+      if (sortKey) {
+        filtered = [...filtered].sort((a, b) => {
+          let va, vb;
+          switch (sortKey) {
+            case 'name': va = a.name; vb = b.name; return sortDir * va.localeCompare(vb);
+            case 'price': va = a.current_price; vb = b.current_price; break;
+            case 'change1h': va = a.price_change_percentage_1h_in_currency || 0; vb = b.price_change_percentage_1h_in_currency || 0; break;
+            case 'change24h': va = a.price_change_percentage_24h || 0; vb = b.price_change_percentage_24h || 0; break;
+            case 'mcap': va = a.market_cap; vb = b.market_cap; break;
+            case 'volume': va = a.total_volume; vb = b.total_volume; break;
+            case 'supply': va = a.circulating_supply; vb = b.circulating_supply; break;
+            default: return 0;
+          }
+          return sortDir * ((va || 0) - (vb || 0));
+        });
+      }
+
+      const tbody = document.getElementById('coin-tbody');
+      tbody.innerHTML = filtered.map(c => {
+        const change1h = c.price_change_percentage_1h_in_currency;
+        const change24h = c.price_change_percentage_24h;
+        const sparkData = c.sparkline_in_7d?.price || [];
+        const isUp7d = sparkData.length > 1 ? sparkData[sparkData.length - 1] >= sparkData[0] : true;
+
+        // Flash effect
+        let flashClass = '';
+        if (prevPrices[c.id] != null && c.current_price !== prevPrices[c.id]) {
+          flashClass = c.current_price > prevPrices[c.id] ? 'flash-up' : 'flash-down';
+        }
+
+        return `
+          <tr class="${flashClass}" onclick="openModal('${c.id}')">
+            <td class="rank-cell">${c.market_cap_rank || '—'}</td>
+            <td>
+              <div class="coin-cell">
+                <img class="coin-icon" src="${c.image}" alt="${c.name}" loading="lazy" />
+                <div>
+                  <div class="coin-name">${c.name}</div>
+                  <div class="coin-symbol">${c.symbol}</div>
+                </div>
+              </div>
+            </td>
+            <td class="price-cell">${fmtPrice(c.current_price)}</td>
+            <td class="change-cell ${changeClass(change1h)}">${fmtPct(change1h)}</td>
+            <td class="change-cell ${changeClass(change24h)}">${fmtPct(change24h)}</td>
+            <td class="mcap-cell">${SYMBOLS[currency]}${fmt(c.market_cap)}</td>
+            <td class="vol-cell">${SYMBOLS[currency]}${fmt(c.total_volume)}</td>
+            <td class="chart-cell">${sparklineSVG(sparkData.slice(-48), isUp7d)}</td>
+            <td class="supply-cell">${fmt(c.circulating_supply, 0)} ${c.symbol.toUpperCase()}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // ─── Modal ───────────────────────────────────────
+    async function openModal(coinId) {
+      const coin = coins.find(c => c.id === coinId);
+      if (!coin) return;
+
+      const change24h = coin.price_change_percentage_24h || 0;
+      const change7d = coin.price_change_percentage_7d_in_currency || 0;
+      const sparkData = coin.sparkline_in_7d?.price || [];
+
+      document.getElementById('modal-content').innerHTML = `
+        <div class="modal-coin-header">
+          <img src="${coin.image}" />
+          <div>
+            <div class="modal-coin-name">${coin.name}</div>
+            <div class="modal-coin-symbol">${coin.symbol} &middot; Rank #${coin.market_cap_rank || '—'}</div>
+          </div>
+        </div>
+        <div class="modal-price">${fmtPrice(coin.current_price)}</div>
+        <div class="summary-change ${changeClass(change24h)}" style="font-size:16px;margin-bottom:8px">
+          ${fmtPct(change24h)} (24h)
+        </div>
+        <canvas class="modal-chart-canvas" id="modal-chart" width="460" height="180"></canvas>
+        <div class="modal-stats">
+          <div class="modal-stat">
+            <div class="modal-stat-label">Market Cap</div>
+            <div class="modal-stat-value">${SYMBOLS[currency]}${fmt(coin.market_cap)}</div>
+          </div>
+          <div class="modal-stat">
+            <div class="modal-stat-label">24h Volume</div>
+            <div class="modal-stat-value">${SYMBOLS[currency]}${fmt(coin.total_volume)}</div>
+          </div>
+          <div class="modal-stat">
+            <div class="modal-stat-label">24h High</div>
+            <div class="modal-stat-value">${fmtPrice(coin.high_24h)}</div>
+          </div>
+          <div class="modal-stat">
+            <div class="modal-stat-label">24h Low</div>
+            <div class="modal-stat-value">${fmtPrice(coin.low_24h)}</div>
+          </div>
+          <div class="modal-stat">
+            <div class="modal-stat-label">Circulating Supply</div>
+            <div class="modal-stat-value">${fmt(coin.circulating_supply, 0)} ${coin.symbol.toUpperCase()}</div>
+          </div>
+          <div class="modal-stat">
+            <div class="modal-stat-label">7d Change</div>
+            <div class="modal-stat-value ${changeClass(change7d)}">${fmtPct(change7d)}</div>
+          </div>
+          <div class="modal-stat">
+            <div class="modal-stat-label">All-Time High</div>
+            <div class="modal-stat-value">${fmtPrice(coin.ath)}</div>
+          </div>
+          <div class="modal-stat">
+            <div class="modal-stat-label">ATH Change</div>
+            <div class="modal-stat-value ${changeClass(coin.ath_change_percentage)}">${fmtPct(coin.ath_change_percentage)}</div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('modal-backdrop').classList.add('open');
+
+      // Draw 7d chart on canvas
+      requestAnimationFrame(() => drawModalChart(sparkData, change7d >= 0));
+    }
+
+    function drawModalChart(data, isUp) {
+      const canvas = document.getElementById('modal-chart');
+      if (!canvas || !data.length) return;
+
+      const dpr = devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width, h = rect.height;
+      const pad = 8;
+      const min = Math.min(...data);
+      const max = Math.max(...data);
+      const range = max - min || 1;
+      const step = (w - pad * 2) / (data.length - 1);
+      const color = isUp ? '#22c55e' : '#ef4444';
+
+      // Gradient fill
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, isUp ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+      ctx.beginPath();
+      ctx.moveTo(pad, h);
+      data.forEach((v, i) => {
+        const x = pad + i * step;
+        const y = h - pad - ((v - min) / range) * (h - pad * 2);
+        ctx.lineTo(x, y);
+      });
+      ctx.lineTo(pad + (data.length - 1) * step, h);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Line
+      ctx.beginPath();
+      data.forEach((v, i) => {
+        const x = pad + i * step;
+        const y = h - pad - ((v - min) / range) * (h - pad * 2);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Current price dot
+      const lastX = pad + (data.length - 1) * step;
+      const lastY = h - pad - ((data[data.length - 1] - min) / range) * (h - pad * 2);
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+
+    function closeModal() {
+      document.getElementById('modal-backdrop').classList.remove('open');
+    }
+
+    document.getElementById('modal-backdrop').addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeModal();
+    });
+
+    // ─── Search ──────────────────────────────────────
+    document.getElementById('search').addEventListener('input', e => {
+      searchTerm = e.target.value;
+      renderTable();
+    });
+
+    // ─── Sort ────────────────────────────────────────
+    document.querySelectorAll('thead th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.sort;
+        if (sortKey === key) sortDir *= -1;
+        else { sortKey = key; sortDir = -1; }
+        renderTable();
+      });
+    });
+
+    // ─── Currency toggle ─────────────────────────────
+    document.querySelectorAll('.currency-toggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.currency-toggle button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currency = btn.dataset.cur;
+        prevPrices = {};
+        fetchCoins();
+        fetchGlobal();
+      });
+    });
+
+    // ─── Keyboard ────────────────────────────────────
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    // ─── Init ────────────────────────────────────────
+    fetchCoins();
+    fetchGlobal();
+    setInterval(fetchCoins, 60000);
+    setInterval(fetchGlobal, 120000);
+  </script>
+</body>
+</html>
