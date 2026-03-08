@@ -2,15 +2,71 @@
   {
     "id": "earth",
     "title": "Earth Atlas",
-    "description": "Interactive 3D globe with country-level data overlays including life expectancy, CO2 emissions, renewable energy, and more. Built with React and Three.js.",
-    "tags": ["React", "Three.js", "Data Viz", "WebGL"],
+    "description": "Interactive 3D globe with country-level data overlays including life expectancy, CO2 emissions, renewable energy, and more.",
+    "tags": ["Three.js", "Data Viz", "WebGL"],
     "path": "projects/earth/",
     "thumbnail": "thumbnails/earth.png"
   },
   {
+    "id": "earthquake",
+    "title": "Seismic Live",
+    "description": "Real-time earthquake monitor with interactive map, tectonic plates overlay, seismograph waveform, and live USGS data feed.",
+    "tags": ["Leaflet", "Canvas", "USGS API", "Live Data"],
+    "path": "projects/earthquake/"
+  },
+  {
+    "id": "crypto",
+    "title": "Crypto Pulse",
+    "description": "Live cryptocurrency dashboard with top 50 coins, sparkline charts, price flash animations, and multi-currency support via CoinGecko.",
+    "tags": ["SVG", "CoinGecko API", "Live Data", "Finance"],
+    "path": "projects/crypto/"
+  },
+  {
+    "id": "iss",
+    "title": "ISS Live Tracker",
+    "description": "Real-time International Space Station tracking with orbital data, ground track trail, crew roster, and day/night terminator.",
+    "tags": ["Leaflet", "Space", "Live Data", "Canvas"],
+    "path": "projects/iss/"
+  },
+  {
+    "id": "hackernews",
+    "title": "HN Live",
+    "description": "Real-time Hacker News dashboard with top/best/new/ask/show feeds, domain analysis, activity graph, and streaming new stories.",
+    "tags": ["Firebase API", "Live Data", "News", "Dashboard"],
+    "path": "projects/hackernews/"
+  },
+  {
+    "id": "weather",
+    "title": "Weather Pulse",
+    "description": "Global weather dashboard with city search, hourly and 7-day forecasts, UV index, wind, humidity, and auto-location detection.",
+    "tags": ["Open-Meteo API", "Geocoding", "Live Data", "Weather"],
+    "path": "projects/weather/"
+  },
+  {
+    "id": "github",
+    "title": "GitHub Pulse",
+    "description": "Live visualization of public GitHub activity — pushes, stars, PRs, forks streaming in real-time with trending repos and language stats.",
+    "tags": ["GitHub API", "Live Data", "Visualization", "Developer"],
+    "path": "projects/github/"
+  },
+  {
+    "id": "wikipedia",
+    "title": "Wiki Live",
+    "description": "Real-time Wikipedia edit stream via Server-Sent Events. Watch every edit across all language Wikipedias as it happens.",
+    "tags": ["SSE", "Wikimedia API", "Live Data", "Stream"],
+    "path": "projects/wikipedia/"
+  },
+  {
+    "id": "aurora",
+    "title": "Aurora Watch",
+    "description": "Space weather and aurora forecast dashboard with Kp index, solar wind, Bz component, flare alerts, and city-level aurora visibility.",
+    "tags": ["NOAA SWPC", "Space Weather", "Live Data", "Canvas"],
+    "path": "projects/aurora/"
+  },
+  {
     "id": "abalone",
     "title": "Abalone",
-    "description": "A polished 3D rendition of the classic marble-pushing board game. Features multiple camera angles, move previews, and complete rule enforcement.",
+    "description": "A polished 3D rendition of the classic marble-pushing board game with multiple camera angles, move previews, and complete rule enforcement.",
     "tags": ["Three.js", "Game", "3D", "WebGL"],
     "path": "projects/abalone/",
     "thumbnail": "thumbnails/abalone.png"
@@ -25,8 +81,8 @@
   },
   {
     "id": "piano",
-    "title": "Piano",
-    "description": "3D piano studio with MIDI playback, waterfall note visualisation, multiple camera angles, and tempo controls. Upload any MIDI file and watch it play.",
+    "title": "Piano Studio",
+    "description": "3D piano studio with MIDI playback, waterfall note visualisation, multiple camera angles, and tempo controls.",
     "tags": ["Three.js", "Web Audio", "MIDI", "3D"],
     "path": "projects/piano/",
     "thumbnail": "thumbnails/piano.png"
@@ -34,15 +90,14 @@
   {
     "id": "violin",
     "title": "Violin Ensemble",
-    "description": "3D string ensemble visualiser that distributes MIDI notes across violins, violas, cellos, and contrabasses. Features bow animation, string vibration, and synthesised audio.",
+    "description": "3D string ensemble visualiser that distributes MIDI notes across violins, violas, cellos, and contrabasses with bow animation.",
     "tags": ["Three.js", "Web Audio", "MIDI", "3D"],
-    "path": "projects/violin/",
-    "thumbnail": "thumbnails/violin.png"
+    "path": "projects/violin/"
   },
   {
     "id": "brightonhub",
     "title": "Brighton Hub",
-    "description": "Live city dashboard for Brighton & Hove with real-time transport, environment, crime, housing, health, events, and schools data from public APIs.",
+    "description": "Live city dashboard for Brighton & Hove with real-time transport, environment, crime, housing, health, events, and schools data.",
     "tags": ["Next.js", "Dashboard", "Data Viz", "Live Data"],
     "path": "https://brightonhub.ai",
     "thumbnail": "thumbnails/brightonhub.png"

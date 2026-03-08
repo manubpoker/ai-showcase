@@ -134,6 +134,20 @@ body {
 .tile-fallback[data-color="2"] { background: linear-gradient(135deg, #1a0a2e, #3a1c71); }
 .tile-fallback[data-color="3"] { background: linear-gradient(135deg, #0d1117, #1b3a4b); }
 .tile-fallback[data-color="4"] { background: linear-gradient(135deg, #1a1a2e, #16213e); }
+.tile-fallback[data-color="5"] { background: linear-gradient(135deg, #0a1628, #1a3a5c); }
+.tile-fallback[data-color="6"] { background: linear-gradient(135deg, #1b0a2e, #4a1c6b); }
+.tile-fallback[data-color="7"] { background: linear-gradient(135deg, #0d1f17, #1b4b3a); }
+.tile-fallback[data-color="8"] { background: linear-gradient(135deg, #2e1a0a, #5c3a1a); }
+
+/* Show label by default on tiles without thumbnails */
+.tile.no-thumb .tile-label {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.tile.no-thumb .tile-label span {
+  opacity: 1;
+  transform: translateY(0);
+}
 
 /* ── Footer ── */
 .site-footer {

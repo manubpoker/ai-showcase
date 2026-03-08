@@ -10,7 +10,7 @@
 
   function render(projects) {
     grid.innerHTML = projects.map((p, i) => `
-      <a class="tile" href="${p.path}" target="_blank" rel="noopener">
+      <a class="tile${p.thumbnail ? '' : ' no-thumb'}" href="${p.path}" target="_blank" rel="noopener">
         ${p.thumbnail
           ? `<img src="${p.thumbnail}" alt="${p.title}" loading="lazy">`
           : `<div class="tile-fallback" data-color="${i % 5}"></div>`}
