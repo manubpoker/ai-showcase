@@ -241,7 +241,7 @@
     .toggle-panel {
       position: fixed;
       top: 16px;
-      left: 16px;
+      right: 16px;
       background: var(--surface);
       backdrop-filter: blur(16px);
       border: 1px solid var(--border);
@@ -250,7 +250,14 @@
       font-size: 12px;
       cursor: pointer;
       z-index: 11;
-      display: none;
+      color: var(--text);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      transition: all 0.15s;
+    }
+
+    .toggle-panel:hover {
+      background: rgba(99,102,241,0.15);
+      border-color: var(--accent);
     }
 
     /* Scrollbar */
@@ -342,7 +349,7 @@
   </div>
 </div>
 
-<div class="toggle-panel" id="toggle-panel" onclick="togglePanel()">☰ Controls</div>
+<div class="toggle-panel" id="toggle-panel" onclick="togglePanel()">✕ Hide Controls</div>
 
 <div class="stats">
   <div>Particles: <span id="stat-count">0</span></div>
@@ -707,13 +714,9 @@
   function togglePanel() {
     const panel = document.getElementById('panel');
     const toggle = document.getElementById('toggle-panel');
-    if (panel.style.display === 'none') {
-      panel.style.display = 'block';
-      toggle.style.display = 'none';
-    } else {
-      panel.style.display = 'none';
-      toggle.style.display = 'block';
-    }
+    const isVisible = panel.style.display !== 'none';
+    panel.style.display = isVisible ? 'none' : 'block';
+    toggle.textContent = isVisible ? '☰ Show Controls' : '✕ Hide Controls';
   }
 
   // Keyboard: space to pause, h to hide panel
