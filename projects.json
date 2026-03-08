@@ -1,5 +1,12 @@
 [
   {
+    "id": "fluid",
+    "title": "Fluid Canvas",
+    "description": "GPU-accelerated real-time fluid simulation using WebGL 2 shaders. Navier-Stokes solver with vorticity confinement, interactive dye injection, and bloom effects.",
+    "tags": ["WebGL", "GLSL", "Physics", "Simulation"],
+    "path": "projects/fluid/"
+  },
+  {
     "id": "earth",
     "title": "Earth Atlas",
     "description": "Interactive 3D globe with country-level data overlays including life expectancy, CO2 emissions, renewable energy, and more.",
