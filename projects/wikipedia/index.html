@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-5HPMN4CHL3');
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wiki Live — Real-Time Wikipedia Edits</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0b0d10;
+      --surface: #14171d;
+      --surface2: #1c2027;
+      --border: #262a33;
+      --text: #e8ebf0;
+      --text-dim: #808898;
+      --wiki: #36c; /* Wikipedia blue */
+      --wiki-bg: rgba(51,102,204,0.1);
+      --green: #00c853;
+      --green-bg: rgba(0,200,83,0.08);
+      --red: #ff5252;
+      --red-bg: rgba(255,82,82,0.08);
+      --yellow: #ffd600;
+      --yellow-bg: rgba(255,214,0,0.08);
+      --purple: #b388ff;
+      --purple-bg: rgba(179,136,255,0.08);
+      --cyan: #18ffff;
+      --orange: #ff9100;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #app {
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      grid-template-rows: 52px auto 1fr;
+      height: 100vh;
+    }
+
+    /* ─── Header ─────────────────────────────── */
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 22px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .logo-w {
+      width: 26px;
+      height: 26px;
+      background: var(--wiki);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 22px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .hs-val {
+      color: var(--text);
+      font-weight: 700;
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stream-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .stream-badge.connected { color: var(--green); }
+    .stream-badge.disconnected { color: var(--red); }
+
+    .stream-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: blink 1.5s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    /* ─── Ticker strip ───────────────────────── */
+    .ticker-strip {
+      grid-column: 1 / -1;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 22px;
+      height: 40px;
+      gap: 6px;
+      overflow: hidden;
+    }
+
+    .ticker-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+      flex-shrink: 0;
+      margin-right: 8px;
+    }
+
+    .ticker-scroll {
+      display: flex;
+      gap: 8px;
+      overflow: hidden;
+      flex: 1;
+    }
+
+    .ticker-item {
+      flex-shrink: 0;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      animation: tickerSlide 0.5s ease-out;
+      white-space: nowrap;
+    }
+
+    @keyframes tickerSlide {
+      from { opacity: 0; transform: translateX(30px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .ticker-new { background: var(--green-bg); color: var(--green); }
+    .ticker-edit { background: var(--wiki-bg); color: var(--wiki); }
+    .ticker-bot { background: var(--purple-bg); color: var(--purple); }
+    .ticker-minor { background: var(--yellow-bg); color: var(--yellow); }
+
+    /* ─── Feed ───────────────────────────────── */
+    .feed {
+      grid-column: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    .edit-item {
+      display: flex;
+      gap: 12px;
+      padding: 11px 22px;
+      border-bottom: 1px solid var(--border);
+      animation: fadeIn 0.35s ease-out;
+      transition: background 0.15s;
+      font-size: 14px;
+    }
+
+    .edit-item:hover { background: var(--surface); }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .edit-type-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+
+    .edit-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .edit-title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .edit-title {
+      font-weight: 600;
+      color: var(--wiki);
+      text-decoration: none;
+      line-height: 1.3;
+    }
+
+    .edit-title:hover { text-decoration: underline; }
+
+    .edit-lang {
+      font-size: 11px;
+      color: var(--text-dim);
+      background: var(--surface2);
+      padding: 1px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .edit-flags {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .edit-flag {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    .flag-bot { background: var(--purple-bg); color: var(--purple); }
+    .flag-minor { background: var(--yellow-bg); color: var(--yellow); }
+    .flag-new { background: var(--green-bg); color: var(--green); }
+    .flag-patrolled { background: rgba(100,100,120,0.15); color: #888; }
+
+    .edit-meta {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    .edit-user { font-weight: 500; }
+
+    .edit-diff {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .diff-add { color: var(--green); }
+    .diff-remove { color: var(--red); }
+
+    .edit-comment {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-style: italic;
+    }
+
+    /* ─── Sidebar ────────────────────────────── */
+    .sidebar {
+      grid-column: 2;
+      border-left: 1px solid var(--border);
+      background: var(--surface);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .side-panel {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .side-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 12px;
+    }
+
+    /* Rate display */
+    .rate-row {
+      display: flex;
+      gap: 10px;
+      text-align: center;
+    }
+
+    .rate-box {
+      flex: 1;
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 12px 8px;
+    }
+
+    .rate-val {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--green);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .rate-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* Breakdown */
+    .breakdown {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .bd-item {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .bd-val {
+      font-size: 20px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .bd-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* Top pages */
+    .top-pages { display: flex; flex-direction: column; gap: 5px; }
+
+    .top-page {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 10px;
+      background: var(--bg);
+      border-radius: 6px;
+      gap: 8px;
+    }
+
+    .tp-name {
+      font-size: 13px;
+      color: var(--wiki);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-decoration: none;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .tp-name:hover { text-decoration: underline; }
+
+    .tp-count {
+      font-size: 12px;
+      color: var(--text-dim);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* Languages */
+    .lang-list { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .lang-chip {
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: var(--bg);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .lang-chip-count {
+      color: var(--text-dim);
+      margin-left: 4px;
+    }
+
+    /* Activity sparkline */
+    #spark-canvas {
+      width: 100%;
+      height: 50px;
+      border-radius: 6px;
+    }
+
+    /* ─── Responsive ─────────────────────────── */
+    @media (max-width: 900px) {
+      #app { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+    }
+
+    /* ─── Scrollbar ──────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="logo">
+      <div class="logo-w">W</div>
+      Wiki Live
+    </div>
+    <div class="header-stats">
+      <div>Edits <span class="hs-val" id="stat-total">0</span></div>
+      <div>Rate <span class="hs-val" id="stat-rate">—</span>/min</div>
+      <div>Users <span class="hs-val" id="stat-users">0</span></div>
+    </div>
+    <div class="stream-badge connected" id="stream-badge">
+      <div class="stream-dot"></div>
+      <span id="stream-text">CONNECTING</span>
+    </div>
+  </header>
+
+  <div class="ticker-strip">
+    <div class="ticker-label">Latest</div>
+    <div class="ticker-scroll" id="ticker"></div>
+  </div>
+
+  <div class="feed" id="feed"></div>
+
+  <div class="sidebar">
+    <div class="side-panel">
+      <div class="side-title">Edit Rate</div>
+      <div class="rate-row">
+        <div class="rate-box">
+          <div class="rate-val" id="epm">—</div>
+          <div class="rate-label">edits/min</div>
+        </div>
+        <div class="rate-box">
+          <div class="rate-val" id="bytes-sec" style="font-size:20px;color:var(--cyan)">—</div>
+          <div class="rate-label">bytes/sec</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-panel">
+      <div class="side-title">Activity</div>
+      <canvas id="spark-canvas"></canvas>
+    </div>
+
+    <div class="side-panel">
+      <div class="side-title">Breakdown</div>
+      <div class="breakdown" id="breakdown"></div>
+    </div>
+
+    <div class="side-panel">
+      <div class="side-title">Most Edited Pages</div>
+      <div class="top-pages" id="top-pages"></div>
+    </div>
+
+    <div class="side-panel">
+      <div class="side-title">Active Wikis</div>
+      <div class="lang-list" id="lang-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─── State ──────────────────────────────────────
+  const edits = [];
+  const MAX_FEED = 200;
+  const MAX_TICKER = 12;
+  let totalEdits = 0;
+  let totalBytes = 0;
+  let users = new Set();
+  let pageCounts = {};
+  let langCounts = {};
+  let botCount = 0;
+  let minorCount = 0;
+  let newPageCount = 0;
+  let anonCount = 0;
+  let startTime = Date.now();
+  let sparkData = new Array(60).fill(0);
+  let sparkBucket = 0;
+
+  // ─── SSE Connection ─────────────────────────────
+  function connect() {
+    const badge = document.getElementById('stream-badge');
+    const badgeText = document.getElementById('stream-text');
+
+    const es = new EventSource('https://stream.wikimedia.org/v2/stream/recentchange');
+
+    es.onopen = () => {
+      badge.className = 'stream-badge connected';
+      badgeText.textContent = 'STREAMING';
+    };
+
+    es.onerror = () => {
+      badge.className = 'stream-badge disconnected';
+      badgeText.textContent = 'RECONNECTING';
+    };
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type !== 'edit' && data.type !== 'new' && data.type !== 'categorize') return;
+
+        processEdit(data);
+      } catch (e) {}
+    };
+
+    return es;
+  }
+
+  // ─── Process edit ───────────────────────────────
+  function processEdit(d) {
+    totalEdits++;
+    sparkBucket++;
+
+    const sizeChange = (d.length?.new || 0) - (d.length?.old || 0);
+    totalBytes += Math.abs(sizeChange);
+
+    if (d.user) users.add(d.user);
+    if (d.bot) botCount++;
+    if (d.minor) minorCount++;
+    if (d.type === 'new') newPageCount++;
+    if (!d.user || /^\d+\.\d+\.\d+\.\d+/.test(d.user)) anonCount++;
+
+    const title = d.title || '';
+    pageCounts[title] = (pageCounts[title] || 0) + 1;
+
+    const wiki = d.wiki || '';
+    langCounts[wiki] = (langCounts[wiki] || 0) + 1;
+
+    const edit = {
+      title,
+      wiki,
+      user: d.user || 'Anonymous',
+      comment: d.comment || '',
+      bot: d.bot || false,
+      minor: d.minor || false,
+      isNew: d.type === 'new',
+      sizeChange,
+      url: d.meta?.uri || `https://${d.server_name}/wiki/${encodeURIComponent(title)}`,
+      timestamp: d.timestamp || Math.floor(Date.now() / 1000),
+      namespace: d.namespace || 0,
+    };
+
+    edits.unshift(edit);
+    if (edits.length > MAX_FEED) edits.pop();
+
+    // Add to ticker
+    addTicker(edit);
+
+    // Throttled render
+    scheduleRender();
+  }
+
+  // ─── Ticker ─────────────────────────────────────
+  function addTicker(edit) {
+    const ticker = document.getElementById('ticker');
+    const cls = edit.isNew ? 'ticker-new' : edit.bot ? 'ticker-bot' : edit.minor ? 'ticker-minor' : 'ticker-edit';
+    const label = edit.isNew ? 'NEW' : edit.bot ? 'BOT' : edit.minor ? 'minor' : 'edit';
+    const el = document.createElement('div');
+    el.className = `ticker-item ${cls}`;
+    el.textContent = `${label}: ${edit.title.substring(0, 40)}`;
+
+    ticker.prepend(el);
+    while (ticker.children.length > MAX_TICKER) {
+      ticker.removeChild(ticker.lastChild);
+    }
+  }
+
+  // ─── Render (throttled) ─────────────────────────
+  let renderTimer = null;
+  function scheduleRender() {
+    if (!renderTimer) {
+      renderTimer = setTimeout(() => {
+        renderFeed();
+        renderStats();
+        renderTimer = null;
+      }, 250);
+    }
+  }
+
+  function renderFeed() {
+    const feed = document.getElementById('feed');
+
+    // Only render visible items
+    const visible = edits.slice(0, 100);
+
+    feed.innerHTML = visible.map(e => {
+      const dotColor = e.isNew ? 'var(--green)' : e.bot ? 'var(--purple)' : 'var(--wiki)';
+      const diffClass = e.sizeChange >= 0 ? 'diff-add' : 'diff-remove';
+      const diffSign = e.sizeChange >= 0 ? '+' : '';
+      const wikiLabel = e.wiki.replace('wiki', '').replace('.', '') || e.wiki;
+      const ago = timeAgo(e.timestamp);
+
+      let flags = '';
+      if (e.isNew) flags += '<span class="edit-flag flag-new">NEW</span>';
+      if (e.bot) flags += '<span class="edit-flag flag-bot">BOT</span>';
+      if (e.minor) flags += '<span class="edit-flag flag-minor">M</span>';
+
+      return `
+        <div class="edit-item">
+          <div class="edit-type-dot" style="background:${dotColor}"></div>
+          <div class="edit-body">
+            <div class="edit-title-row">
+              <a class="edit-title" href="${e.url}" target="_blank" rel="noopener">${esc(e.title)}</a>
+              <span class="edit-lang">${wikiLabel}</span>
+              <div class="edit-flags">${flags}</div>
+            </div>
+            <div class="edit-meta">
+              <span class="edit-user">${esc(e.user)}</span>
+              <span class="edit-diff ${diffClass}">${diffSign}${e.sizeChange.toLocaleString()} bytes</span>
+              <span>${ago}</span>
+            </div>
+            ${e.comment ? `<div class="edit-comment">${esc(e.comment)}</div>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderStats() {
+    const elapsed = (Date.now() - startTime) / 60000;
+    const epm = elapsed > 0.1 ? Math.round(totalEdits / elapsed) : 0;
+    const bps = elapsed > 0.1 ? Math.round(totalBytes / (elapsed * 60)) : 0;
+
+    document.getElementById('stat-total').textContent = totalEdits.toLocaleString();
+    document.getElementById('stat-rate').textContent = epm;
+    document.getElementById('stat-users').textContent = users.size.toLocaleString();
+    document.getElementById('epm').textContent = epm;
+    document.getElementById('bytes-sec').textContent = formatBytes(bps);
+
+    // Breakdown
+    document.getElementById('breakdown').innerHTML = `
+      <div class="bd-item"><div class="bd-val" style="color:var(--purple)">${botCount}</div><div class="bd-label">Bot Edits</div></div>
+      <div class="bd-item"><div class="bd-val" style="color:var(--green)">${newPageCount}</div><div class="bd-label">New Pages</div></div>
+      <div class="bd-item"><div class="bd-val" style="color:var(--yellow)">${minorCount}</div><div class="bd-label">Minor Edits</div></div>
+      <div class="bd-item"><div class="bd-val" style="color:var(--orange)">${anonCount}</div><div class="bd-label">Anonymous</div></div>
+    `;
+
+    // Top pages
+    const topPages = Object.entries(pageCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8);
+
+    document.getElementById('top-pages').innerHTML = topPages.map(([page, count]) => {
+      const url = `https://en.wikipedia.org/wiki/${encodeURIComponent(page)}`;
+      return `
+        <div class="top-page">
+          <a class="tp-name" href="${url}" target="_blank" rel="noopener">${esc(page)}</a>
+          <span class="tp-count">${count}</span>
+        </div>
+      `;
+    }).join('') || '<div style="font-size:12px;color:var(--text-dim)">Collecting...</div>';
+
+    // Languages
+    const topLangs = Object.entries(langCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15);
+
+    document.getElementById('lang-list').innerHTML = topLangs.map(([wiki, count]) => {
+      const label = wiki.replace('wiki', '');
+      return `<div class="lang-chip">${label}<span class="lang-chip-count">${count}</span></div>`;
+    }).join('');
+  }
+
+  // ─── Sparkline ──────────────────────────────────
+  const sparkCanvas = document.getElementById('spark-canvas');
+  const sparkCtx = sparkCanvas.getContext('2d');
+
+  function resizeSpark() {
+    const rect = sparkCanvas.getBoundingClientRect();
+    const dpr = devicePixelRatio || 1;
+    sparkCanvas.width = rect.width * dpr;
+    sparkCanvas.height = rect.height * dpr;
+    sparkCtx.scale(dpr, dpr);
+  }
+  window.addEventListener('resize', resizeSpark);
+  resizeSpark();
+
+  setInterval(() => {
+    sparkData.push(sparkBucket);
+    sparkBucket = 0;
+    if (sparkData.length > 60) sparkData.shift();
+  }, 2000);
+
+  function drawSpark() {
+    const w = sparkCanvas.width / (devicePixelRatio || 1);
+    const h = sparkCanvas.height / (devicePixelRatio || 1);
+    sparkCtx.clearRect(0, 0, w, h);
+
+    const max = Math.max(1, ...sparkData);
+    const step = w / (sparkData.length - 1);
+
+    // Fill
+    const grad = sparkCtx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, 'rgba(51,102,204,0.2)');
+    grad.addColorStop(1, 'rgba(51,102,204,0)');
+
+    sparkCtx.beginPath();
+    sparkCtx.moveTo(0, h);
+    sparkData.forEach((v, i) => {
+      sparkCtx.lineTo(i * step, h - (v / max) * (h - 6) - 3);
+    });
+    sparkCtx.lineTo(w, h);
+    sparkCtx.closePath();
+    sparkCtx.fillStyle = grad;
+    sparkCtx.fill();
+
+    // Line
+    sparkCtx.beginPath();
+    sparkData.forEach((v, i) => {
+      const x = i * step;
+      const y = h - (v / max) * (h - 6) - 3;
+      if (i === 0) sparkCtx.moveTo(x, y);
+      else sparkCtx.lineTo(x, y);
+    });
+    sparkCtx.strokeStyle = '#36c';
+    sparkCtx.lineWidth = 2;
+    sparkCtx.stroke();
+
+    // Latest dot
+    const lastX = (sparkData.length - 1) * step;
+    const lastY = h - (sparkData[sparkData.length - 1] / max) * (h - 6) - 3;
+    sparkCtx.beginPath();
+    sparkCtx.arc(lastX, lastY, 3, 0, Math.PI * 2);
+    sparkCtx.fillStyle = '#36c';
+    sparkCtx.fill();
+
+    requestAnimationFrame(drawSpark);
+  }
+
+  // ─── Helpers ────────────────────────────────────
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+  }
+
+  function timeAgo(ts) {
+    const secs = Math.floor(Date.now() / 1000 - ts);
+    if (secs < 5) return 'just now';
+    if (secs < 60) return secs + 's ago';
+    const mins = Math.floor(secs / 60);
+    return mins + 'm ago';
+  }
+
+  function formatBytes(b) {
+    if (b > 1e6) return (b / 1e6).toFixed(1) + 'M';
+    if (b > 1e3) return (b / 1e3).toFixed(1) + 'K';
+    return b.toString();
+  }
+
+  // ─── Init ───────────────────────────────────────
+  connect();
+  drawSpark();
+</script>
+</body>
+</html>
