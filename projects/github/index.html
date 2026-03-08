@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-5HPMN4CHL3');
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitHub Pulse — Live Activity Stream</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1c2129;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-dim: #7d8590;
+      --green: #3fb950;
+      --green-bg: rgba(63,185,80,0.1);
+      --blue: #58a6ff;
+      --blue-bg: rgba(88,166,255,0.1);
+      --purple: #bc8cff;
+      --purple-bg: rgba(188,140,255,0.1);
+      --yellow: #d29922;
+      --yellow-bg: rgba(210,153,34,0.1);
+      --red: #f85149;
+      --red-bg: rgba(248,81,73,0.1);
+      --orange: #db6d28;
+      --orange-bg: rgba(219,109,40,0.1);
+      --cyan: #39d2c0;
+      --cyan-bg: rgba(57,210,192,0.1);
+      --pink: #f778ba;
+      --pink-bg: rgba(247,120,186,0.1);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ─── Header ─────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 54px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .logo svg { fill: var(--text); }
+
+    .header-stats {
+      display: flex;
+      gap: 20px;
+      font-size: 12px;
+    }
+
+    .hstat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-dim);
+    }
+
+    .hstat-val {
+      font-weight: 700;
+      color: var(--text);
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .live-dot {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--green);
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .live-dot::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    /* ─── Layout ─────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      min-height: calc(100vh - 54px);
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none !important; }
+    }
+
+    /* ─── Activity canvas ────────────────────── */
+    .viz-section {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .viz-title {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    #activity-canvas {
+      width: 100%;
+      height: 100px;
+      border-radius: 10px;
+      background: var(--surface);
+    }
+
+    /* ─── Event type legend ───────────────────── */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .legend-item:hover { color: var(--text); }
+    .legend-item.dimmed { opacity: 0.3; }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ─── Event feed ─────────────────────────── */
+    .feed {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .event-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+      animation: fadeSlide 0.4s ease-out;
+      transition: background 0.15s;
+    }
+
+    .event-item:hover { background: var(--surface); }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .event-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--surface2);
+    }
+
+    .event-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .event-text {
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .event-actor {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .event-repo {
+      font-weight: 600;
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    .event-repo:hover { text-decoration: underline; }
+
+    .event-action {
+      color: var(--text-dim);
+    }
+
+    .event-badge {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 4px;
+    }
+
+    .event-detail {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .event-time {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    /* Event type colors */
+    .badge-push { background: var(--green-bg); color: var(--green); }
+    .badge-pr { background: var(--purple-bg); color: var(--purple); }
+    .badge-issue { background: var(--red-bg); color: var(--red); }
+    .badge-star { background: var(--yellow-bg); color: var(--yellow); }
+    .badge-fork { background: var(--cyan-bg); color: var(--cyan); }
+    .badge-create { background: var(--blue-bg); color: var(--blue); }
+    .badge-comment { background: var(--orange-bg); color: var(--orange); }
+    .badge-release { background: var(--pink-bg); color: var(--pink); }
+    .badge-delete { background: var(--red-bg); color: var(--red); }
+
+    /* ─── Sidebar ────────────────────────────── */
+    .sidebar {
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .side-panel {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .side-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 12px;
+    }
+
+    /* Counters */
+    .counter-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .counter-box {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .counter-val {
+      font-size: 22px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .counter-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+
+    /* Top repos */
+    .top-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .top-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: var(--bg);
+      border-radius: 6px;
+      font-size: 13px;
+      gap: 8px;
+    }
+
+    .top-repo {
+      color: var(--blue);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-decoration: none;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .top-repo:hover { text-decoration: underline; }
+
+    .top-count {
+      color: var(--text-dim);
+      font-weight: 700;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    /* Languages */
+    .lang-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .lang-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .lang-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .lang-name {
+      font-size: 13px;
+      flex: 1;
+    }
+
+    .lang-pct {
+      font-size: 12px;
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+
+    /* Events per minute */
+    .epm-display {
+      text-align: center;
+      padding: 8px;
+    }
+
+    .epm-val {
+      font-size: 36px;
+      font-weight: 800;
+      color: var(--green);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .epm-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    /* ─── Scrollbar ──────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <svg height="24" width="24" viewBox="0 0 16 16"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 01-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 010 8c0-4.42 3.58-8 8-8z"/></svg>
+      GitHub Pulse
+    </div>
+    <div class="header-stats">
+      <div class="hstat">Events <span class="hstat-val" id="total-events">0</span></div>
+      <div class="hstat">Rate <span class="hstat-val" id="event-rate">—</span>/min</div>
+    </div>
+    <div class="live-dot">STREAMING</div>
+  </header>
+
+  <div class="layout">
+    <div class="main-col" style="display:flex;flex-direction:column;overflow:hidden">
+      <div class="viz-section">
+        <div class="viz-title">Activity Stream</div>
+        <canvas id="activity-canvas"></canvas>
+      </div>
+
+      <div class="legend" id="legend"></div>
+
+      <div class="feed" id="feed"></div>
+    </div>
+
+    <div class="sidebar">
+      <div class="side-panel">
+        <div class="side-title">Events Per Minute</div>
+        <div class="epm-display">
+          <div class="epm-val" id="epm">—</div>
+          <div class="epm-label">events / min</div>
+        </div>
+      </div>
+
+      <div class="side-panel">
+        <div class="side-title">Event Breakdown</div>
+        <div class="counter-grid" id="counters"></div>
+      </div>
+
+      <div class="side-panel">
+        <div class="side-title">Trending Repos</div>
+        <div class="top-list" id="top-repos"></div>
+      </div>
+
+      <div class="side-panel" style="flex:1;overflow:hidden">
+        <div class="side-title">Languages Seen</div>
+        <div class="lang-bars" id="lang-bars"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── Config ──────────────────────────────────────
+    const EVENT_TYPES = {
+      PushEvent:                { label: 'Push',    color: '#3fb950', badge: 'badge-push' },
+      PullRequestEvent:         { label: 'PR',      color: '#bc8cff', badge: 'badge-pr' },
+      IssuesEvent:              { label: 'Issue',   color: '#f85149', badge: 'badge-issue' },
+      WatchEvent:               { label: 'Star',    color: '#d29922', badge: 'badge-star' },
+      ForkEvent:                { label: 'Fork',    color: '#39d2c0', badge: 'badge-fork' },
+      CreateEvent:              { label: 'Create',  color: '#58a6ff', badge: 'badge-create' },
+      IssueCommentEvent:        { label: 'Comment', color: '#db6d28', badge: 'badge-comment' },
+      PullRequestReviewEvent:   { label: 'Review',  color: '#bc8cff', badge: 'badge-pr' },
+      PullRequestReviewCommentEvent: { label: 'Review', color: '#bc8cff', badge: 'badge-pr' },
+      ReleaseEvent:             { label: 'Release', color: '#f778ba', badge: 'badge-release' },
+      DeleteEvent:              { label: 'Delete',  color: '#f85149', badge: 'badge-delete' },
+      CommitCommentEvent:       { label: 'Comment', color: '#db6d28', badge: 'badge-comment' },
+    };
+
+    const LANG_COLORS = {
+      JavaScript: '#f1e05a', TypeScript: '#3178c6', Python: '#3572A5',
+      Java: '#b07219', Go: '#00ADD8', Rust: '#dea584', Ruby: '#701516',
+      PHP: '#4F5D95','C++': '#f34b7d', C: '#555555', 'C#': '#178600',
+      Swift: '#F05138', Kotlin: '#A97BFF', Dart: '#00B4AB', Scala: '#c22d40',
+      Shell: '#89e051', HTML: '#e34c26', CSS: '#563d7c', Vue: '#41b883',
+      Lua: '#000080', R: '#198CE7', Elixir: '#6e4a7e', Haskell: '#5e5086',
+      Zig: '#ec915c', Nix: '#7e7eff',
+    };
+
+    // ─── State ───────────────────────────────────────
+    let allEvents = [];
+    let eventCounts = {};
+    let repoCounts = {};
+    let langCounts = {};
+    let seenIds = new Set();
+    let fetchCount = 0;
+    let startTime = Date.now();
+    let activeFilters = new Set(Object.keys(EVENT_TYPES));
+    let activityData = new Array(120).fill(null).map(() => ({}));
+
+    // ─── Build legend ────────────────────────────────
+    function buildLegend() {
+      const el = document.getElementById('legend');
+      const seen = new Set();
+      el.innerHTML = Object.entries(EVENT_TYPES).filter(([k]) => {
+        const l = EVENT_TYPES[k].label;
+        if (seen.has(l)) return false;
+        seen.add(l);
+        return true;
+      }).map(([type, info]) => `
+        <div class="legend-item" data-type="${type}">
+          <span class="legend-dot" style="background:${info.color}"></span>
+          ${info.label}
+        </div>
+      `).join('');
+
+      el.querySelectorAll('.legend-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const t = item.dataset.type;
+          if (activeFilters.has(t)) {
+            activeFilters.delete(t);
+            item.classList.add('dimmed');
+          } else {
+            activeFilters.add(t);
+            item.classList.remove('dimmed');
+          }
+          renderFeed();
+        });
+      });
+    }
+
+    // ─── Fetch events ────────────────────────────────
+    async function fetchEvents() {
+      try {
+        // Fetch multiple pages for more data
+        const pages = [1, 2];
+        const results = await Promise.all(
+          pages.map(p => fetch(`https://api.github.com/events?per_page=100&page=${p}`).then(r => r.json()))
+        );
+
+        const newEvents = [];
+        for (const events of results) {
+          if (!Array.isArray(events)) continue;
+          for (const ev of events) {
+            if (seenIds.has(ev.id)) continue;
+            seenIds.add(ev.id);
+            newEvents.push(ev);
+
+            // Count
+            const type = ev.type;
+            eventCounts[type] = (eventCounts[type] || 0) + 1;
+
+            // Repo count
+            const repo = ev.repo?.name;
+            if (repo) repoCounts[repo] = (repoCounts[repo] || 0) + 1;
+
+            // Track activity over time
+            activityData[activityData.length - 1][type] =
+              (activityData[activityData.length - 1][type] || 0) + 1;
+          }
+        }
+
+        if (newEvents.length > 0) {
+          allEvents = [...newEvents, ...allEvents].slice(0, 500);
+          renderFeed();
+          updateCounters();
+          updateTopRepos();
+        }
+
+        fetchCount++;
+        updateRate();
+
+      } catch (e) {
+        console.error('GitHub API error:', e);
+      }
+    }
+
+    // ─── Render feed ─────────────────────────────────
+    function renderFeed() {
+      const filtered = allEvents.filter(ev => activeFilters.has(ev.type));
+      const feed = document.getElementById('feed');
+
+      feed.innerHTML = filtered.slice(0, 80).map(ev => {
+        const info = EVENT_TYPES[ev.type] || { label: ev.type, color: '#7d8590', badge: '' };
+        const actor = ev.actor?.login || 'unknown';
+        const avatarUrl = ev.actor?.avatar_url || '';
+        const repo = ev.repo?.name || '';
+        const repoUrl = `https://github.com/${repo}`;
+        const detail = getEventDetail(ev);
+        const ago = timeAgo(ev.created_at);
+
+        return `
+          <div class="event-item">
+            <img class="event-avatar" src="${avatarUrl}" alt="" loading="lazy" />
+            <div class="event-body">
+              <div class="event-text">
+                <span class="event-actor">${esc(actor)}</span>
+                <span class="event-action">${getActionText(ev)}</span>
+                <a class="event-repo" href="${repoUrl}" target="_blank" rel="noopener">${esc(repo)}</a>
+                <span class="event-badge ${info.badge}">${info.label}</span>
+              </div>
+              ${detail ? `<div class="event-detail">${esc(detail)}</div>` : ''}
+              <div class="event-time">${ago}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function getActionText(ev) {
+      switch (ev.type) {
+        case 'PushEvent': {
+          const n = ev.payload?.commits?.length || 0;
+          return `pushed ${n} commit${n !== 1 ? 's' : ''} to`;
+        }
+        case 'WatchEvent': return 'starred';
+        case 'ForkEvent': return 'forked';
+        case 'CreateEvent': return `created ${ev.payload?.ref_type || 'repo'}${ev.payload?.ref ? ' ' + ev.payload.ref + ' in' : ''}`;
+        case 'DeleteEvent': return `deleted ${ev.payload?.ref_type || ''} ${ev.payload?.ref || ''} in`;
+        case 'IssuesEvent': return `${ev.payload?.action || 'opened'} issue in`;
+        case 'PullRequestEvent': return `${ev.payload?.action || 'opened'} PR in`;
+        case 'IssueCommentEvent': return 'commented on issue in';
+        case 'PullRequestReviewEvent': return 'reviewed PR in';
+        case 'PullRequestReviewCommentEvent': return 'commented on PR in';
+        case 'ReleaseEvent': return `released ${ev.payload?.release?.tag_name || ''} of`;
+        case 'CommitCommentEvent': return 'commented on commit in';
+        default: return 'interacted with';
+      }
+    }
+
+    function getEventDetail(ev) {
+      switch (ev.type) {
+        case 'PushEvent':
+          return ev.payload?.commits?.[0]?.message || '';
+        case 'IssuesEvent':
+          return ev.payload?.issue?.title || '';
+        case 'PullRequestEvent':
+          return ev.payload?.pull_request?.title || '';
+        case 'ReleaseEvent':
+          return ev.payload?.release?.name || ev.payload?.release?.tag_name || '';
+        case 'IssueCommentEvent':
+          return ev.payload?.issue?.title || '';
+        default:
+          return '';
+      }
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function timeAgo(dateStr) {
+      const secs = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+      if (secs < 10) return 'just now';
+      if (secs < 60) return secs + 's ago';
+      const mins = Math.floor(secs / 60);
+      if (mins < 60) return mins + 'm ago';
+      const hrs = Math.floor(mins / 60);
+      return hrs + 'h ago';
+    }
+
+    // ─── Counters ────────────────────────────────────
+    function updateCounters() {
+      const types = [
+        { key: 'PushEvent', label: 'Pushes', color: '#3fb950' },
+        { key: 'WatchEvent', label: 'Stars', color: '#d29922' },
+        { key: 'PullRequestEvent', label: 'PRs', color: '#bc8cff' },
+        { key: 'IssuesEvent', label: 'Issues', color: '#f85149' },
+        { key: 'ForkEvent', label: 'Forks', color: '#39d2c0' },
+        { key: 'CreateEvent', label: 'Creates', color: '#58a6ff' },
+        { key: 'IssueCommentEvent', label: 'Comments', color: '#db6d28' },
+        { key: 'ReleaseEvent', label: 'Releases', color: '#f778ba' },
+      ];
+
+      document.getElementById('counters').innerHTML = types.map(t => `
+        <div class="counter-box">
+          <div class="counter-val" style="color:${t.color}">${eventCounts[t.key] || 0}</div>
+          <div class="counter-label">${t.label}</div>
+        </div>
+      `).join('');
+
+      document.getElementById('total-events').textContent = allEvents.length;
+    }
+
+    function updateRate() {
+      const elapsed = (Date.now() - startTime) / 60000;
+      if (elapsed > 0.5) {
+        const rate = Math.round(allEvents.length / elapsed);
+        document.getElementById('event-rate').textContent = rate;
+        document.getElementById('epm').textContent = rate;
+      }
+    }
+
+    // ─── Top repos ───────────────────────────────────
+    function updateTopRepos() {
+      const sorted = Object.entries(repoCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8);
+
+      document.getElementById('top-repos').innerHTML = sorted.map(([repo, count]) => `
+        <div class="top-item">
+          <a class="top-repo" href="https://github.com/${repo}" target="_blank" rel="noopener">
+            ${repo}
+          </a>
+          <span class="top-count">${count} events</span>
+        </div>
+      `).join('') || '<div style="font-size:12px;color:var(--text-dim)">Collecting data...</div>';
+    }
+
+    // ─── Languages ───────────────────────────────────
+    async function fetchLanguages() {
+      // Sample a few repos to get languages
+      const repos = Object.keys(repoCounts).slice(0, 15);
+      for (const repo of repos) {
+        try {
+          const res = await fetch(`https://api.github.com/repos/${repo}/languages`);
+          if (!res.ok) continue;
+          const langs = await res.json();
+          for (const [lang, bytes] of Object.entries(langs)) {
+            langCounts[lang] = (langCounts[lang] || 0) + bytes;
+          }
+        } catch {}
+      }
+      renderLanguages();
+    }
+
+    function renderLanguages() {
+      const total = Object.values(langCounts).reduce((a, b) => a + b, 0) || 1;
+      const sorted = Object.entries(langCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+
+      document.getElementById('lang-bars').innerHTML = sorted.map(([lang, bytes]) => {
+        const pct = ((bytes / total) * 100).toFixed(1);
+        const color = LANG_COLORS[lang] || '#7d8590';
+        return `
+          <div class="lang-row">
+            <span class="lang-dot" style="background:${color}"></span>
+            <span class="lang-name">${lang}</span>
+            <span class="lang-pct">${pct}%</span>
+          </div>
+        `;
+      }).join('') || '<div style="font-size:12px;color:var(--text-dim)">Analyzing...</div>';
+    }
+
+    // ─── Activity sparkline ──────────────────────────
+    const canvas = document.getElementById('activity-canvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function shiftActivity() {
+      activityData.push({});
+      if (activityData.length > 120) activityData.shift();
+    }
+
+    function drawActivity() {
+      const w = canvas.width / (devicePixelRatio || 1);
+      const h = canvas.height / (devicePixelRatio || 1);
+      ctx.clearRect(0, 0, w, h);
+
+      const barW = w / activityData.length;
+      const maxTotal = Math.max(1, ...activityData.map(d =>
+        Object.values(d).reduce((a, b) => a + b, 0)
+      ));
+
+      const typeOrder = ['PushEvent', 'PullRequestEvent', 'IssuesEvent',
+        'WatchEvent', 'ForkEvent', 'CreateEvent', 'IssueCommentEvent', 'ReleaseEvent'];
+
+      for (let i = 0; i < activityData.length; i++) {
+        const d = activityData[i];
+        const x = i * barW;
+        let y = h;
+
+        for (const type of typeOrder) {
+          const count = d[type] || 0;
+          if (count === 0) continue;
+          const barH = (count / maxTotal) * (h - 4);
+          y -= barH;
+
+          const info = EVENT_TYPES[type];
+          ctx.fillStyle = info ? info.color + '99' : '#7d859066';
+          ctx.fillRect(x + 1, y, barW - 2, barH);
+        }
+      }
+
+      requestAnimationFrame(drawActivity);
+    }
+
+    // ─── Init ────────────────────────────────────────
+    buildLegend();
+    fetchEvents();
+    drawActivity();
+
+    // Fetch events every 10 seconds (API rate: 60 req/hr unauthenticated)
+    setInterval(fetchEvents, 10000);
+
+    // Shift activity bins every 5 seconds
+    setInterval(shiftActivity, 5000);
+
+    // Update rate display
+    setInterval(updateRate, 5000);
+
+    // Fetch languages periodically
+    setTimeout(fetchLanguages, 8000);
+    setInterval(fetchLanguages, 120000);
+  </script>
+</body>
+</html>
