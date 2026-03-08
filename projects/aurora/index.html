@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-5HPMN4CHL3');
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aurora Watch — Space Weather Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #070b14;
+      --surface: #0e1320;
+      --surface2: #151c2e;
+      --border: #1e2840;
+      --text: #e4e8f0;
+      --text-dim: #7a86a0;
+      --green: #00e676;
+      --green-bg: rgba(0,230,118,0.08);
+      --yellow: #ffea00;
+      --orange: #ff9100;
+      --red: #ff1744;
+      --purple: #d500f9;
+      --aurora-1: #00e676;
+      --aurora-2: #00bcd4;
+      --aurora-3: #7c4dff;
+      --aurora-4: #e040fb;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Aurora shimmer background ──────────── */
+    .aurora-bg {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 300px;
+      background: linear-gradient(180deg,
+        rgba(0,230,118,0.04) 0%,
+        rgba(0,188,212,0.03) 30%,
+        rgba(124,77,255,0.02) 60%,
+        transparent 100%
+      );
+      pointer-events: none;
+      z-index: 0;
+      animation: shimmer 8s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    /* ─── Header ─────────────────────────────── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 54px;
+      background: rgba(14,19,32,0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .logo-aurora {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: conic-gradient(var(--aurora-1), var(--aurora-2), var(--aurora-3), var(--aurora-4), var(--aurora-1));
+      animation: spin 6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .header-info {
+      display: flex;
+      gap: 20px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .hi-val {
+      font-weight: 700;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    /* ─── Content ────────────────────────────── */
+    .content {
+      position: relative;
+      z-index: 1;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* ─── Kp Index Hero ──────────────────────── */
+    .kp-hero {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 800px) {
+      .kp-hero { grid-template-columns: 1fr; }
+    }
+
+    .kp-gauge {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      text-align: center;
+    }
+
+    .kp-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+    }
+
+    .kp-value {
+      font-size: 80px;
+      font-weight: 900;
+      line-height: 1.1;
+      margin: 8px 0;
+      text-shadow: 0 0 40px currentColor;
+    }
+
+    .kp-desc {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .kp-sub {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* Kp scale bar */
+    .kp-scale {
+      display: flex;
+      margin-top: 16px;
+      border-radius: 4px;
+      overflow: hidden;
+      height: 8px;
+    }
+
+    .kp-scale-seg {
+      flex: 1;
+      position: relative;
+    }
+
+    .kp-scale-marker {
+      position: absolute;
+      top: -4px;
+      width: 4px;
+      height: 16px;
+      background: #fff;
+      border-radius: 2px;
+      transform: translateX(-50%);
+      box-shadow: 0 0 6px rgba(255,255,255,0.5);
+    }
+
+    /* Kp forecast chart */
+    .kp-chart-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+    }
+
+    .chart-title {
+      font-size: 12px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    #kp-chart {
+      width: 100%;
+      height: 180px;
+    }
+
+    /* ─── Data cards grid ────────────────────── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+
+    .card-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-value {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .card-sub {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .card-unit {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--text-dim);
+    }
+
+    /* ─── Solar wind chart ───────────────────── */
+    .sw-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 800px) {
+      .sw-section { grid-template-columns: 1fr; }
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+
+    .chart-card canvas {
+      width: 100%;
+      height: 140px;
+    }
+
+    /* ─── Alerts ──────────────────────────────── */
+    .alerts-section {
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    .alert-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 8px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .alert-level {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 5px;
+    }
+
+    .alert-body {
+      flex: 1;
+    }
+
+    .alert-title {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .alert-text {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    .alert-time {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 6px;
+    }
+
+    .no-alerts {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+
+    /* ─── Aurora visibility ──────────────────── */
+    .aurora-vis {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .vis-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .vis-item {
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .vis-city {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .vis-chance {
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .vis-note {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    /* ─── Footer ─────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      color: var(--text-dim);
+      border-top: 1px solid var(--border);
+    }
+
+    footer a { color: var(--aurora-2); text-decoration: none; }
+
+    /* ─── Loading ────────────────────────────── */
+    .loading {
+      text-align: center;
+      padding: 60px;
+      color: var(--text-dim);
+    }
+
+    .spinner {
+      width: 24px; height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--aurora-1);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    /* ─── Scrollbar ──────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div class="aurora-bg"></div>
+
+<header>
+  <div class="logo">
+    <div class="logo-aurora"></div>
+    Aurora Watch
+  </div>
+  <div class="header-info">
+    <div>Source: <span class="hi-val">NOAA SWPC</span></div>
+    <div>Updated: <span class="hi-val" id="last-update">—</span></div>
+  </div>
+</header>
+
+<div class="content" id="content">
+  <div class="loading"><div class="spinner"></div>Loading space weather data...</div>
+</div>
+
+<footer>
+  Data from <a href="https://www.swpc.noaa.gov/" target="_blank">NOAA Space Weather Prediction Center</a> &middot;
+  Refreshes every 5 minutes
+</footer>
+
+<script>
+  // ─── Kp helpers ─────────────────────────────────
+  function kpColor(kp) {
+    if (kp >= 8) return '#d500f9';
+    if (kp >= 7) return '#ff1744';
+    if (kp >= 6) return '#ff5252';
+    if (kp >= 5) return '#ff9100';
+    if (kp >= 4) return '#ffea00';
+    if (kp >= 3) return '#c6ff00';
+    if (kp >= 2) return '#76ff03';
+    return '#00e676';
+  }
+
+  function kpLevel(kp) {
+    if (kp >= 9) return { name: 'Extreme Storm', desc: 'G5 — Aurora visible at very low latitudes, power grid issues possible' };
+    if (kp >= 8) return { name: 'Severe Storm', desc: 'G4 — Aurora visible at mid latitudes, widespread effects' };
+    if (kp >= 7) return { name: 'Strong Storm', desc: 'G3 — Aurora may be visible as low as 50° latitude' };
+    if (kp >= 6) return { name: 'Moderate Storm', desc: 'G2 — Aurora visible at higher mid-latitudes' };
+    if (kp >= 5) return { name: 'Minor Storm', desc: 'G1 — Aurora visible at high latitudes, minor effects' };
+    if (kp >= 4) return { name: 'Active', desc: 'Elevated geomagnetic activity, aurora at high latitudes' };
+    if (kp >= 3) return { name: 'Unsettled', desc: 'Slightly elevated activity, possible faint aurora at high latitudes' };
+    if (kp >= 2) return { name: 'Quiet', desc: 'Normal geomagnetic conditions' };
+    return { name: 'Very Quiet', desc: 'Minimal geomagnetic activity' };
+  }
+
+  // Aurora visibility based on Kp
+  function auroraChance(kp, latitude) {
+    // Rough: Kp 9 = visible to ~30°, Kp 5 = ~55°, Kp 3 = ~65°, Kp 1 = ~70°
+    const threshold = 70 - (kp * 4.5);
+    if (latitude >= threshold + 10) return { pct: Math.min(95, 60 + kp * 5), label: 'High' };
+    if (latitude >= threshold) return { pct: Math.min(70, 20 + kp * 8), label: 'Moderate' };
+    if (latitude >= threshold - 8) return { pct: Math.max(5, kp * 3), label: 'Low' };
+    return { pct: 0, label: 'None' };
+  }
+
+  const CITIES = [
+    { name: 'Tromsø, Norway', lat: 69.6 },
+    { name: 'Reykjavik, Iceland', lat: 64.1 },
+    { name: 'Fairbanks, Alaska', lat: 64.8 },
+    { name: 'Helsinki, Finland', lat: 60.2 },
+    { name: 'Edinburgh, Scotland', lat: 55.9 },
+    { name: 'Seattle, USA', lat: 47.6 },
+    { name: 'London, UK', lat: 51.5 },
+    { name: 'New York, USA', lat: 40.7 },
+  ];
+
+  // ─── Fetch data ─────────────────────────────────
+  async function fetchAll() {
+    try {
+      const [kpRes, swRes, alertRes, flareRes, kpFcRes] = await Promise.all([
+        fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'),
+        fetch('https://services.swpc.noaa.gov/products/summary/solar-wind-mag-field.json'),
+        fetch('https://services.swpc.noaa.gov/products/alerts.json'),
+        fetch('https://services.swpc.noaa.gov/json/goes/primary/xray-flares-latest.json'),
+        fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json'),
+      ]);
+
+      const kpData = await kpRes.json();
+      const swData = await swRes.json();
+      const alerts = await alertRes.json();
+      const flares = await flareRes.json();
+      const kpForecast = await kpFcRes.json();
+
+      // Also fetch solar wind plasma
+      let plasma = null;
+      try {
+        const plasmaRes = await fetch('https://services.swpc.noaa.gov/products/summary/solar-wind-speed.json');
+        plasma = await plasmaRes.json();
+      } catch {}
+
+      // Fetch Bz
+      let bz = null;
+      try {
+        const bzRes = await fetch('https://services.swpc.noaa.gov/products/summary/solar-wind-mag-field.json');
+        bz = await bzRes.json();
+      } catch {}
+
+      render(kpData, swData, alerts, flares, kpForecast, plasma, bz);
+      document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+
+    } catch (e) {
+      console.error('Fetch error:', e);
+      document.getElementById('content').innerHTML =
+        '<div class="loading" style="color:var(--red)">Failed to load space weather data. Retrying in 60s...</div>';
+    }
+  }
+
+  // ─── Render ─────────────────────────────────────
+  function render(kpData, swData, alerts, flares, kpForecast, plasma, bz) {
+    // Current Kp
+    const latestKp = kpData.length > 1 ? kpData[kpData.length - 1] : null;
+    const currentKp = latestKp ? parseFloat(latestKp[1]) : 0;
+    const kpInfo = kpLevel(currentKp);
+    const color = kpColor(currentKp);
+
+    // Solar wind
+    const windSpeed = plasma?.WindSpeed || '—';
+    const bzVal = bz?.Bz || '—';
+    const btVal = bz?.Bt || '—';
+
+    // Kp forecast bars
+    const fcData = kpForecast.slice(1).map(row => ({
+      time: row[0],
+      kp: parseFloat(row[1]) || 0,
+      observed: row[2] === 'observed'
+    }));
+
+    // Recent Kp history
+    const kpHistory = kpData.slice(1).slice(-24).map(row => ({
+      time: row[0],
+      kp: parseFloat(row[1]) || 0
+    }));
+
+    // Recent flares
+    const recentFlares = Array.isArray(flares) ? flares.slice(0, 5) : [];
+
+    // Parse alerts
+    const recentAlerts = Array.isArray(alerts) ? alerts.slice(0, 6) : [];
+
+    let html = '';
+
+    // ─── Kp Hero ──────────────────────────────
+    const scaleColors = ['#00e676','#76ff03','#c6ff00','#ffea00','#ffc400','#ff9100','#ff5252','#ff1744','#d500f9'];
+    const markerPos = Math.min(currentKp / 9 * 100, 100);
+
+    html += `
+      <div class="kp-hero">
+        <div class="kp-gauge">
+          <div class="kp-label">Planetary Kp Index</div>
+          <div class="kp-value" style="color:${color}">${currentKp.toFixed(1)}</div>
+          <div class="kp-desc" style="color:${color}">${kpInfo.name}</div>
+          <div class="kp-sub">${kpInfo.desc}</div>
+          <div class="kp-scale">
+            ${scaleColors.map((c, i) => `
+              <div class="kp-scale-seg" style="background:${c}">
+                ${i === Math.floor(currentKp) ? `<div class="kp-scale-marker" style="left:${(currentKp % 1) * 100}%"></div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:4px">
+            <span>0 Quiet</span><span>5 Storm</span><span>9 Extreme</span>
+          </div>
+        </div>
+
+        <div class="kp-chart-wrap">
+          <div class="chart-title">Kp Index — 24h History & Forecast</div>
+          <canvas id="kp-chart"></canvas>
+        </div>
+      </div>
+    `;
+
+    // ─── Data cards ───────────────────────────
+    html += `
+      <div class="cards-grid">
+        <div class="card">
+          <div class="card-label">🌬️ Solar Wind Speed</div>
+          <div class="card-value">${windSpeed} <span class="card-unit">km/s</span></div>
+          <div class="card-sub">${parseFloat(windSpeed) > 500 ? 'Elevated — potential geomagnetic effects' : parseFloat(windSpeed) > 400 ? 'Moderate solar wind' : 'Normal conditions'}</div>
+        </div>
+        <div class="card">
+          <div class="card-label">🧲 Bz Component</div>
+          <div class="card-value" style="color:${parseFloat(bzVal) < -5 ? 'var(--red)' : parseFloat(bzVal) < 0 ? 'var(--orange)' : 'var(--green)'}">${bzVal} <span class="card-unit">nT</span></div>
+          <div class="card-sub">${parseFloat(bzVal) < -10 ? 'Strongly southward — aurora likely!' : parseFloat(bzVal) < 0 ? 'Southward — favorable for aurora' : 'Northward — quiet conditions'}</div>
+        </div>
+        <div class="card">
+          <div class="card-label">🔋 Bt (Total Field)</div>
+          <div class="card-value">${btVal} <span class="card-unit">nT</span></div>
+          <div class="card-sub">Interplanetary magnetic field strength</div>
+        </div>
+        <div class="card">
+          <div class="card-label">☀️ Recent Flares</div>
+          <div class="card-value">${recentFlares.length > 0 ? recentFlares[0].classtype || '—' : 'None'}</div>
+          <div class="card-sub">${recentFlares.length > 0 ? `${recentFlares.length} flare(s) detected recently` : 'No recent solar flares'}</div>
+        </div>
+      </div>
+    `;
+
+    // ─── Aurora visibility ────────────────────
+    html += `
+      <div class="aurora-vis">
+        <div class="chart-title">Aurora Visibility Forecast</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Based on current Kp=${currentKp.toFixed(1)} — clear skies and darkness required</div>
+        <div class="vis-grid">
+          ${CITIES.map(city => {
+            const chance = auroraChance(currentKp, city.lat);
+            const chanceColor = chance.pct >= 50 ? 'var(--green)' : chance.pct >= 20 ? 'var(--yellow)' : chance.pct > 0 ? 'var(--orange)' : 'var(--text-dim)';
+            return `
+              <div class="vis-item">
+                <div class="vis-city">${city.name}</div>
+                <div class="vis-chance" style="color:${chanceColor}">${chance.pct}%</div>
+                <div class="vis-note">${chance.label} chance · ${city.lat.toFixed(1)}°N</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    // ─── Alerts ───────────────────────────────
+    html += '<div class="alerts-section"><div class="section-title">NOAA Space Weather Alerts</div>';
+
+    if (recentAlerts.length === 0) {
+      html += '<div class="no-alerts">No active space weather alerts — all quiet on the solar front</div>';
+    } else {
+      html += recentAlerts.map(a => {
+        const msg = a.message || '';
+        const title = msg.split('\n').find(l => l.trim().length > 0) || 'Alert';
+        const isWarning = /warning|watch/i.test(msg);
+        const isAlert = /alert|extreme|severe/i.test(msg);
+        const dotColor = isAlert ? 'var(--red)' : isWarning ? 'var(--orange)' : 'var(--yellow)';
+        const issued = a.issue_datetime || '';
+
+        // Extract first meaningful lines
+        const lines = msg.split('\n').filter(l => l.trim()).slice(0, 3);
+
+        return `
+          <div class="alert-item">
+            <div class="alert-level" style="background:${dotColor}"></div>
+            <div class="alert-body">
+              <div class="alert-title">${esc(lines[0] || 'Space Weather Alert')}</div>
+              <div class="alert-text">${esc(lines.slice(1).join(' ').substring(0, 200))}</div>
+              ${issued ? `<div class="alert-time">${new Date(issued).toLocaleString()}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    html += '</div>';
+
+    document.getElementById('content').innerHTML = html;
+
+    // Draw Kp chart
+    requestAnimationFrame(() => drawKpChart(kpHistory, fcData));
+  }
+
+  // ─── Kp Chart ───────────────────────────────────
+  function drawKpChart(history, forecast) {
+    const canvas = document.getElementById('kp-chart');
+    if (!canvas) return;
+
+    const dpr = devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const w = rect.width, h = rect.height;
+    const pad = { t: 10, r: 10, b: 24, l: 30 };
+    const cw = w - pad.l - pad.r;
+    const ch = h - pad.t - pad.b;
+
+    // Combine history and forecast
+    const combined = [
+      ...history.map(d => ({ ...d, type: 'history' })),
+      ...forecast.slice(0, 12).map(d => ({ ...d, type: d.observed ? 'history' : 'forecast' }))
+    ];
+
+    if (combined.length === 0) return;
+
+    const barW = Math.min(20, cw / combined.length - 2);
+    const totalW = combined.length * (barW + 2);
+    const startX = pad.l + (cw - totalW) / 2;
+
+    // Grid lines
+    ctx.strokeStyle = '#1e2840';
+    ctx.lineWidth = 0.5;
+    for (let kp = 0; kp <= 9; kp += 3) {
+      const y = pad.t + ch - (kp / 9) * ch;
+      ctx.beginPath();
+      ctx.moveTo(pad.l, y);
+      ctx.lineTo(w - pad.r, y);
+      ctx.stroke();
+
+      ctx.fillStyle = '#7a86a0';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'right';
+      ctx.fillText(kp.toString(), pad.l - 6, y + 3);
+    }
+
+    // Storm threshold line (Kp 5)
+    const stormY = pad.t + ch - (5 / 9) * ch;
+    ctx.strokeStyle = 'rgba(255,145,0,0.3)';
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(pad.l, stormY);
+    ctx.lineTo(w - pad.r, stormY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = 'rgba(255,145,0,0.5)';
+    ctx.font = '9px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText('Storm threshold', pad.l + 4, stormY - 4);
+
+    // Bars
+    combined.forEach((d, i) => {
+      const x = startX + i * (barW + 2);
+      const barH = (d.kp / 9) * ch;
+      const y = pad.t + ch - barH;
+      const color = kpColor(d.kp);
+
+      ctx.fillStyle = d.type === 'forecast' ? color + '66' : color + 'cc';
+      ctx.beginPath();
+      ctx.roundRect(x, y, barW, barH, [3, 3, 0, 0]);
+      ctx.fill();
+
+      // Forecast pattern
+      if (d.type === 'forecast') {
+        ctx.strokeStyle = color + '44';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.strokeRect(x, y, barW, barH);
+        ctx.setLineDash([]);
+      }
+    });
+
+    // Divider between history and forecast
+    const histCount = history.length;
+    if (histCount > 0 && histCount < combined.length) {
+      const divX = startX + histCount * (barW + 2) - 1;
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(divX, pad.t);
+      ctx.lineTo(divX, h - pad.b);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#7a86a0';
+      ctx.font = '9px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('← Observed | Forecast →', divX, h - 6);
+    }
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+  }
+
+  // ─── Init ───────────────────────────────────────
+  fetchAll();
+  setInterval(fetchAll, 300000); // refresh every 5 min
+</script>
+</body>
+</html>
