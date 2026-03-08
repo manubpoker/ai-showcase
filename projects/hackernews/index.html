@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-5HPMN4CHL3');
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HN Live — Hacker News Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #111113;
+      --surface: #1a1a1e;
+      --surface2: #242428;
+      --border: #2e2e35;
+      --text: #ededef;
+      --text-dim: #8e8e96;
+      --orange: #ff6600;
+      --orange-dim: rgba(255, 102, 0, 0.12);
+      --blue: #5294e2;
+      --green: #3ddc84;
+      --purple: #b388ff;
+      --red: #ff5252;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ─── Header ─────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .logo-box {
+      width: 24px;
+      height: 24px;
+      background: var(--orange);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 2px;
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 3px;
+    }
+
+    .nav-tabs button {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .nav-tabs button:hover { color: var(--text); }
+
+    .nav-tabs button.active {
+      background: var(--surface2);
+      color: var(--orange);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--green);
+      font-weight: 600;
+      font-size: 11px;
+    }
+
+    .live-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ─── Layout ─────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      min-height: calc(100vh - 52px);
+    }
+
+    @media (max-width: 1000px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none !important; }
+    }
+
+    /* ─── Main feed ──────────────────────────── */
+    .feed {
+      padding: 16px 24px;
+    }
+
+    .feed-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .feed-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .story-count {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* Story cards */
+    .story {
+      display: flex;
+      gap: 14px;
+      padding: 14px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      transition: all 0.2s;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .story:hover {
+      border-color: var(--orange);
+      background: var(--surface2);
+      transform: translateY(-1px);
+    }
+
+    .story-rank {
+      min-width: 32px;
+      height: 32px;
+      background: var(--bg);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-dim);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .story-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .story-title {
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+
+    .story-title a {
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .story-title a:hover {
+      color: var(--orange);
+    }
+
+    .story-domain {
+      color: var(--text-dim);
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .story-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .meta-points {
+      color: var(--orange);
+      font-weight: 600;
+    }
+
+    .meta-comments {
+      color: var(--blue);
+      cursor: pointer;
+    }
+
+    .meta-comments:hover {
+      text-decoration: underline;
+    }
+
+    .story-score-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .score-bar-bg {
+      flex: 1;
+      height: 3px;
+      background: var(--bg);
+      border-radius: 2px;
+      max-width: 120px;
+    }
+
+    .score-bar-fill {
+      height: 100%;
+      background: var(--orange);
+      border-radius: 2px;
+      transition: width 0.5s;
+    }
+
+    /* ─── Sidebar ────────────────────────────── */
+    .sidebar {
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-panel {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 12px;
+    }
+
+    /* Activity graph */
+    .activity-graph {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 60px;
+      padding: 4px 0;
+    }
+
+    .activity-bar {
+      flex: 1;
+      background: var(--orange);
+      border-radius: 2px 2px 0 0;
+      min-height: 3px;
+      opacity: 0.6;
+      transition: height 0.3s, opacity 0.3s;
+    }
+
+    .activity-bar:hover {
+      opacity: 1;
+    }
+
+    .activity-bar.current {
+      opacity: 1;
+      background: var(--green);
+    }
+
+    /* Top domains */
+    .domain-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .domain-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: var(--bg);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .domain-name {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .domain-count {
+      color: var(--orange);
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    /* New stories feed */
+    .new-stories {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .new-story {
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      line-height: 1.4;
+      transition: background 0.2s;
+    }
+
+    .new-story:hover {
+      background: var(--surface2);
+    }
+
+    .new-story a {
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .new-story a:hover { color: var(--orange); }
+
+    .new-story-time {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .new-story.fresh {
+      animation: slideIn 0.4s ease-out;
+      background: var(--orange-dim);
+    }
+
+    /* ─── Loading ────────────────────────────── */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px;
+      gap: 10px;
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--orange);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Load more ──────────────────────────── */
+    .load-more {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .load-more button {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 28px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .load-more button:hover {
+      border-color: var(--orange);
+      background: var(--orange-dim);
+    }
+
+    /* ─── Scrollbar ──────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <div class="logo-box">Y</div>
+      HN Live
+    </div>
+    <div class="nav-tabs">
+      <button class="active" data-feed="top">Top</button>
+      <button data-feed="best">Best</button>
+      <button data-feed="new">New</button>
+      <button data-feed="ask">Ask HN</button>
+      <button data-feed="show">Show HN</button>
+      <button data-feed="job">Jobs</button>
+    </div>
+    <div class="header-right">
+      <span id="update-time">—</span>
+      <span class="live-badge">LIVE</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="feed" id="feed">
+      <div class="feed-header">
+        <div class="feed-title">Top Stories</div>
+        <div class="story-count" id="story-count"></div>
+      </div>
+      <div id="story-list">
+        <div class="loading"><div class="spinner"></div> Loading stories...</div>
+      </div>
+      <div class="load-more" id="load-more" style="display:none">
+        <button onclick="loadMore()">Load More Stories</button>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="sidebar-panel">
+        <div class="sidebar-title">Activity (24h)</div>
+        <div class="activity-graph" id="activity-graph"></div>
+      </div>
+
+      <div class="sidebar-panel">
+        <div class="sidebar-title">Top Domains</div>
+        <div class="domain-list" id="domain-list"></div>
+      </div>
+
+      <div class="sidebar-panel" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+        <div class="sidebar-title">Latest Stories</div>
+        <div class="new-stories" id="new-stories"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = 'https://hacker-news.firebaseio.com/v0';
+    const HN_ITEM = 'https://news.ycombinator.com/item?id=';
+
+    let currentFeed = 'top';
+    let storyIds = [];
+    let stories = [];
+    let displayCount = 30;
+    let itemCache = {};
+    let newStoryIds = new Set();
+
+    const FEEDS = {
+      top:  'topstories',
+      best: 'beststories',
+      new:  'newstories',
+      ask:  'askstories',
+      show: 'showstories',
+      job:  'jobstories'
+    };
+
+    const FEED_TITLES = {
+      top: 'Top Stories', best: 'Best Stories', new: 'New Stories',
+      ask: 'Ask HN', show: 'Show HN', job: 'Jobs'
+    };
+
+    // ─── Helpers ─────────────────────────────────────
+    function timeAgo(ts) {
+      const secs = Math.floor((Date.now() / 1000) - ts);
+      if (secs < 60) return 'just now';
+      const mins = Math.floor(secs / 60);
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      const days = Math.floor(hrs / 24);
+      return `${days}d ago`;
+    }
+
+    function getDomain(url) {
+      if (!url) return null;
+      try {
+        const d = new URL(url).hostname.replace(/^www\./, '');
+        return d;
+      } catch { return null; }
+    }
+
+    // ─── Fetch item with cache ───────────────────────
+    async function fetchItem(id) {
+      if (itemCache[id] && Date.now() - itemCache[id]._fetched < 120000) {
+        return itemCache[id];
+      }
+      try {
+        const res = await fetch(`${API}/item/${id}.json`);
+        const item = await res.json();
+        if (item) {
+          item._fetched = Date.now();
+          itemCache[id] = item;
+        }
+        return item;
+      } catch {
+        return itemCache[id] || null;
+      }
+    }
+
+    // ─── Fetch story IDs ────────────────────────────
+    async function fetchFeed() {
+      try {
+        const res = await fetch(`${API}/${FEEDS[currentFeed]}.json`);
+        storyIds = await res.json();
+        document.getElementById('story-count').textContent = `${storyIds.length} stories`;
+        return storyIds;
+      } catch (e) {
+        console.error('Feed fetch error:', e);
+        return [];
+      }
+    }
+
+    // ─── Fetch and render stories ───────────────────
+    async function loadStories() {
+      const ids = storyIds.slice(0, displayCount);
+      const batchSize = 10;
+
+      stories = [];
+      document.getElementById('story-list').innerHTML =
+        '<div class="loading"><div class="spinner"></div> Loading stories...</div>';
+
+      // Fetch in batches for faster rendering
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = ids.slice(i, i + batchSize);
+        const items = await Promise.all(batch.map(fetchItem));
+        stories.push(...items.filter(Boolean));
+
+        // Render progressively
+        renderStories();
+      }
+
+      document.getElementById('load-more').style.display =
+        displayCount < storyIds.length ? 'block' : 'none';
+
+      updateDomains();
+      document.getElementById('update-time').textContent =
+        'Updated ' + new Date().toLocaleTimeString();
+    }
+
+    function renderStories() {
+      const maxScore = Math.max(...stories.map(s => s.score || 0), 1);
+
+      document.getElementById('story-list').innerHTML = stories.map((s, i) => {
+        const domain = getDomain(s.url);
+        const scoreWidth = ((s.score || 0) / maxScore * 100).toFixed(0);
+
+        return `
+          <div class="story">
+            <div class="story-rank">${i + 1}</div>
+            <div class="story-body">
+              <div class="story-title">
+                <a href="${s.url || HN_ITEM + s.id}" target="_blank" rel="noopener">
+                  ${escHtml(s.title || '')}
+                </a>
+                ${domain ? `<span class="story-domain">(${domain})</span>` : ''}
+              </div>
+              <div class="story-meta">
+                <span class="meta-item meta-points">${s.score || 0} pts</span>
+                <span class="meta-item">by ${s.by || '?'}</span>
+                <span class="meta-item">${timeAgo(s.time)}</span>
+                <a class="meta-item meta-comments" href="${HN_ITEM + s.id}" target="_blank" rel="noopener">
+                  ${(s.descendants || 0)} comments
+                </a>
+              </div>
+              <div class="story-score-bar">
+                <div class="score-bar-bg">
+                  <div class="score-bar-fill" style="width:${scoreWidth}%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function escHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    // ─── Load more ──────────────────────────────────
+    async function loadMore() {
+      displayCount += 20;
+      await loadStories();
+    }
+
+    // ─── Domains sidebar ────────────────────────────
+    function updateDomains() {
+      const counts = {};
+      stories.forEach(s => {
+        const d = getDomain(s.url);
+        if (d) counts[d] = (counts[d] || 0) + 1;
+      });
+
+      const sorted = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8);
+
+      document.getElementById('domain-list').innerHTML = sorted.map(([name, count]) => `
+        <div class="domain-item">
+          <span class="domain-name">${name}</span>
+          <span class="domain-count">${count}</span>
+        </div>
+      `).join('') || '<div style="font-size:12px;color:var(--text-dim)">No domains yet</div>';
+    }
+
+    // ─── Activity graph (simulated from story times) ─
+    function updateActivityGraph() {
+      // Build hourly histogram from cached stories
+      const hours = new Array(24).fill(0);
+      const now = Date.now() / 1000;
+      const currentHour = new Date().getHours();
+
+      Object.values(itemCache).forEach(item => {
+        if (!item || !item.time) return;
+        const age = now - item.time;
+        if (age < 86400) {
+          const h = new Date(item.time * 1000).getHours();
+          hours[h]++;
+        }
+      });
+
+      const max = Math.max(...hours, 1);
+
+      document.getElementById('activity-graph').innerHTML = hours.map((count, h) => {
+        const height = Math.max(3, (count / max) * 56);
+        const isCurrent = h === currentHour;
+        return `<div class="activity-bar${isCurrent ? ' current' : ''}"
+                  style="height:${height}px"
+                  title="${h}:00 — ${count} items"></div>`;
+      }).join('');
+    }
+
+    // ─── New stories stream ─────────────────────────
+    async function fetchNewStories() {
+      try {
+        const res = await fetch(`${API}/newstories.json`);
+        const ids = (await res.json()).slice(0, 15);
+
+        const items = await Promise.all(ids.map(fetchItem));
+        const valid = items.filter(Boolean);
+
+        const el = document.getElementById('new-stories');
+        el.innerHTML = valid.map(s => {
+          const isFresh = !newStoryIds.has(s.id);
+          if (isFresh) newStoryIds.add(s.id);
+          return `
+            <div class="new-story${isFresh && newStoryIds.size > 15 ? ' fresh' : ''}">
+              <a href="${s.url || HN_ITEM + s.id}" target="_blank" rel="noopener">
+                ${escHtml(s.title || '')}
+              </a>
+              <div class="new-story-time">
+                ${s.score || 0} pts &middot; ${s.by || '?'} &middot; ${timeAgo(s.time)}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error('New stories error:', e);
+      }
+    }
+
+    // ─── Nav tabs ───────────────────────────────────
+    document.querySelectorAll('.nav-tabs button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFeed = btn.dataset.feed;
+        displayCount = 30;
+        stories = [];
+        document.querySelector('.feed-title').textContent = FEED_TITLES[currentFeed];
+        init();
+      });
+    });
+
+    // ─── Init ───────────────────────────────────────
+    async function init() {
+      await fetchFeed();
+      await loadStories();
+      updateActivityGraph();
+    }
+
+    init();
+    fetchNewStories();
+
+    // Auto-refresh
+    setInterval(async () => {
+      await fetchFeed();
+      await loadStories();
+      updateActivityGraph();
+    }, 120000); // main feed every 2 min
+
+    setInterval(fetchNewStories, 30000); // new stories every 30s
+  </script>
+</body>
+</html>
