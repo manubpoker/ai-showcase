@@ -15,7 +15,7 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #000; overflow: hidden; height: 100vh; touch-action: none; }
-    canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+    canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; touch-action: none; }
 
     .hud {
       position: fixed;
@@ -126,7 +126,7 @@ const CURL_STRENGTH = 25;
 const VELOCITY_DISSIPATION = 0.98;
 const DYE_DISSIPATION = 0.97;
 const SPLAT_RADIUS = 0.004;
-let splatRadius = SPLAT_RADIUS;
+let splatRadius = 'ontouchstart' in window ? SPLAT_RADIUS * 2.5 : SPLAT_RADIUS;
 let colorMode = 'rainbow';
 let bloomEnabled = true;
 let hue = 0;
@@ -614,7 +614,7 @@ canvas.addEventListener('touchstart', e => {
     p.x = p.px = t.clientX;
     p.y = p.py = t.clientY;
   }
-});
+}, { passive: false });
 
 canvas.addEventListener('touchmove', e => {
   e.preventDefault();
@@ -625,12 +625,36 @@ canvas.addEventListener('touchmove', e => {
     p.x = t.clientX;
     p.y = t.clientY;
   }
-});
+}, { passive: false });
 
 canvas.addEventListener('touchend', e => {
+  e.preventDefault();
   for (const t of e.changedTouches) {
     getPointer(t.identifier).down = false;
   }
+}, { passive: false });
+
+// Pointer events fallback (better mobile support)
+canvas.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  canvas.setPointerCapture(e.pointerId);
+  const p = getPointer(e.pointerId);
+  p.down = true;
+  p.x = p.px = e.clientX;
+  p.y = p.py = e.clientY;
+});
+
+canvas.addEventListener('pointermove', e => {
+  const p = getPointer(e.pointerId);
+  p.px = p.x;
+  p.py = p.y;
+  p.x = e.clientX;
+  p.y = e.clientY;
+});
+
+canvas.addEventListener('pointerup', e => {
+  getPointer(e.pointerId).down = false;
+  canvas.releasePointerCapture(e.pointerId);
 });
 
 canvas.addEventListener('wheel', e => {
