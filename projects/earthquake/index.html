@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seismic Live — Real-Time Earthquake Monitor</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0e17;
+      --surface: #111827;
+      --border: #1e293b;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --accent: #f43f5e;
+      --accent-glow: rgba(244, 63, 94, 0.3);
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --orange: #f97316;
+      --red: #ef4444;
+      --violet: #8b5cf6;
+    }
+
+    body {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    #app {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      grid-template-rows: 56px 1fr 200px;
+      height: 100vh;
+    }
+
+    /* Header */
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-pulse {
+      width: 10px;
+      height: 10px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 24px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .stat-value {
+      color: var(--text);
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .controls button {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .controls button:hover,
+    .controls button.active {
+      border-color: var(--accent);
+      color: var(--text);
+      background: rgba(244, 63, 94, 0.1);
+    }
+
+    /* Map */
+    #map {
+      grid-column: 1;
+      grid-row: 2;
+      z-index: 1;
+    }
+
+    .leaflet-container { background: var(--bg) !important; }
+    .leaflet-control-attribution { display: none !important; }
+
+    /* Sidebar */
+    #sidebar {
+      grid-column: 2;
+      grid-row: 2 / 4;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      z-index: 1000;
+    }
+
+    .sidebar-header {
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .quake-item {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .quake-item:hover {
+      background: rgba(244, 63, 94, 0.05);
+    }
+
+    .quake-item.selected {
+      background: rgba(244, 63, 94, 0.1);
+      border-left: 3px solid var(--accent);
+    }
+
+    .quake-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .quake-mag {
+      min-width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .quake-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .quake-place {
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .quake-meta {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    .quake-depth {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    /* Seismograph */
+    #seismograph-wrap {
+      grid-column: 1;
+      grid-row: 3;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      position: relative;
+      z-index: 1000;
+    }
+
+    #seismograph-label {
+      position: absolute;
+      top: 8px;
+      left: 16px;
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      z-index: 2;
+    }
+
+    #seismograph {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Detail overlay */
+    #detail-overlay {
+      display: none;
+      position: absolute;
+      bottom: 220px;
+      left: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      z-index: 2000;
+      min-width: 320px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    #detail-overlay.visible { display: block; }
+
+    .detail-mag {
+      font-size: 36px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .detail-place {
+      font-size: 15px;
+      margin-top: 8px;
+      font-weight: 500;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 16px;
+      font-size: 12px;
+    }
+
+    .detail-label {
+      color: var(--text-dim);
+    }
+
+    .detail-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    /* Magnitude legend */
+    #legend {
+      position: absolute;
+      bottom: 220px;
+      right: 380px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      z-index: 2000;
+      font-size: 11px;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .legend-dot {
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Loading */
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      z-index: 9999;
+      transition: opacity 0.5s;
+    }
+
+    #loading.hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-text {
+      font-size: 16px;
+      color: var(--text-dim);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    /* Scrollbar */
+    #sidebar::-webkit-scrollbar { width: 6px; }
+    #sidebar::-webkit-scrollbar-track { background: transparent; }
+    #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      #app {
+        grid-template-columns: 1fr;
+        grid-template-rows: 56px 1fr 160px;
+      }
+      #sidebar { display: none; }
+      #legend { right: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading"><span class="loading-text">Connecting to USGS seismic feed...</span></div>
+
+  <div id="app">
+    <header>
+      <div class="logo">
+        <div class="logo-pulse"></div>
+        Seismic Live
+      </div>
+      <div class="header-stats">
+        <div>Earthquakes <span class="stat-value" id="stat-count">—</span></div>
+        <div>Largest <span class="stat-value" id="stat-max">—</span></div>
+        <div>Last update <span class="stat-value" id="stat-time">—</span></div>
+      </div>
+      <div class="controls">
+        <button class="active" data-feed="hour">1 Hour</button>
+        <button data-feed="day">24 Hours</button>
+        <button data-feed="week">7 Days</button>
+      </div>
+    </header>
+
+    <div id="map"></div>
+
+    <div id="sidebar">
+      <div class="sidebar-header">Recent Earthquakes</div>
+      <div id="quake-list"></div>
+    </div>
+
+    <div id="seismograph-wrap">
+      <div id="seismograph-label">Seismograph — Synthetic Waveform</div>
+      <canvas id="seismograph"></canvas>
+    </div>
+  </div>
+
+  <div id="detail-overlay">
+    <button class="detail-close" onclick="closeDetail()">&times;</button>
+    <div class="detail-mag" id="detail-mag"></div>
+    <div class="detail-place" id="detail-place"></div>
+    <div class="detail-grid" id="detail-grid"></div>
+  </div>
+
+  <div id="legend">
+    <div style="font-weight:600;margin-bottom:4px;">Magnitude</div>
+    <div class="legend-row"><span class="legend-dot" style="width:8px;height:8px;background:#10b981"></span> &lt; 2.5 Minor</div>
+    <div class="legend-row"><span class="legend-dot" style="width:12px;height:12px;background:#f59e0b"></span> 2.5–4.5 Light</div>
+    <div class="legend-row"><span class="legend-dot" style="width:16px;height:16px;background:#f97316"></span> 4.5–6.0 Moderate</div>
+    <div class="legend-row"><span class="legend-dot" style="width:20px;height:20px;background:#ef4444"></span> 6.0–7.0 Strong</div>
+    <div class="legend-row"><span class="legend-dot" style="width:24px;height:24px;background:#8b5cf6"></span> 7.0+ Major</div>
+  </div>
+
+  <script>
+    // ─── Config ──────────────────────────────────────────
+    const FEEDS = {
+      hour:  'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson',
+      day:   'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson',
+      week:  'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson'
+    };
+
+    let currentFeed = 'hour';
+    let quakes = [];
+    let markers = [];
+    let selectedQuake = null;
+    let seismoData = [];
+    const SEISMO_LEN = 600;
+
+    // ─── Map ─────────────────────────────────────────────
+    const map = L.map('map', {
+      center: [20, 0],
+      zoom: 2,
+      minZoom: 2,
+      maxZoom: 12,
+      zoomControl: false,
+      attributionControl: false
+    });
+
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Tectonic plates overlay
+    fetch('https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json')
+      .then(r => r.json())
+      .then(data => {
+        L.geoJSON(data, {
+          style: { color: '#334155', weight: 1.5, opacity: 0.5, dashArray: '4 4' }
+        }).addTo(map);
+      })
+      .catch(() => {});
+
+    // ─── Magnitude helpers ───────────────────────────────
+    function magColor(mag) {
+      if (mag >= 7)   return '#8b5cf6';
+      if (mag >= 6)   return '#ef4444';
+      if (mag >= 4.5) return '#f97316';
+      if (mag >= 2.5) return '#f59e0b';
+      return '#10b981';
+    }
+
+    function magRadius(mag) {
+      return Math.max(4, Math.pow(2, mag) * 0.8);
+    }
+
+    function magLabel(mag) {
+      if (mag >= 7)   return 'Major';
+      if (mag >= 6)   return 'Strong';
+      if (mag >= 4.5) return 'Moderate';
+      if (mag >= 2.5) return 'Light';
+      return 'Minor';
+    }
+
+    function timeAgo(ts) {
+      const diff = Date.now() - ts;
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ${mins % 60}m ago`;
+      const days = Math.floor(hrs / 24);
+      return `${days}d ago`;
+    }
+
+    // ─── Fetch earthquakes ───────────────────────────────
+    async function fetchQuakes() {
+      try {
+        const res = await fetch(FEEDS[currentFeed]);
+        const data = await res.json();
+        quakes = data.features.sort((a, b) => b.properties.time - a.properties.time);
+        renderMarkers();
+        renderList();
+        updateStats(data.metadata);
+        document.getElementById('loading').classList.add('hide');
+      } catch (e) {
+        console.error('Failed to fetch earthquake data:', e);
+      }
+    }
+
+    function updateStats(meta) {
+      document.getElementById('stat-count').textContent = quakes.length;
+      const maxMag = quakes.length ? Math.max(...quakes.map(q => q.properties.mag || 0)) : 0;
+      document.getElementById('stat-max').textContent = maxMag.toFixed(1);
+      document.getElementById('stat-time').textContent = new Date(meta.generated).toLocaleTimeString();
+    }
+
+    // ─── Render map markers ──────────────────────────────
+    function renderMarkers() {
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+
+      quakes.forEach(quake => {
+        const { mag, place, time, tsunami } = quake.properties;
+        const [lng, lat, depth] = quake.geometry.coordinates;
+        const color = magColor(mag || 0);
+        const radius = magRadius(mag || 0);
+
+        const marker = L.circleMarker([lat, lng], {
+          radius,
+          fillColor: color,
+          fillOpacity: 0.7,
+          color: color,
+          weight: 1,
+          opacity: 0.9
+        }).addTo(map);
+
+        // Ripple effect for significant quakes
+        if ((mag || 0) >= 4.5) {
+          const ripple = L.circleMarker([lat, lng], {
+            radius: radius,
+            fillColor: 'transparent',
+            fillOpacity: 0,
+            color: color,
+            weight: 2,
+            opacity: 0.5,
+            className: 'ripple-marker'
+          }).addTo(map);
+          markers.push(ripple);
+
+          // Animate ripple
+          let rippleRadius = radius;
+          const animateRipple = () => {
+            rippleRadius += 0.3;
+            if (rippleRadius > radius * 4) rippleRadius = radius;
+            ripple.setRadius(rippleRadius);
+            ripple.setStyle({ opacity: Math.max(0, 0.5 - (rippleRadius - radius) / (radius * 3)) });
+            requestAnimationFrame(animateRipple);
+          };
+          animateRipple();
+        }
+
+        marker.on('click', () => showDetail(quake));
+        markers.push(marker);
+      });
+    }
+
+    // ─── Render earthquake list ──────────────────────────
+    function renderList() {
+      const list = document.getElementById('quake-list');
+      list.innerHTML = quakes.map((q, i) => {
+        const { mag, place, time } = q.properties;
+        const depth = q.geometry.coordinates[2];
+        const color = magColor(mag || 0);
+        return `
+          <div class="quake-item" data-index="${i}" onclick="selectQuake(${i})">
+            <div class="quake-row">
+              <div class="quake-mag" style="background:${color}22;color:${color}">
+                ${(mag || 0).toFixed(1)}
+              </div>
+              <div class="quake-info">
+                <div class="quake-place">${place || 'Unknown'}</div>
+                <div class="quake-meta">${timeAgo(time)} &middot; ${magLabel(mag || 0)}</div>
+                <div class="quake-depth">Depth: ${depth.toFixed(1)} km</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectQuake(index) {
+      const quake = quakes[index];
+      if (!quake) return;
+      showDetail(quake);
+
+      document.querySelectorAll('.quake-item').forEach(el => el.classList.remove('selected'));
+      const el = document.querySelector(`.quake-item[data-index="${index}"]`);
+      if (el) el.classList.add('selected');
+
+      const [lng, lat] = quake.geometry.coordinates;
+      map.flyTo([lat, lng], 6, { duration: 1 });
+
+      // Inject into seismograph
+      injectSeismoEvent(quake.properties.mag || 1);
+    }
+
+    // ─── Detail overlay ──────────────────────────────────
+    function showDetail(quake) {
+      const { mag, place, time, tsunami, felt, cdi, alert, url } = quake.properties;
+      const [lng, lat, depth] = quake.geometry.coordinates;
+      const color = magColor(mag || 0);
+
+      selectedQuake = quake;
+
+      document.getElementById('detail-mag').style.color = color;
+      document.getElementById('detail-mag').textContent = `M ${(mag || 0).toFixed(1)}`;
+      document.getElementById('detail-place').textContent = place || 'Unknown location';
+      document.getElementById('detail-grid').innerHTML = `
+        <div><span class="detail-label">Time</span><br>${new Date(time).toLocaleString()}</div>
+        <div><span class="detail-label">Depth</span><br>${depth.toFixed(1)} km</div>
+        <div><span class="detail-label">Coordinates</span><br>${lat.toFixed(3)}, ${lng.toFixed(3)}</div>
+        <div><span class="detail-label">Classification</span><br>${magLabel(mag || 0)}</div>
+        <div><span class="detail-label">Tsunami Alert</span><br>${tsunami ? 'Yes' : 'No'}</div>
+        <div><span class="detail-label">Felt Reports</span><br>${felt || 'None'}</div>
+        ${alert ? `<div><span class="detail-label">Alert Level</span><br><span style="color:${alert === 'red' ? '#ef4444' : alert === 'orange' ? '#f97316' : alert === 'yellow' ? '#f59e0b' : '#10b981'};text-transform:uppercase;font-weight:700">${alert}</span></div>` : ''}
+        <div><a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-size:12px">USGS Details &rarr;</a></div>
+      `;
+
+      document.getElementById('detail-overlay').classList.add('visible');
+    }
+
+    function closeDetail() {
+      document.getElementById('detail-overlay').classList.remove('visible');
+      selectedQuake = null;
+      document.querySelectorAll('.quake-item').forEach(el => el.classList.remove('selected'));
+    }
+
+    // ─── Feed controls ───────────────────────────────────
+    document.querySelectorAll('.controls button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFeed = btn.dataset.feed;
+        fetchQuakes();
+      });
+    });
+
+    // ─── Seismograph ─────────────────────────────────────
+    const canvas = document.getElementById('seismograph');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const wrap = document.getElementById('seismograph-wrap');
+      canvas.width = wrap.clientWidth * devicePixelRatio;
+      canvas.height = wrap.clientHeight * devicePixelRatio;
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Initialize seismograph data
+    for (let i = 0; i < SEISMO_LEN; i++) seismoData.push(0);
+
+    function injectSeismoEvent(mag) {
+      const amplitude = Math.pow(2, mag) * 3;
+      const duration = Math.min(80, mag * 12);
+      for (let i = 0; i < duration; i++) {
+        const decay = Math.exp(-i / (duration * 0.3));
+        const freq = 0.3 + mag * 0.1;
+        const val = amplitude * decay * Math.sin(i * freq) * (1 + Math.random() * 0.3);
+        setTimeout(() => {
+          seismoData.push(val);
+          if (seismoData.length > SEISMO_LEN) seismoData.shift();
+        }, i * 16);
+      }
+    }
+
+    // Background noise + ambient micro-quakes
+    function seismoTick() {
+      const noise = (Math.random() - 0.5) * 2 + Math.sin(Date.now() * 0.002) * 0.5;
+      seismoData.push(noise);
+      if (seismoData.length > SEISMO_LEN) seismoData.shift();
+    }
+
+    function drawSeismograph() {
+      const w = canvas.width / devicePixelRatio;
+      const h = canvas.height / devicePixelRatio;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Grid lines
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 0.5;
+      for (let y = 0; y < h; y += 20) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+      for (let x = 0; x < w; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+
+      // Center line
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, h / 2);
+      ctx.lineTo(w, h / 2);
+      ctx.stroke();
+
+      // Waveform
+      const step = w / SEISMO_LEN;
+      ctx.beginPath();
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#10b98155';
+      ctx.shadowBlur = 4;
+
+      for (let i = 0; i < seismoData.length; i++) {
+        const x = i * step;
+        const val = seismoData[i];
+        const maxAmp = h / 2 - 10;
+        const y = h / 2 - Math.max(-maxAmp, Math.min(maxAmp, val));
+
+        // Color shifts for big amplitudes
+        if (Math.abs(val) > 20) {
+          ctx.strokeStyle = '#f43f5e';
+          ctx.shadowColor = '#f43f5e55';
+        } else if (Math.abs(val) > 8) {
+          ctx.strokeStyle = '#f59e0b';
+          ctx.shadowColor = '#f59e0b55';
+        } else {
+          ctx.strokeStyle = '#10b981';
+          ctx.shadowColor = '#10b98155';
+        }
+
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+      }
+      ctx.shadowBlur = 0;
+
+      requestAnimationFrame(drawSeismograph);
+    }
+
+    // ─── Init ────────────────────────────────────────────
+    fetchQuakes();
+    setInterval(fetchQuakes, 60000);
+    setInterval(seismoTick, 33);
+    drawSeismograph();
+
+    // Inject recent significant quakes into seismograph on load
+    setTimeout(() => {
+      const significant = quakes.filter(q => (q.properties.mag || 0) >= 3).slice(0, 3);
+      significant.forEach((q, i) => {
+        setTimeout(() => injectSeismoEvent(q.properties.mag), i * 500);
+      });
+    }, 2000);
+  </script>
+</body>
+</html>
