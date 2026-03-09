@@ -759,6 +759,45 @@ html, body {
     });
   }
 
+  /* ── Air Quality fetcher ─────────────────────────────────── */
+  async function fetchAirQuality() {
+    const lats = WORLD_CITIES.map(c => c.lat).join(',');
+    const lngs = WORLD_CITIES.map(c => c.lng).join(',');
+    const res = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lats}&longitude=${lngs}&current=us_aqi,pm2_5,pm10`);
+    const json = await res.json();
+    return WORLD_CITIES.map((city, i) => {
+      const data = Array.isArray(json) ? json[i] : json;
+      const cur = data?.current;
+      return {
+        ...city,
+        aqi: cur?.us_aqi,
+        pm25: cur?.pm2_5,
+        pm10: cur?.pm10,
+        _layer: 'airquality'
+      };
+    });
+  }
+
+  function aqiColor(aqi) {
+    if (aqi == null) return '#94a3b8';
+    if (aqi <= 50) return '#22c55e';   // Good (green)
+    if (aqi <= 100) return '#eab308';  // Moderate (yellow)
+    if (aqi <= 150) return '#f97316';  // Unhealthy for sensitive (orange)
+    if (aqi <= 200) return '#ef4444';  // Unhealthy (red)
+    if (aqi <= 300) return '#7c3aed';  // Very unhealthy (purple)
+    return '#991b1b';                   // Hazardous (maroon)
+  }
+
+  function aqiLabel(aqi) {
+    if (aqi == null) return 'N/A';
+    if (aqi <= 50) return 'Good';
+    if (aqi <= 100) return 'Moderate';
+    if (aqi <= 150) return 'Unhealthy (Sensitive)';
+    if (aqi <= 200) return 'Unhealthy';
+    if (aqi <= 300) return 'Very Unhealthy';
+    return 'Hazardous';
+  }
+
   /* ══════════════════════════════════════════════════════════════
      Globe initialisation
      ══════════════════════════════════════════════════════════════ */
@@ -793,20 +832,28 @@ html, body {
     const allPts = [];
     const radioLayer = LAYERS.find(l => l.id === 'radio');
     const riverLayer = LAYERS.find(l => l.id === 'rivers');
+    const aqLayer = LAYERS.find(l => l.id === 'airquality');
     if (radioLayer.enabled && radioLayer.data) allPts.push(...radioLayer.data);
     if (riverLayer.enabled && riverLayer.data) allPts.push(...riverLayer.data);
+    if (aqLayer.enabled && aqLayer.data) allPts.push(...aqLayer.data);
     globe.pointsData(allPts)
       .pointLat(d => d.lat)
       .pointLng(d => d.lng)
       .pointRadius(d => {
         if (d._layer === 'radio') return 0.15;
         if (d._layer === 'rivers') return 0.1 + Math.min(Math.log10(Math.max(d.discharge || 1, 1)) / 6, 0.5) * 0.5;
+        if (d._layer === 'airquality') return 0.25;
         return 0.2;
       })
-      .pointAltitude(d => d._layer === 'rivers' ? 0.008 : 0.005)
+      .pointAltitude(d => {
+        if (d._layer === 'rivers') return 0.008;
+        if (d._layer === 'airquality') return 0.015;
+        return 0.005;
+      })
       .pointColor(d => {
         if (d._layer === 'radio') return '#06b6d4';
         if (d._layer === 'rivers') return '#3b82f6';
+        if (d._layer === 'airquality') return aqiColor(d.aqi);
         return '#94a3b8';
       })
       .onPointClick(pt => {
@@ -838,6 +885,14 @@ html, body {
           const discharge = pt.discharge != null ? fmtNum(pt.discharge, 0) + ' cfs' : 'N/A';
           const gauge = pt.gaugeHeight != null ? 'Gauge: ' + fmtNum(pt.gaugeHeight, 2) + ' ft' : '';
           showHover(pt.name, discharge, gauge);
+        } else if (pt._layer === 'airquality') {
+          const aqiVal = pt.aqi != null ? 'AQI ' + pt.aqi : 'AQI N/A';
+          const color = aqiColor(pt.aqi);
+          const label = aqiLabel(pt.aqi);
+          const pm25 = pt.pm25 != null ? pt.pm25 : 'N/A';
+          const pm10 = pt.pm10 != null ? pt.pm10 : 'N/A';
+          const meta = label + ' · PM2.5: ' + pm25 + ' · PM10: ' + pm10;
+          showHover(pt.name + ', ' + pt.country, '<span style="color:' + color + '">' + aqiVal + '</span>', meta);
         }
       });
   }
@@ -1420,9 +1475,23 @@ html, body {
       enabled: false,
       data: null,
       interval: null,
-      refreshMs: 0,
-      onEnable: async () => {},
-      onDisable: () => {},
+      refreshMs: 30 * 60 * 1000,
+      onEnable: async () => {
+        const layer = LAYERS.find(l => l.id === 'airquality');
+        layer.data = await fetchAirQuality();
+        updateCombinedPoints();
+        layer.interval = setInterval(async () => {
+          layer.data = await fetchAirQuality();
+          updateCombinedPoints();
+        }, layer.refreshMs);
+      },
+      onDisable: () => {
+        const layer = LAYERS.find(l => l.id === 'airquality');
+        layer.data = null;
+        updateCombinedPoints();
+        if (layer.interval) { clearInterval(layer.interval); layer.interval = null; }
+        hideHover();
+      },
     },
   ];
 
@@ -1450,7 +1519,7 @@ html, body {
     for (const group of groups) {
       html += `<div class="panel-section"><div class="group-label">${group}</div></div>`;
       for (const layer of groupMap[group]) {
-        const hasImpl = layer.id === 'base' || layer.id === 'earthquakes' || layer.id === 'iss' || layer.id === 'rockets' || layer.id === 'radio' || layer.id === 'rivers' || layer.id === 'weather';
+        const hasImpl = layer.id === 'base' || layer.id === 'earthquakes' || layer.id === 'iss' || layer.id === 'rockets' || layer.id === 'radio' || layer.id === 'rivers' || layer.id === 'weather' || layer.id === 'airquality';
         const isPlaceholder = !hasImpl && !layer.enabled;
         html += `
           <div class="layer-row" data-layer-id="${layer.id}">
