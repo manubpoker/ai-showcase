@@ -130,6 +130,13 @@
     "path": "projects/airquality/"
   },
   {
+    "id": "radio",
+    "title": "Radio Globe",
+    "description": "Explore and stream live internet radio from around the world. Browse 30,000+ stations by country, genre, or search with an interactive map.",
+    "tags": ["RadioBrowser API", "Leaflet", "Web Audio", "Live Data"],
+    "path": "projects/radio/"
+  },
+  {
     "id": "metaballs",
     "title": "Metaball Lava Lamp",
     "description": "GPU ray-marched metaball simulation with smooth organic blending, 7 color themes, mouse attraction physics, and glow effects via WebGL 2.",
