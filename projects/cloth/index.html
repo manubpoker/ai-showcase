@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloth Simulation</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a10;overflow:hidden;height:100vh;font-family:'Inter',system-ui,sans-serif;color:#ddd}
+canvas{display:block;position:absolute;top:0;left:0}
+
+.ui{position:absolute;top:16px;left:16px;z-index:10;user-select:none}
+.panel{background:rgba(5,5,15,0.82);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px;width:270px;backdrop-filter:blur(16px)}
+.panel h1{font-size:1.05rem;font-weight:700;margin-bottom:2px}
+.panel h1 span{background:linear-gradient(135deg,#f472b6,#818cf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.panel .sub{font-size:0.62rem;color:#555;margin-bottom:14px}
+
+.ctrl{margin-bottom:9px}
+.ctrl label{display:flex;justify-content:space-between;font-size:0.7rem;color:#888;margin-bottom:3px}
+.ctrl label b{color:#fff;font-weight:600;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;border-radius:2px;background:rgba(255,255,255,0.08);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#fff;cursor:pointer}
+
+.section-label{font-size:0.6rem;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin:12px 0 6px}
+
+.modes{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
+.mode-btn{padding:4px 11px;border:1px solid rgba(255,255,255,0.08);border-radius:14px;background:rgba(255,255,255,0.03);font-size:0.62rem;cursor:pointer;transition:all 0.2s;color:#888}
+.mode-btn:hover{background:rgba(255,255,255,0.08);color:#fff}
+.mode-btn.active{border-color:rgba(129,140,248,0.4);background:rgba(129,140,248,0.12);color:#a5b4fc}
+
+.color-row{display:flex;gap:6px;margin-bottom:10px}
+.color-swatch{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:border-color 0.2s}
+.color-swatch.active{border-color:#fff}
+
+.btns{display:flex;gap:6px;margin-top:12px}
+.btn{flex:1;padding:5px 0;border:1px solid rgba(255,255,255,0.1);border-radius:7px;background:rgba(255,255,255,0.03);color:#aaa;font-size:0.65rem;font-weight:600;cursor:pointer;text-align:center;transition:all 0.2s}
+.btn:hover{background:rgba(255,255,255,0.08);color:#fff}
+
+.toggle-btn{position:absolute;top:16px;right:16px;z-index:10;padding:5px 14px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;background:rgba(5,5,15,0.75);color:#888;font-size:0.65rem;cursor:pointer;backdrop-filter:blur(8px)}
+.toggle-btn:hover{color:#fff}
+.stats{position:absolute;bottom:10px;left:16px;font-size:0.58rem;color:#333;z-index:10}
+.hint{position:absolute;bottom:10px;right:16px;font-size:0.58rem;color:#333;z-index:10}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="ui" id="ui">
+<div class="panel">
+  <h1><span>Cloth Simulation</span></h1>
+  <div class="sub">Verlet integration · constraint relaxation · interactive physics</div>
+
+  <div class="ctrl">
+    <label>Gravity <b id="v-gravity">0.5</b></label>
+    <input type="range" id="gravity" min="0" max="2" step="0.05" value="0.5">
+  </div>
+  <div class="ctrl">
+    <label>Wind Strength <b id="v-wind">0.3</b></label>
+    <input type="range" id="wind" min="0" max="2" step="0.05" value="0.3">
+  </div>
+  <div class="ctrl">
+    <label>Wind Turbulence <b id="v-turb">0.5</b></label>
+    <input type="range" id="turb" min="0" max="2" step="0.05" value="0.5">
+  </div>
+  <div class="ctrl">
+    <label>Stiffness <b id="v-stiff">6</b> iterations</label>
+    <input type="range" id="stiff" min="1" max="15" step="1" value="6">
+  </div>
+  <div class="ctrl">
+    <label>Damping <b id="v-damp">0.99</b></label>
+    <input type="range" id="damp" min="0.9" max="1.0" step="0.005" value="0.99">
+  </div>
+  <div class="ctrl">
+    <label>Tear Distance <b id="v-tear">2.5</b>x</label>
+    <input type="range" id="tear" min="1.5" max="6" step="0.1" value="2.5">
+  </div>
+
+  <div class="section-label">Interaction Mode</div>
+  <div class="modes" id="modes">
+    <div class="mode-btn active" data-mode="drag">Drag</div>
+    <div class="mode-btn" data-mode="tear">Tear</div>
+    <div class="mode-btn" data-mode="pin">Pin</div>
+    <div class="mode-btn" data-mode="push">Push</div>
+  </div>
+
+  <div class="section-label">Color Scheme</div>
+  <div class="color-row" id="colorRow"></div>
+
+  <div class="section-label">Preset Shapes</div>
+  <div class="modes" id="presets">
+    <div class="mode-btn active" data-shape="flag">Flag</div>
+    <div class="mode-btn" data-shape="curtain">Curtain</div>
+    <div class="mode-btn" data-shape="hammock">Hammock</div>
+    <div class="mode-btn" data-shape="cape">Cape</div>
+  </div>
+
+  <div class="btns">
+    <div class="btn" id="btnReset">Reset</div>
+    <div class="btn" id="btnPause">Pause</div>
+    <div class="btn" id="btnWind">Wind: ON</div>
+  </div>
+</div>
+</div>
+
+<button class="toggle-btn" id="toggleUI">Hide Controls</button>
+<div class="stats" id="stats"></div>
+<div class="hint">Drag cloth · Right-click to tear · Scroll to adjust brush</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// Params
+let gravityVal = 0.5, windStr = 0.3, turbulence = 0.5;
+let stiffIter = 6, damping = 0.99, tearMult = 2.5;
+let interactMode = 'drag', paused = false, windOn = true;
+let colorIdx = 0, activeShape = 'flag';
+let brushSize = 30;
+
+// Color schemes
+const COLORS = [
+  { name:'Silk', fabric:'#e8d5c4', thread:'rgba(180,150,120,0.15)', bg:'#0a0a10',
+    gradA:'#f5e6d3', gradB:'#c9a882', shadow:'rgba(80,50,20,0.3)' },
+  { name:'Ocean', fabric:'#4a90d9', thread:'rgba(40,80,160,0.15)', bg:'#060810',
+    gradA:'#5da0e8', gradB:'#2060a0', shadow:'rgba(10,30,80,0.3)' },
+  { name:'Rose', fabric:'#e88aab', thread:'rgba(200,80,120,0.15)', bg:'#100608',
+    gradA:'#f0a0c0', gradB:'#c06080', shadow:'rgba(80,20,40,0.3)' },
+  { name:'Emerald', fabric:'#50c878', thread:'rgba(40,160,80,0.15)', bg:'#060f08',
+    gradA:'#60d888', gradB:'#308050', shadow:'rgba(10,60,30,0.3)' },
+  { name:'Gold', fabric:'#d4a849', thread:'rgba(180,140,40,0.15)', bg:'#100e06',
+    gradA:'#e4b859', gradB:'#a07830', shadow:'rgba(80,60,10,0.3)' },
+  { name:'Night', fabric:'#8888cc', thread:'rgba(100,100,180,0.15)', bg:'#08080e',
+    gradA:'#9898dd', gradB:'#5858a0', shadow:'rgba(30,30,80,0.3)' },
+];
+
+// Build color row
+const colorRow = document.getElementById('colorRow');
+COLORS.forEach((c, i) => {
+  const d = document.createElement('div');
+  d.className = 'color-swatch' + (i === 0 ? ' active' : '');
+  d.style.background = c.fabric;
+  d.title = c.name;
+  d.onclick = () => {
+    document.querySelectorAll('.color-swatch').forEach(e => e.classList.remove('active'));
+    d.classList.add('active');
+    colorIdx = i;
+  };
+  colorRow.appendChild(d);
+});
+
+// Cloth
+const COLS = 65, ROWS = 40;
+let spacing, offsetX, offsetY;
+let points = [], sticks = [];
+
+class Point {
+  constructor(x, y, pinned = false) {
+    this.x = x; this.y = y;
+    this.ox = x; this.oy = y;
+    this.pinned = pinned;
+    this.mass = 1;
+  }
+}
+
+class Stick {
+  constructor(p1, p2) {
+    this.p1 = p1; this.p2 = p2;
+    const dx = p2.x - p1.x, dy = p2.y - p1.y;
+    this.len = Math.sqrt(dx * dx + dy * dy);
+    this.broken = false;
+  }
+}
+
+function createCloth(shape) {
+  const w = canvas.width, h = canvas.height;
+  spacing = Math.min(w * 0.012, h * 0.018);
+  const clothW = COLS * spacing;
+  const clothH = ROWS * spacing;
+  offsetX = (w - clothW) / 2;
+  offsetY = h * 0.12;
+
+  points = [];
+  sticks = [];
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = offsetX + c * spacing;
+      const y = offsetY + r * spacing;
+      let pinned = false;
+
+      if (shape === 'flag') {
+        pinned = c === 0 && (r % 4 === 0);
+      } else if (shape === 'curtain') {
+        pinned = r === 0 && (c % 5 === 0);
+      } else if (shape === 'hammock') {
+        pinned = r === 0 && (c === 0 || c === COLS - 1);
+      } else if (shape === 'cape') {
+        pinned = r === 0 && c >= Math.floor(COLS * 0.3) && c <= Math.floor(COLS * 0.7);
+      }
+
+      points.push(new Point(x, y, pinned));
+    }
+  }
+
+  // Horizontal sticks
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS - 1; c++) {
+      sticks.push(new Stick(points[r * COLS + c], points[r * COLS + c + 1]));
+    }
+  }
+  // Vertical sticks
+  for (let r = 0; r < ROWS - 1; r++) {
+    for (let c = 0; c < COLS; c++) {
+      sticks.push(new Stick(points[r * COLS + c], points[(r + 1) * COLS + c]));
+    }
+  }
+}
+
+// Resize
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  createCloth(activeShape);
+}
+window.addEventListener('resize', resize);
+
+// Mouse
+let mouseX = 0, mouseY = 0, pmouseX = 0, pmouseY = 0;
+let mouseDown = false, rightDown = false;
+let dragPoint = null;
+
+canvas.addEventListener('pointerdown', e => {
+  mouseDown = true;
+  rightDown = e.button === 2;
+  mouseX = e.clientX; mouseY = e.clientY;
+  pmouseX = mouseX; pmouseY = mouseY;
+  canvas.setPointerCapture(e.pointerId);
+
+  if (interactMode === 'pin') {
+    const p = closestPoint(mouseX, mouseY, 20);
+    if (p) p.pinned = !p.pinned;
+  } else if (interactMode === 'drag') {
+    dragPoint = closestPoint(mouseX, mouseY, 30);
+  }
+});
+
+canvas.addEventListener('pointermove', e => {
+  pmouseX = mouseX; pmouseY = mouseY;
+  mouseX = e.clientX; mouseY = e.clientY;
+
+  if (mouseDown && interactMode === 'drag' && dragPoint) {
+    dragPoint.x = mouseX;
+    dragPoint.y = mouseY;
+  }
+});
+
+canvas.addEventListener('pointerup', () => {
+  mouseDown = false; rightDown = false; dragPoint = null;
+});
+canvas.addEventListener('pointercancel', () => {
+  mouseDown = false; rightDown = false; dragPoint = null;
+});
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.style.touchAction = 'none';
+
+canvas.addEventListener('wheel', e => {
+  brushSize = Math.max(10, Math.min(100, brushSize + (e.deltaY > 0 ? 3 : -3)));
+  e.preventDefault();
+}, { passive: false });
+
+function closestPoint(mx, my, maxDist) {
+  let best = null, bestD = maxDist * maxDist;
+  for (const p of points) {
+    const dx = p.x - mx, dy = p.y - my;
+    const d = dx * dx + dy * dy;
+    if (d < bestD) { bestD = d; best = p; }
+  }
+  return best;
+}
+
+// Physics
+let time = 0;
+function update(dt) {
+  time += dt;
+  const gx = 0, gy = gravityVal * 0.5;
+
+  // Wind
+  let wx = 0, wy = 0;
+  if (windOn) {
+    const windAngle = Math.sin(time * 0.4) * 0.3;
+    const windPulse = (Math.sin(time * 0.7) * 0.5 + 0.5) * windStr;
+    wx = Math.cos(windAngle) * windPulse;
+    wy = Math.sin(windAngle) * windPulse * 0.3;
+  }
+
+  // Verlet integration
+  for (const p of points) {
+    if (p.pinned) continue;
+    let vx = (p.x - p.ox) * damping;
+    let vy = (p.y - p.oy) * damping;
+
+    // Turbulent wind per point
+    if (windOn) {
+      const noise = Math.sin(p.x * 0.05 + time * 2) * Math.cos(p.y * 0.03 + time * 1.5);
+      vx += wx + noise * turbulence * 0.15;
+      vy += wy + noise * turbulence * 0.08;
+    }
+
+    p.ox = p.x;
+    p.oy = p.y;
+    p.x += vx + gx;
+    p.y += vy + gy;
+
+    // Floor bounce
+    const floor = canvas.height / (window.devicePixelRatio || 1) - 20;
+    if (p.y > floor) {
+      p.y = floor;
+      p.oy = p.y + vy * 0.3;
+      p.ox = p.x - vx * 0.5; // friction
+    }
+  }
+
+  // Tear / push interaction during drag
+  if (mouseDown && (interactMode === 'tear' || rightDown)) {
+    tearAt(mouseX, mouseY, brushSize);
+  }
+  if (mouseDown && interactMode === 'push') {
+    pushAt(mouseX, mouseY, brushSize);
+  }
+
+  // Constraint solving
+  for (let iter = 0; iter < stiffIter; iter++) {
+    for (const s of sticks) {
+      if (s.broken) continue;
+      const dx = s.p2.x - s.p1.x;
+      const dy = s.p2.y - s.p1.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
+
+      // Tear check
+      if (dist > s.len * tearMult) {
+        s.broken = true;
+        continue;
+      }
+
+      const diff = (s.len - dist) / dist * 0.5;
+      const ox = dx * diff;
+      const oy = dy * diff;
+      if (!s.p1.pinned) { s.p1.x -= ox; s.p1.y -= oy; }
+      if (!s.p2.pinned) { s.p2.x += ox; s.p2.y += oy; }
+    }
+  }
+}
+
+function tearAt(mx, my, radius) {
+  const r2 = radius * radius;
+  for (const s of sticks) {
+    if (s.broken) continue;
+    const cx = (s.p1.x + s.p2.x) * 0.5;
+    const cy = (s.p1.y + s.p2.y) * 0.5;
+    const dx = cx - mx, dy = cy - my;
+    if (dx * dx + dy * dy < r2) {
+      s.broken = true;
+    }
+  }
+}
+
+function pushAt(mx, my, radius) {
+  for (const p of points) {
+    if (p.pinned) continue;
+    const dx = p.x - mx, dy = p.y - my;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < radius * radius && d2 > 0) {
+      const d = Math.sqrt(d2);
+      const force = (radius - d) / radius * 2;
+      p.x += (dx / d) * force;
+      p.y += (dy / d) * force;
+    }
+  }
+}
+
+// Render
+function render() {
+  const W = canvas.width / (window.devicePixelRatio || 1);
+  const H = canvas.height / (window.devicePixelRatio || 1);
+  const scheme = COLORS[colorIdx];
+
+  ctx.fillStyle = scheme.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle ambient light gradient
+  const ambGrad = ctx.createRadialGradient(W * 0.3, H * 0.2, 0, W * 0.3, H * 0.2, W * 0.8);
+  ambGrad.addColorStop(0, 'rgba(255,255,255,0.03)');
+  ambGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = ambGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw cloth as filled triangles for fabric look
+  for (let r = 0; r < ROWS - 1; r++) {
+    for (let c = 0; c < COLS - 1; c++) {
+      const i = r * COLS + c;
+      const p0 = points[i];
+      const p1 = points[i + 1];
+      const p2 = points[i + COLS];
+      const p3 = points[i + COLS + 1];
+
+      // Check if sticks exist (not broken)
+      const hStick = findStick(p0, p1);
+      const vStick = findStick(p0, p2);
+      const hStick2 = findStick(p2, p3);
+      const vStick2 = findStick(p1, p3);
+
+      if (hStick && !hStick.broken && vStick && !vStick.broken) {
+        // Lighting based on normal approximation
+        const nx = (p1.y - p0.y) - (p2.y - p0.y);
+        const ny = (p2.x - p0.x) - (p1.x - p0.x);
+        const nl = Math.sqrt(nx*nx + ny*ny) || 1;
+        const light = 0.5 + 0.5 * (nx / nl * 0.5 + ny / nl * -0.7);
+        const l = Math.max(0.3, Math.min(1.0, light));
+
+        const baseR = parseInt(scheme.gradA.slice(1,3), 16);
+        const baseG = parseInt(scheme.gradA.slice(3,5), 16);
+        const baseB = parseInt(scheme.gradA.slice(5,7), 16);
+
+        ctx.fillStyle = `rgb(${Math.floor(baseR*l)},${Math.floor(baseG*l)},${Math.floor(baseB*l)})`;
+
+        // Triangle 1
+        ctx.beginPath();
+        ctx.moveTo(p0.x, p0.y);
+        ctx.lineTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.fill();
+
+        // Triangle 2
+        if (hStick2 && !hStick2.broken && vStick2 && !vStick2.broken) {
+          const light2 = 0.5 + 0.5 * ((p3.y - p2.y - p3.y + p1.y) / nl * 0.5);
+          const l2 = Math.max(0.3, Math.min(1.0, light2));
+          ctx.fillStyle = `rgb(${Math.floor(baseR*l2)},${Math.floor(baseG*l2)},${Math.floor(baseB*l2)})`;
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p3.x, p3.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  // Draw thread lines for torn edges
+  ctx.strokeStyle = scheme.thread;
+  ctx.lineWidth = 0.5;
+  for (const s of sticks) {
+    if (s.broken) continue;
+    // Only draw edge threads where neighboring stick is broken
+    ctx.beginPath();
+    ctx.moveTo(s.p1.x, s.p1.y);
+    ctx.lineTo(s.p2.x, s.p2.y);
+    ctx.stroke();
+  }
+
+  // Pin markers
+  for (const p of points) {
+    if (p.pinned) {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Interaction cursor
+  if (mouseDown && (interactMode === 'tear' || interactMode === 'push' || rightDown)) {
+    ctx.strokeStyle = interactMode === 'tear' || rightDown ? 'rgba(239,68,68,0.3)' : 'rgba(99,102,241,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(mouseX, mouseY, brushSize, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+// Stick lookup cache
+let stickMap = {};
+function buildStickMap() {
+  stickMap = {};
+  for (const s of sticks) {
+    const key1 = points.indexOf(s.p1) + ',' + points.indexOf(s.p2);
+    const key2 = points.indexOf(s.p2) + ',' + points.indexOf(s.p1);
+    stickMap[key1] = s;
+    stickMap[key2] = s;
+  }
+}
+
+function findStick(p1, p2) {
+  const key = points.indexOf(p1) + ',' + points.indexOf(p2);
+  return stickMap[key];
+}
+
+// Optimized stick lookup using index
+let stickIndex = {};
+function buildStickIndex() {
+  stickIndex = {};
+  sticks.forEach(s => {
+    const i1 = points.indexOf(s.p1);
+    const i2 = points.indexOf(s.p2);
+    stickIndex[i1 + '_' + i2] = s;
+    stickIndex[i2 + '_' + i1] = s;
+  });
+}
+
+// Override findStick to use index
+function findStickFast(r, c, dr, dc) {
+  const i1 = r * COLS + c;
+  const i2 = (r + dr) * COLS + (c + dc);
+  return stickIndex[i1 + '_' + i2];
+}
+
+// Render optimized
+function renderFast() {
+  const W = canvas.width / (window.devicePixelRatio || 1);
+  const H = canvas.height / (window.devicePixelRatio || 1);
+  const scheme = COLORS[colorIdx];
+
+  ctx.fillStyle = scheme.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const ambGrad = ctx.createRadialGradient(W * 0.3, H * 0.2, 0, W * 0.3, H * 0.2, W * 0.8);
+  ambGrad.addColorStop(0, 'rgba(255,255,255,0.03)');
+  ambGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = ambGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  const baseR = parseInt(scheme.gradA.slice(1,3), 16);
+  const baseG = parseInt(scheme.gradA.slice(3,5), 16);
+  const baseB = parseInt(scheme.gradA.slice(5,7), 16);
+
+  for (let r = 0; r < ROWS - 1; r++) {
+    for (let c = 0; c < COLS - 1; c++) {
+      const i = r * COLS + c;
+      const p0 = points[i], p1 = points[i+1];
+      const p2 = points[i+COLS], p3 = points[i+COLS+1];
+
+      const hs = stickIndex[i+'_'+(i+1)];
+      const vs = stickIndex[i+'_'+(i+COLS)];
+      if (!hs || hs.broken || !vs || vs.broken) continue;
+
+      const nx = (p1.y - p0.y) - (p2.y - p0.y);
+      const ny = (p2.x - p0.x) - (p1.x - p0.x);
+      const nl = Math.sqrt(nx*nx+ny*ny) || 1;
+      const l = Math.max(0.25, Math.min(1.0, 0.5 + 0.5*(nx/nl*0.4 + ny/nl*-0.7)));
+
+      ctx.fillStyle = `rgb(${baseR*l|0},${baseG*l|0},${baseB*l|0})`;
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.fill();
+
+      const hs2 = stickIndex[(i+COLS)+'_'+(i+COLS+1)];
+      const vs2 = stickIndex[(i+1)+'_'+(i+COLS+1)];
+      if (hs2 && !hs2.broken && vs2 && !vs2.broken) {
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p3.x, p3.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Pins
+  ctx.fillStyle = '#fff';
+  for (const p of points) {
+    if (!p.pinned) continue;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Cursor
+  if (mouseDown && (interactMode === 'tear' || interactMode === 'push' || rightDown)) {
+    ctx.strokeStyle = interactMode === 'tear' || rightDown ? 'rgba(239,68,68,0.3)' : 'rgba(99,102,241,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(mouseX, mouseY, brushSize, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+// UI
+const sliders = [
+  { id:'gravity', lbl:'v-gravity', set:v=>gravityVal=v, fmt:v=>v.toFixed(2) },
+  { id:'wind',    lbl:'v-wind',    set:v=>windStr=v,    fmt:v=>v.toFixed(2) },
+  { id:'turb',    lbl:'v-turb',    set:v=>turbulence=v, fmt:v=>v.toFixed(2) },
+  { id:'stiff',   lbl:'v-stiff',   set:v=>stiffIter=v,  fmt:v=>v.toFixed(0) },
+  { id:'damp',    lbl:'v-damp',    set:v=>damping=v,    fmt:v=>v.toFixed(3) },
+  { id:'tear',    lbl:'v-tear',    set:v=>tearMult=v,   fmt:v=>v.toFixed(1) },
+];
+sliders.forEach(s => {
+  document.getElementById(s.id).addEventListener('input', function() {
+    const v = parseFloat(this.value); s.set(v);
+    document.getElementById(s.lbl).textContent = s.fmt(v);
+  });
+});
+
+document.querySelectorAll('#modes .mode-btn').forEach(el => {
+  el.onclick = () => {
+    document.querySelectorAll('#modes .mode-btn').forEach(e=>e.classList.remove('active'));
+    el.classList.add('active');
+    interactMode = el.dataset.mode;
+    canvas.style.cursor = interactMode === 'tear' ? 'crosshair' : interactMode === 'pin' ? 'cell' : 'grab';
+  };
+});
+
+document.querySelectorAll('#presets .mode-btn').forEach(el => {
+  el.onclick = () => {
+    document.querySelectorAll('#presets .mode-btn').forEach(e=>e.classList.remove('active'));
+    el.classList.add('active');
+    activeShape = el.dataset.shape;
+    createCloth(activeShape);
+    buildStickIndex();
+  };
+});
+
+document.getElementById('btnReset').onclick = () => { createCloth(activeShape); buildStickIndex(); };
+document.getElementById('btnPause').onclick = function() { paused = !paused; this.textContent = paused ? 'Resume' : 'Pause'; };
+document.getElementById('btnWind').onclick = function() { windOn = !windOn; this.textContent = windOn ? 'Wind: ON' : 'Wind: OFF'; };
+
+const uiEl = document.getElementById('ui');
+document.getElementById('toggleUI').onclick = function() {
+  const v = uiEl.style.display !== 'none';
+  uiEl.style.display = v ? 'none' : '';
+  this.textContent = v ? 'Show Controls' : 'Hide Controls';
+};
+
+// Init & loop
+resize();
+buildStickIndex();
+
+let lastTime = 0, frameCount = 0, fpsTime = 0;
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min((now - lastTime) / 1000, 0.033);
+  lastTime = now;
+
+  if (!paused) update(dt);
+  renderFast();
+
+  frameCount++;
+  if (now - fpsTime > 500) {
+    const active = sticks.filter(s => !s.broken).length;
+    document.getElementById('stats').textContent =
+      `${points.length} points · ${active} constraints · ${(frameCount / ((now - fpsTime) / 1000)).toFixed(0)} fps`;
+    frameCount = 0;
+    fpsTime = now;
+  }
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

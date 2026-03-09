@@ -137,6 +137,13 @@
     "path": "projects/radio/"
   },
   {
+    "id": "cloth",
+    "title": "Cloth Simulation",
+    "description": "Real-time Verlet integration cloth physics with wind, tearing, pinning, and lit triangle rendering. 4 presets and 6 fabric colors.",
+    "tags": ["Canvas", "Physics", "Simulation", "Verlet"],
+    "path": "projects/cloth/"
+  },
+  {
     "id": "metaballs",
     "title": "Metaball Lava Lamp",
     "description": "GPU ray-marched metaball simulation with smooth organic blending, 7 color themes, mouse attraction physics, and glow effects via WebGL 2.",
