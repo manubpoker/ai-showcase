@@ -277,6 +277,13 @@
     "path": "projects/life/"
   },
   {
+    "id": "nobel",
+    "title": "Nobel Pulse",
+    "description": "Nobel Prize explorer with 900+ laureates from 1901–present, category filters, interactive timeline, country analytics, motivation search, and detailed laureate profiles.",
+    "tags": ["Nobel Prize API", "Data Viz", "Dashboard", "Search"],
+    "path": "projects/nobel/"
+  },
+  {
     "id": "brightonhub",
     "title": "Brighton Hub",
     "description": "Live city dashboard for Brighton & Hove with real-time transport, environment, crime, housing, health, events, and schools data.",

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nobel Pulse — Nobel Prize Explorer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#08060e;--card:#12101c;--card2:#1a1728;--border:#262038;
+  --text:#ece6f5;--dim:#7e6f9a;--accent:#d4a745;--accent2:#e8c364;
+  --physics:#3b82f6;--chemistry:#22c55e;--medicine:#ef4444;
+  --literature:#a855f7;--peace:#06b6d4;--economics:#f97316;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+.header{background:linear-gradient(135deg,#0f0b1a,#1a1530);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.header h1{font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:10px}
+.header .sub{color:var(--dim);font-size:.78rem;margin-left:auto}
+
+.toolbar{padding:12px 24px;background:var(--card);border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.search{flex:1;min-width:180px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px 16px;border-radius:10px;font-size:.82rem;font-family:inherit;outline:none}
+.search:focus{border-color:var(--accent)}
+.search::placeholder{color:var(--dim)}
+.cat-pills{display:flex;gap:5px;overflow-x:auto}
+.cat-pill{border:1px solid var(--border);color:var(--dim);padding:5px 14px;border-radius:18px;font-size:.7rem;cursor:pointer;white-space:nowrap;transition:all .2s;font-family:inherit;background:var(--bg)}
+.cat-pill:hover{border-color:var(--accent);color:var(--accent)}
+.cat-pill.active{color:#fff;font-weight:600}
+.filter-sel{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:8px;font-size:.72rem;font-family:inherit}
+
+.stats{display:flex;gap:10px;padding:12px 24px;overflow-x:auto}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 16px;text-align:center;min-width:110px;flex-shrink:0}
+.stat .s-label{font-size:.58rem;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+.stat .s-val{font-size:1.1rem;font-weight:700;margin-top:2px}
+
+/* Timeline */
+.timeline-wrap{padding:8px 24px;background:var(--card);border-bottom:1px solid var(--border)}
+.timeline-label{font-size:.65rem;color:var(--dim);margin-bottom:4px;display:flex;justify-content:space-between}
+.timeline{display:flex;gap:1px;height:40px;align-items:flex-end;overflow-x:auto}
+.t-bar{min-width:4px;flex:1;border-radius:2px 2px 0 0;cursor:pointer;transition:opacity .15s;position:relative}
+.t-bar:hover{opacity:.7}
+.t-bar .t-tip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1a1728;border:1px solid var(--border);padding:4px 8px;border-radius:6px;font-size:.6rem;white-space:nowrap;z-index:100}
+.t-bar:hover .t-tip{display:block}
+
+/* Grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;padding:16px 24px}
+.laureate-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all .25s;position:relative;overflow:hidden}
+.laureate-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4);border-color:var(--accent)}
+.laureate-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.card-name{font-size:.95rem;font-weight:700}
+.card-year{font-size:.8rem;color:var(--accent);font-weight:700}
+.card-cat{font-size:.65rem;padding:3px 10px;border-radius:12px;font-weight:600;display:inline-block;margin-bottom:6px}
+.card-motivation{font-size:.72rem;color:var(--dim);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-style:italic}
+.card-meta{display:flex;gap:12px;margin-top:8px;font-size:.65rem;color:var(--dim)}
+
+/* Detail modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(8,6,14,.96);z-index:5000;overflow-y:auto}
+.modal-bg.open{display:block}
+.modal{max-width:700px;margin:40px auto;padding:24px}
+.modal-close{position:fixed;top:20px;right:20px;background:rgba(0,0,0,.5);border:1px solid var(--border);color:var(--text);width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:1.3rem;z-index:5001;display:flex;align-items:center;justify-content:center}
+.modal-name{font-size:1.8rem;font-weight:800;margin-bottom:4px}
+.modal-sub{font-size:.9rem;color:var(--dim);margin-bottom:16px}
+.modal-badge{display:inline-block;padding:6px 16px;border-radius:20px;font-size:.8rem;font-weight:700;margin-bottom:16px}
+.modal-motivation{font-size:.95rem;line-height:1.7;color:var(--dim);font-style:italic;margin-bottom:20px;padding:16px;background:var(--card2);border-radius:10px;border-left:3px solid var(--accent)}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.modal-item{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px}
+.modal-item .mi-label{font-size:.6rem;color:var(--dim);text-transform:uppercase}
+.modal-item .mi-val{font-size:.9rem;font-weight:600;margin-top:2px}
+.modal-link{display:inline-block;background:var(--accent);color:#000;padding:8px 24px;border-radius:8px;font-size:.8rem;font-weight:700;text-decoration:none}
+
+/* Charts row */
+.charts-row{display:flex;gap:16px;padding:0 24px 16px;flex-wrap:wrap}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;flex:1;min-width:280px}
+.chart-card h4{font-size:.75rem;color:var(--dim);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+.chart-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.7rem}
+.chart-bar-label{width:80px;text-align:right;color:var(--dim);flex-shrink:0}
+.chart-bar{flex:1;height:14px;background:var(--bg);border-radius:3px;overflow:hidden}
+.chart-bar-fill{height:100%;border-radius:3px;transition:width .5s}
+.chart-bar-val{width:30px;font-weight:600;font-size:.65rem}
+
+.loader{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .5s}
+.loader.hidden{opacity:0;pointer-events:none}
+.loader-icon{font-size:3rem;animation:pulse-icon 1.5s ease-in-out infinite}
+@keyframes pulse-icon{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+.loader-text{margin-top:12px;color:var(--dim);font-size:.85rem}
+
+@media(max-width:700px){
+  .grid{grid-template-columns:1fr;gap:10px;padding:12px}
+  .charts-row{flex-direction:column}
+  .header{padding:12px 16px}
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+</head>
+<body>
+<div class="loader" id="loader">
+  <div class="loader-icon">🏅</div>
+  <div class="loader-text">Loading Nobel Prize data…</div>
+</div>
+
+<header class="header">
+  <h1><span style="font-size:1.4rem">🏅</span> Nobel Pulse</h1>
+  <span class="sub">1901–Present • Nobel Prize Explorer</span>
+</header>
+
+<div class="toolbar">
+  <input class="search" id="search" placeholder="Search laureates, motivations, countries…">
+  <div class="cat-pills" id="catPills"></div>
+  <select class="filter-sel" id="sortSel">
+    <option value="year-desc">Newest first</option>
+    <option value="year-asc">Oldest first</option>
+    <option value="name">Name A–Z</option>
+  </select>
+</div>
+
+<div class="stats" id="statsRow"></div>
+<div class="timeline-wrap">
+  <div class="timeline-label"><span>Prize Timeline</span><span id="timeRange">1901–2024</span></div>
+  <div class="timeline" id="timeline"></div>
+</div>
+<div class="charts-row" id="chartsRow"></div>
+<div class="grid" id="grid"></div>
+
+<div class="modal-bg" id="modal">
+  <button class="modal-close" onclick="closeModal()">×</button>
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<script>
+const CAT_COLORS = {
+  Physics:'#3b82f6',Chemistry:'#22c55e','Physiology or Medicine':'#ef4444',
+  Literature:'#a855f7',Peace:'#06b6d4','Economic Sciences':'#f97316'
+};
+const CAT_SHORT = {
+  Physics:'Physics',Chemistry:'Chemistry','Physiology or Medicine':'Medicine',
+  Literature:'Literature',Peace:'Peace','Economic Sciences':'Economics'
+};
+const CATEGORIES = Object.keys(CAT_COLORS);
+
+let allPrizes = [], allLaureates = [], filtered = [];
+let currentCat = 'All', searchQuery = '', currentSort = 'year-desc';
+
+// Build category pills
+const pillsEl = document.getElementById('catPills');
+['All',...CATEGORIES].forEach(cat => {
+  const btn = document.createElement('button');
+  btn.className = 'cat-pill' + (cat === 'All' ? ' active' : '');
+  const label = cat === 'All' ? 'All' : CAT_SHORT[cat] || cat;
+  btn.textContent = label;
+  const color = CAT_COLORS[cat];
+  if (color) btn.style.cssText = `border-color:${color}44`;
+  btn.onclick = () => {
+    currentCat = cat;
+    document.querySelectorAll('.cat-pill').forEach(p => {
+      p.classList.remove('active');
+      p.style.background = '';
+    });
+    btn.classList.add('active');
+    if (color) btn.style.background = color + '33';
+    else btn.style.background = 'var(--accent)33';
+    applyFilters();
+  };
+  pillsEl.appendChild(btn);
+});
+// Activate first
+pillsEl.firstChild.style.background = 'var(--accent)33';
+
+async function fetchData() {
+  try {
+    // Fetch all Nobel Prizes
+    const res = await fetch('https://api.nobelprize.org/2.1/nobelPrizes?limit=1000&sort=desc');
+    const json = await res.json();
+    allPrizes = json.nobelPrizes || [];
+
+    // Flatten to laureate-prize entries
+    allLaureates = [];
+    for (const prize of allPrizes) {
+      const cat = prize.category?.en || '';
+      const year = prize.awardYear;
+      if (!prize.laureates) continue;
+      for (const l of prize.laureates) {
+        allLaureates.push({
+          id: l.id,
+          name: l.knownName?.en || l.orgName?.en || l.fullName?.en || 'Unknown',
+          category: cat,
+          year: parseInt(year),
+          motivation: l.motivation?.en || prize.topMotivation?.en || '',
+          portion: l.portion || '1',
+          birth: l.birth,
+          death: l.death,
+          links: l.links,
+          isOrg: !!l.orgName
+        });
+      }
+    }
+
+    applyFilters();
+    buildTimeline();
+    buildCharts();
+    document.getElementById('loader').classList.add('hidden');
+  } catch (e) {
+    console.error(e);
+    document.querySelector('.loader-text').textContent = 'Error loading data. Retrying…';
+    setTimeout(fetchData, 5000);
+  }
+}
+
+function applyFilters() {
+  filtered = allLaureates.filter(l => {
+    if (currentCat !== 'All' && l.category !== currentCat) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const searchable = [l.name, l.motivation, l.category, l.birth?.place?.country?.en || '', l.birth?.place?.city?.en || '', l.year.toString()].join(' ').toLowerCase();
+      if (!searchable.includes(q)) return false;
+    }
+    return true;
+  });
+
+  switch (currentSort) {
+    case 'year-desc': filtered.sort((a, b) => b.year - a.year); break;
+    case 'year-asc': filtered.sort((a, b) => a.year - b.year); break;
+    case 'name': filtered.sort((a, b) => a.name.localeCompare(b.name)); break;
+  }
+
+  updateStats();
+  renderGrid();
+}
+
+document.getElementById('search').addEventListener('input', e => {
+  searchQuery = e.target.value.trim();
+  applyFilters();
+});
+document.getElementById('sortSel').addEventListener('change', e => {
+  currentSort = e.target.value;
+  applyFilters();
+});
+
+function updateStats() {
+  const years = new Set(filtered.map(l => l.year));
+  const countries = new Set(filtered.map(l => l.birth?.place?.country?.en).filter(Boolean));
+  const orgs = filtered.filter(l => l.isOrg).length;
+  const women = filtered.filter(l => l.birth?.sex === 'female').length;
+  const minYear = filtered.length ? Math.min(...filtered.map(l => l.year)) : 0;
+  const maxYear = filtered.length ? Math.max(...filtered.map(l => l.year)) : 0;
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat"><div class="s-label">Laureates</div><div class="s-val">${filtered.length}</div></div>
+    <div class="stat"><div class="s-label">Prize Years</div><div class="s-val">${years.size}</div></div>
+    <div class="stat"><div class="s-label">Countries</div><div class="s-val">${countries.size}</div></div>
+    <div class="stat"><div class="s-label">Women</div><div class="s-val" style="color:#ec4899">${women}</div></div>
+    <div class="stat"><div class="s-label">Organizations</div><div class="s-val">${orgs}</div></div>
+    <div class="stat"><div class="s-label">Span</div><div class="s-val">${minYear}–${maxYear}</div></div>
+  `;
+}
+
+function buildTimeline() {
+  const tl = document.getElementById('timeline');
+  const yearCounts = {};
+  const minY = 1901, maxY = new Date().getFullYear();
+
+  for (const l of allLaureates) {
+    if (!yearCounts[l.year]) yearCounts[l.year] = {};
+    const short = CAT_SHORT[l.category] || l.category;
+    yearCounts[l.year][short] = (yearCounts[l.year][short] || 0) + 1;
+  }
+
+  const maxCount = Math.max(...Object.values(yearCounts).map(y => Object.values(y).reduce((a, b) => a + b, 0)));
+  document.getElementById('timeRange').textContent = `${minY}–${maxY}`;
+
+  let html = '';
+  for (let y = minY; y <= maxY; y++) {
+    const counts = yearCounts[y] || {};
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    const h = total ? Math.max(4, (total / maxCount) * 36) : 2;
+    // Dominant category color
+    let topCat = '', topN = 0;
+    for (const [c, n] of Object.entries(counts)) {
+      if (n > topN) { topN = n; topCat = c; }
+    }
+    const fullCat = CATEGORIES.find(c => CAT_SHORT[c] === topCat) || '';
+    const color = CAT_COLORS[fullCat] || '#333';
+
+    html += `<div class="t-bar" style="height:${h}px;background:${total ? color : '#1a1728'}" onclick="filterYear(${y})"><div class="t-tip">${y}: ${total} prizes</div></div>`;
+  }
+  tl.innerHTML = html;
+}
+
+function filterYear(y) {
+  document.getElementById('search').value = y.toString();
+  searchQuery = y.toString();
+  applyFilters();
+}
+
+function buildCharts() {
+  const chartsRow = document.getElementById('chartsRow');
+
+  // Category breakdown
+  const catCounts = {};
+  for (const l of allLaureates) {
+    const s = CAT_SHORT[l.category] || l.category;
+    catCounts[s] = (catCounts[s] || 0) + 1;
+  }
+  const maxCat = Math.max(...Object.values(catCounts));
+
+  // Top countries
+  const countryCounts = {};
+  for (const l of allLaureates) {
+    const c = l.birth?.place?.country?.en;
+    if (c) countryCounts[c] = (countryCounts[c] || 0) + 1;
+  }
+  const topCountries = Object.entries(countryCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const maxCountry = topCountries[0]?.[1] || 1;
+
+  chartsRow.innerHTML = `
+    <div class="chart-card">
+      <h4>By Category</h4>
+      ${CATEGORIES.map(cat => {
+        const s = CAT_SHORT[cat];
+        const n = catCounts[s] || 0;
+        const pct = (n / maxCat) * 100;
+        return `<div class="chart-bar-row">
+          <div class="chart-bar-label">${s}</div>
+          <div class="chart-bar"><div class="chart-bar-fill" style="width:${pct}%;background:${CAT_COLORS[cat]}"></div></div>
+          <div class="chart-bar-val" style="color:${CAT_COLORS[cat]}">${n}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="chart-card">
+      <h4>Top Countries</h4>
+      ${topCountries.map(([country, n]) => {
+        const pct = (n / maxCountry) * 100;
+        return `<div class="chart-bar-row">
+          <div class="chart-bar-label">${country.length > 12 ? country.slice(0, 11) + '…' : country}</div>
+          <div class="chart-bar"><div class="chart-bar-fill" style="width:${pct}%;background:var(--accent)"></div></div>
+          <div class="chart-bar-val">${n}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  const show = filtered.slice(0, 120);
+  grid.innerHTML = show.map(l => {
+    const color = CAT_COLORS[l.category] || '#888';
+    const short = CAT_SHORT[l.category] || l.category;
+    const country = l.birth?.place?.country?.en || '';
+    const city = l.birth?.place?.city?.en || '';
+    const loc = [city, country].filter(Boolean).join(', ');
+
+    return `
+      <div class="laureate-card" style="--accent-card:${color}" onclick="openLaureate(${l.id},${l.year},'${esc(l.category)}')" >
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${color}"></div>
+        <div class="card-top">
+          <div class="card-name">${esc(l.name)}</div>
+          <div class="card-year">${l.year}</div>
+        </div>
+        <div class="card-cat" style="background:${color}22;color:${color}">${short}</div>
+        ${l.motivation ? `<div class="card-motivation">"${esc(l.motivation)}"</div>` : ''}
+        <div class="card-meta">
+          ${loc ? `<span>📍 ${esc(loc)}</span>` : ''}
+          ${l.isOrg ? '<span>🏢 Organization</span>' : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (filtered.length > 120) {
+    grid.innerHTML += `<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--dim);font-size:.8rem">Showing 120 of ${filtered.length} results. Refine your search to see more.</div>`;
+  }
+}
+
+function openLaureate(id, year, category) {
+  const l = allLaureates.find(x => x.id === id && x.year === year && x.category === category);
+  if (!l) return;
+
+  const color = CAT_COLORS[l.category] || '#888';
+  const short = CAT_SHORT[l.category] || l.category;
+  const country = l.birth?.place?.country?.en || '—';
+  const city = l.birth?.place?.city?.en || '';
+  const birthDate = l.birth?.date || '';
+  const deathDate = l.death?.date || '';
+  const age = birthDate && l.year ? l.year - parseInt(birthDate) : null;
+  const wikiLink = l.links?.find(lk => lk.rel === 'laureate')?.href || '';
+
+  document.getElementById('modalContent').innerHTML = `
+    <div class="modal-name">${esc(l.name)}</div>
+    <div class="modal-sub">${l.isOrg ? 'Organization' : 'Individual'} • ${country}</div>
+    <div class="modal-badge" style="background:${color}33;color:${color}">${short} ${l.year}</div>
+    ${l.motivation ? `<div class="modal-motivation">"${esc(l.motivation)}"</div>` : ''}
+    <div class="modal-grid">
+      <div class="modal-item"><div class="mi-label">Year</div><div class="mi-val">${l.year}</div></div>
+      <div class="modal-item"><div class="mi-label">Category</div><div class="mi-val" style="color:${color}">${short}</div></div>
+      <div class="modal-item"><div class="mi-label">Prize Share</div><div class="mi-val">${l.portion === '1' ? 'Full' : l.portion === '1/2' ? 'Half' : l.portion === '1/3' ? 'Third' : l.portion === '1/4' ? 'Quarter' : l.portion}</div></div>
+      ${country !== '—' ? `<div class="modal-item"><div class="mi-label">Country</div><div class="mi-val">${esc(country)}</div></div>` : ''}
+      ${city ? `<div class="modal-item"><div class="mi-label">Birth City</div><div class="mi-val">${esc(city)}</div></div>` : ''}
+      ${birthDate ? `<div class="modal-item"><div class="mi-label">Born</div><div class="mi-val">${birthDate}</div></div>` : ''}
+      ${deathDate ? `<div class="modal-item"><div class="mi-label">Died</div><div class="mi-val">${deathDate}</div></div>` : ''}
+      ${age ? `<div class="modal-item"><div class="mi-label">Age at Prize</div><div class="mi-val">${age}</div></div>` : ''}
+    </div>
+    ${wikiLink ? `<a class="modal-link" href="${wikiLink}" target="_blank" rel="noopener">View on NobelPrize.org →</a>` : ''}
+  `;
+
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target.id === 'modal') closeModal();
+});
+
+fetchData();
+</script>
+</body>
+</html>
