@@ -59,6 +59,7 @@ html, body {
   margin-bottom: 1rem;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes issPulse { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
 
 /* ── Globe container ───────────────────────────────────────── */
 #globe-container {
@@ -328,6 +329,14 @@ html, body {
   text-align: right; font-weight: 500; font-size: 0.85rem;
   word-break: break-word;
 }
+.news-item {
+  display: block; padding: 10px 0; border-bottom: 1px solid var(--glass-border);
+  text-decoration: none; color: var(--primary-text); transition: background 0.15s;
+}
+.news-item:last-child { border-bottom: none; }
+.news-item:hover { background: rgba(141,228,239,0.06); }
+.news-title { font-size: 0.85rem; font-weight: 500; line-height: 1.35; }
+.news-meta { font-size: 0.72rem; color: var(--muted-text); margin-top: 3px; }
 
 /* ── Legend bar ─────────────────────────────────────────────── */
 #legend-bar {
@@ -562,6 +571,54 @@ html, body {
     return Math.round(n).toLocaleString() + ' km\u00B2';
   }
 
+  /* ── ISO 3→2 country code map (newsapi needs 2-letter) ────── */
+  const ISO3_TO_2 = {
+    ABW:'aw',AFG:'af',AGO:'ao',AIA:'ai',ALB:'al',AND:'ad',ARE:'ae',ARG:'ar',
+    ARM:'am',ASM:'as',ATG:'ag',AUS:'au',AUT:'at',AZE:'az',BDI:'bi',BEL:'be',
+    BEN:'bj',BFA:'bf',BGD:'bd',BGR:'bg',BHR:'bh',BHS:'bs',BIH:'ba',BLR:'by',
+    BLZ:'bz',BMU:'bm',BOL:'bo',BRA:'br',BRB:'bb',BRN:'bn',BTN:'bt',BWA:'bw',
+    CAF:'cf',CAN:'ca',CHE:'ch',CHL:'cl',CHN:'cn',CIV:'ci',CMR:'cm',COD:'cd',
+    COG:'cg',COK:'ck',COL:'co',COM:'km',CPV:'cv',CRI:'cr',CUB:'cu',CUW:'cw',
+    CYP:'cy',CZE:'cz',DEU:'de',DJI:'dj',DMA:'dm',DNK:'dk',DOM:'do',DZA:'dz',
+    ECU:'ec',EGY:'eg',ERI:'er',ESP:'es',EST:'ee',ETH:'et',FIN:'fi',FJI:'fj',
+    FLK:'fk',FRA:'fr',FRO:'fo',FSM:'fm',GAB:'ga',GBR:'gb',GEO:'ge',GHA:'gh',
+    GIN:'gn',GMB:'gm',GNB:'gw',GNQ:'gq',GRC:'gr',GRD:'gd',GRL:'gl',GTM:'gt',
+    GUM:'gu',GUY:'gy',HKG:'hk',HND:'hn',HRV:'hr',HTI:'ht',HUN:'hu',IDN:'id',
+    IND:'in',IRL:'ie',IRN:'ir',IRQ:'iq',ISL:'is',ISR:'il',ITA:'it',JAM:'jm',
+    JOR:'jo',JPN:'jp',KAZ:'kz',KEN:'ke',KGZ:'kg',KHM:'kh',KIR:'ki',KNA:'kn',
+    KOR:'kr',KWT:'kw',LAO:'la',LBN:'lb',LBR:'lr',LBY:'ly',LCA:'lc',LIE:'li',
+    LKA:'lk',LSO:'ls',LTU:'lt',LUX:'lu',LVA:'lv',MAC:'mo',MAR:'ma',MCO:'mc',
+    MDA:'md',MDG:'mg',MDV:'mv',MEX:'mx',MHL:'mh',MKD:'mk',MLI:'ml',MLT:'mt',
+    MMR:'mm',MNE:'me',MNG:'mn',MOZ:'mz',MRT:'mr',MUS:'mu',MWI:'mw',MYS:'my',
+    NAM:'na',NCL:'nc',NER:'ne',NGA:'ng',NIC:'ni',NLD:'nl',NOR:'no',NPL:'np',
+    NRU:'nr',NZL:'nz',OMN:'om',PAK:'pk',PAN:'pa',PER:'pe',PHL:'ph',PLW:'pw',
+    PNG:'pg',POL:'pl',PRI:'pr',PRK:'kp',PRT:'pt',PRY:'py',QAT:'qa',ROU:'ro',
+    RUS:'ru',RWA:'rw',SAU:'sa',SDN:'sd',SEN:'sn',SGP:'sg',SLB:'sb',SLE:'sl',
+    SLV:'sv',SMR:'sm',SOM:'so',SRB:'rs',STP:'st',SUR:'sr',SVK:'sk',SVN:'si',
+    SWE:'se',SWZ:'sz',SYC:'sc',SYR:'sy',TCD:'td',TGO:'tg',THA:'th',TJK:'tj',
+    TKM:'tm',TLS:'tl',TON:'to',TTO:'tt',TUN:'tn',TUR:'tr',TUV:'tv',TWN:'tw',
+    TZA:'tz',UGA:'ug',UKR:'ua',URY:'uy',USA:'us',UZB:'uz',VCT:'vc',VEN:'ve',
+    VNM:'vn',VUT:'vu',WSM:'ws',YEM:'ye',ZAF:'za',ZMB:'zm',ZWE:'zw'
+  };
+
+  function escHtml(s) {
+    if (!s) return '';
+    const d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  async function fetchNews(iso3) {
+    const iso2 = ISO3_TO_2[iso3];
+    if (!iso2) return [];
+    try {
+      const res = await fetch(`/api/news?country=${iso2}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.articles || [];
+    } catch { return []; }
+  }
+
   function capitalize(s) {
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
   }
@@ -753,12 +810,21 @@ html, body {
   let currentStation = null;
 
   async function fetchRadioStations() {
-    const res = await fetch('https://de1.api.radio-browser.info/json/stations/search?limit=500&order=clickcount&reverse=true&has_geo_info=true&hidebroken=true');
+    const endpoints = [
+      'https://all.api.radio-browser.info/json/stations/search?limit=200&order=clickcount&reverse=true&has_geo_info=true&hidebroken=true',
+      'https://nl1.api.radio-browser.info/json/stations/search?limit=200&order=clickcount&reverse=true&has_geo_info=true&hidebroken=true',
+      'https://de1.api.radio-browser.info/json/stations/search?limit=200&order=clickcount&reverse=true&has_geo_info=true&hidebroken=true'
+    ];
+    let res;
+    for (const ep of endpoints) {
+      try { res = await fetch(ep); if (res.ok) break; } catch { continue; }
+    }
+    if (!res || !res.ok) throw new Error('All radio endpoints failed');
     const stations = await res.json();
     return stations
       .filter(s => (s.url_resolved || s.url || '').startsWith('https://'))
       .filter(s => s.geo_lat && s.geo_long)
-      .slice(0, 500)
+      .slice(0, 150)
       .map(s => ({
         name: s.name,
         url: s.url_resolved || s.url,
@@ -907,21 +973,25 @@ html, body {
     if (radioLayer.enabled && radioLayer.data) allPts.push(...radioLayer.data);
     if (riverLayer.enabled && riverLayer.data) allPts.push(...riverLayer.data);
     if (aqLayer.enabled && aqLayer.data) allPts.push(...aqLayer.data);
+    if (quakePointsData.length) allPts.push(...quakePointsData);
     globe.pointsData(allPts)
       .pointLat(d => d.lat)
       .pointLng(d => d.lng)
       .pointRadius(d => {
+        if (d._layer === 'quake') return Math.max(0.15, d.mag * 0.2);
         if (d._layer === 'radio') return 0.15;
         if (d._layer === 'rivers') return 0.1 + Math.min(Math.log10(Math.max(d.discharge || 1, 1)) / 6, 0.5) * 0.5;
         if (d._layer === 'airquality') return 0.25;
         return 0.2;
       })
       .pointAltitude(d => {
+        if (d._layer === 'quake') return 0.01;
         if (d._layer === 'rivers') return 0.008;
         if (d._layer === 'airquality') return 0.015;
         return 0.005;
       })
       .pointColor(d => {
+        if (d._layer === 'quake') return 'rgba(0,0,0,0)';
         if (d._layer === 'radio') return '#06b6d4';
         if (d._layer === 'rivers') return '#3b82f6';
         if (d._layer === 'airquality') return aqiColor(d.aqi);
@@ -934,7 +1004,7 @@ html, body {
             if (radioAudio.paused) radioAudio.play().catch(e => console.warn('Audio blocked:', e));
             else radioAudio.pause();
           } else {
-            if (radioAudio) radioAudio.pause();
+            if (radioAudio) { radioAudio.pause(); radioAudio.src = ''; radioAudio.load(); }
             radioAudio = new Audio(pt.url);
             radioAudio.play().catch(e => console.warn('Audio blocked:', e));
             currentStation = pt.name;
@@ -964,11 +1034,24 @@ html, body {
           const pm10 = pt.pm10 != null ? pt.pm10 : 'N/A';
           const meta = label + ' · PM2.5: ' + pm25 + ' · PM10: ' + pm10;
           showHover(pt.name + ', ' + pt.country, '<span style="color:' + color + '">' + aqiVal + '</span>', meta);
+        } else if (pt._layer === 'quake') {
+          showHover(
+            pt.place || 'Unknown location',
+            'M ' + pt.mag.toFixed(1),
+            pt.depth.toFixed(0) + 'km deep \u00B7 ' + timeAgo(pt.time)
+          );
         }
       });
   }
 
-  /* ── Combined HTML elements helper (shared by ISS, weather, air quality) ── */
+  /* ── Earthquake hover via points (rings don't support hover) ── */
+  let quakePointsData = [];
+  function updateQuakePoints(data) {
+    quakePointsData = (data || []).map(d => ({ ...d, _layer: 'quake' }));
+    updateCombinedPoints();
+  }
+
+  /* ── Combined HTML elements helper (ISS + weather only — minimal DOM) ── */
   function updateCombinedHtml() {
     const allEls = [];
     const issLayer = LAYERS.find(l => l.id === 'iss');
@@ -985,8 +1068,8 @@ html, body {
           const existing = d.__issEl;
           if (existing) return existing;
           const el = document.createElement('div');
-          el.style.cssText = 'font-size:1.6rem;cursor:pointer;user-select:none;line-height:1;';
-          el.textContent = '\uD83D\uDEF0\uFE0F';
+          el.style.cssText = 'cursor:pointer;user-select:none;line-height:1;position:relative;width:60px;height:60px;display:flex;align-items:center;justify-content:center;';
+          el.innerHTML = `<div style="position:absolute;inset:0;border-radius:50%;border:2px solid rgba(0,255,136,0.7);animation:issPulse 1.5s ease-out infinite;"></div><div style="position:absolute;inset:8px;border-radius:50%;background:radial-gradient(circle,rgba(0,255,136,0.3) 0%,transparent 70%);animation:issPulse 1.5s ease-out infinite 0.3s;"></div><span style="font-size:1.6rem;position:relative;z-index:1;filter:drop-shadow(0 0 6px rgba(0,255,136,0.8));">&#x1F6F0;&#xFE0F;</span>`;
           el.addEventListener('mouseenter', () => {
             globe.controls().autoRotate = false;
             const p = issLayer.data;
@@ -1010,8 +1093,8 @@ html, body {
           if (existing) return existing;
           const el = document.createElement('div');
           const tempColor = d.temp != null ? d3.interpolateRdYlBu(1 - (d.temp + 20) / 65) : '#94a3b8';
-          el.style.cssText = 'font-size:10px;color:white;text-align:center;cursor:pointer;text-shadow:0 1px 3px rgba(0,0,0,0.8)';
-          el.innerHTML = `<div style="width:8px;height:8px;border-radius:50%;background:${tempColor};margin:0 auto 1px;box-shadow:0 0 4px ${tempColor}"></div><span style="font-size:9px">${d.temp != null ? Math.round(d.temp) + '\u00B0' : '?'}</span>`;
+          el.style.cssText = 'font-size:30px;color:white;text-align:center;cursor:pointer;text-shadow:0 2px 6px rgba(0,0,0,0.8)';
+          el.innerHTML = `<div style="width:24px;height:24px;border-radius:50%;background:${tempColor};margin:0 auto 3px;box-shadow:0 0 12px ${tempColor}"></div><span style="font-size:27px">${d.temp != null ? Math.round(d.temp) + '\u00B0' : '?'}</span>`;
           el.addEventListener('mouseenter', () => {
             globe.controls().autoRotate = false;
             const desc = WMO_CODES[d.weatherCode] || 'Unknown';
@@ -1122,6 +1205,10 @@ html, body {
         ${detailRow(activeOverlay.title, fmtNum(entry.value, activeOverlay.decimals) + ' ' + activeOverlay.unit)}`;
     }
 
+    const newsPlaceholder = ISO3_TO_2[iso3]
+      ? `<div class="sheet-section-title">Top Headlines</div><div id="sheet-news" style="opacity:0.5;font-size:0.82rem;color:var(--muted-text);">Loading news...</div>`
+      : '';
+
     $sheetBody.innerHTML = `
       <div class="sheet-section-title">General</div>
       ${detailRow('Capital', details.capital || '\u2014')}
@@ -1139,9 +1226,32 @@ html, body {
       ${detailRow('Timezones', tzStr)}
       ${detailRow('Driving side', details.drivingSide ? capitalize(details.drivingSide) : '\u2014')}
       ${detailRow('UN member', details.unMember ? 'Yes' : 'No')}
-      ${overlayHtml}`;
+      ${overlayHtml}
+      ${newsPlaceholder}`;
 
     $sheet.classList.add('open');
+
+    // Fetch news asynchronously
+    if (ISO3_TO_2[iso3]) {
+      fetchNews(iso3).then(articles => {
+        const newsEl = document.getElementById('sheet-news');
+        if (!newsEl) return;
+        if (!articles.length) {
+          newsEl.innerHTML = '<span style="color:var(--muted-text);font-size:0.82rem;">No headlines available</span>';
+          newsEl.style.opacity = '1';
+          return;
+        }
+        newsEl.innerHTML = articles.map(a => {
+          const ago = a.publishedAt ? timeAgo(new Date(a.publishedAt).getTime()) : '';
+          const src = a.source ? escHtml(a.source) : '';
+          return `<a href="${escHtml(a.url)}" target="_blank" rel="noopener" class="news-item">
+            <div class="news-title">${escHtml(a.title)}</div>
+            <div class="news-meta">${src}${ago ? ' · ' + ago : ''}</div>
+          </a>`;
+        }).join('');
+        newsEl.style.opacity = '1';
+      });
+    }
   }
 
   function detailRow(label, value) {
@@ -1373,7 +1483,13 @@ html, body {
       refreshMs: 300000,
       onEnable: async () => {
         const layer = LAYERS.find(l => l.id === 'earthquakes');
-        layer.data = await fetchEarthquakes();
+        try {
+          layer.data = await fetchEarthquakes();
+        } catch (e) {
+          console.warn('Earthquake fetch failed:', e);
+          layer.data = [];
+        }
+        if (!Array.isArray(layer.data)) layer.data = [];
 
         globe
           .ringsData(layer.data)
@@ -1385,31 +1501,22 @@ html, body {
           .ringColor(d => {
             const c = quakeColorScale(Math.max(0, d.depth));
             return [c, 'transparent'];
-          })
-          .onRingHover(d => {
-            if (!d) {
-              hideHover();
-              globe.controls().autoRotate = true;
-              return;
-            }
-            globe.controls().autoRotate = false;
-            showHover(
-              d.place || 'Unknown location',
-              'M ' + d.mag.toFixed(1),
-              d.depth.toFixed(0) + 'km deep \u00B7 ' + timeAgo(d.time)
-            );
           });
+        updateQuakePoints(layer.data);
 
         layer.interval = setInterval(async () => {
           try {
             layer.data = await fetchEarthquakes();
             globe.ringsData(layer.data);
+            updateQuakePoints(layer.data);
           } catch (e) { console.warn('Earthquake refresh failed:', e); }
         }, layer.refreshMs);
       },
       onDisable: () => {
         const layer = LAYERS.find(l => l.id === 'earthquakes');
-        globe.ringsData([]).onRingHover(null);
+        globe.ringsData([]);
+        quakePointsData = [];
+        updateCombinedPoints();
         if (layer.interval) { clearInterval(layer.interval); layer.interval = null; }
         hideHover();
       },
@@ -1625,7 +1732,7 @@ html, body {
                 if (layer.data[i] && layer.data[i].__weatherEl) {
                   const el = layer.data[i].__weatherEl;
                   const tempColor = d.temp != null ? d3.interpolateRdYlBu(1 - (d.temp + 20) / 65) : '#94a3b8';
-                  el.innerHTML = `<div style="width:8px;height:8px;border-radius:50%;background:${tempColor};margin:0 auto 1px;box-shadow:0 0 4px ${tempColor}"></div><span style="font-size:9px">${d.temp != null ? Math.round(d.temp) + '\u00B0' : '?'}</span>`;
+                  el.innerHTML = `<div style="width:24px;height:24px;border-radius:50%;background:${tempColor};margin:0 auto 3px;box-shadow:0 0 12px ${tempColor}"></div><span style="font-size:27px">${d.temp != null ? Math.round(d.temp) + '\u00B0' : '?'}</span>`;
                   d.__weatherEl = el;
                 }
               });

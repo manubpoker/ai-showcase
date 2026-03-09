@@ -93,11 +93,11 @@
 </div>
 
 <div class="controls">
-  <button class="ctrl-btn" onclick="setColorMode('rainbow')">Rainbow</button>
-  <button class="ctrl-btn" onclick="setColorMode('fire')">Fire</button>
-  <button class="ctrl-btn" onclick="setColorMode('ocean')">Ocean</button>
-  <button class="ctrl-btn" onclick="setColorMode('neon')">Neon</button>
-  <button class="ctrl-btn" onclick="setColorMode('mono')">Mono</button>
+  <button class="ctrl-btn" onclick="setColorMode('rainbow', this)">Rainbow</button>
+  <button class="ctrl-btn" onclick="setColorMode('fire', this)">Fire</button>
+  <button class="ctrl-btn" onclick="setColorMode('ocean', this)">Ocean</button>
+  <button class="ctrl-btn" onclick="setColorMode('neon', this)">Neon</button>
+  <button class="ctrl-btn" onclick="setColorMode('mono', this)">Mono</button>
   <button class="ctrl-btn" onclick="clearDye()">Clear</button>
   <button class="ctrl-btn" id="btn-bloom" onclick="toggleBloom()">Bloom: On</button>
 </div>
@@ -383,7 +383,14 @@ const clearProg = createProgram(baseVS, clearFS);
 // ─── Framebuffers ────────────────────────────────
 let velocity, dye, pressure, divergence, curl;
 
+function destroyFBO(fbo) {
+  if (!fbo) return;
+  if (fbo.read) { gl.deleteTexture(fbo.read.texture); gl.deleteFramebuffer(fbo.read.fbo); gl.deleteTexture(fbo.write.texture); gl.deleteFramebuffer(fbo.write.fbo); }
+  else { gl.deleteTexture(fbo.texture); gl.deleteFramebuffer(fbo.fbo); }
+}
+
 function initFBOs() {
+  destroyFBO(velocity); destroyFBO(dye); destroyFBO(pressure); destroyFBO(divergence); destroyFBO(curl);
   const simW = SIM_RES;
   const simH = Math.round(SIM_RES * canvas.height / canvas.width);
   const dyeW = DYE_RES;
@@ -664,10 +671,10 @@ canvas.addEventListener('wheel', e => {
 }, { passive: false });
 
 // ─── Controls ────────────────────────────────────
-function setColorMode(mode) {
+function setColorMode(mode, btn) {
   colorMode = mode;
   document.querySelectorAll('.ctrl-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
+  if (btn) btn.classList.add('active');
 }
 
 function clearDye() {

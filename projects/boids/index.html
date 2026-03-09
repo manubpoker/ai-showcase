@@ -208,7 +208,8 @@ function getNeighborIndices(x, y) {
 }
 
 // Physics update
-function update() {
+function update(dt) {
+  const dtFactor = dt / (1/60);
   const W = window.innerWidth, H = window.innerHeight;
   const vr2 = visualRange * visualRange;
   const sepDist = visualRange * 0.35;
@@ -321,8 +322,8 @@ function update() {
       b.vy = (b.vy / spd) * minSpd;
     }
 
-    b.x += b.vx;
-    b.y += b.vy;
+    b.x += b.vx * dtFactor;
+    b.y += b.vy * dtFactor;
 
     // Depth wobble
     b.depth += (Math.sin(time * 2 + i * 0.1) * 0.002);
@@ -505,10 +506,12 @@ document.getElementById('toggleUI').onclick=function(){
 };
 
 // Loop
-let frameCount=0,fpsTime=0;
+let frameCount=0,fpsTime=0,lastTime=0;
 function loop(now) {
   requestAnimationFrame(loop);
-  if (!paused) { time+=0.016; update(); }
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+  if (!paused) { time+=dt; update(dt); }
   render();
   frameCount++;
   if(now-fpsTime>500){

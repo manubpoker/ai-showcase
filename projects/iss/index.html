@@ -743,7 +743,7 @@
 
         if (issCrew.length === 0) {
           // Fallback: use Open Notify
-          const res2 = await fetch('http://api.open-notify.org/astros.json');
+          const res2 = await fetch('https://api.open-notify.org/astros.json');
           const data2 = await res2.json();
           const iss2 = data2.people.filter(p => p.craft === 'ISS');
           el.innerHTML = iss2.map(p => `
