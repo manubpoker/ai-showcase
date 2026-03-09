@@ -137,6 +137,13 @@
     "path": "projects/radio/"
   },
   {
+    "id": "books",
+    "title": "Open Library Explorer",
+    "description": "Search millions of books with cover art, author info, ratings, and descriptions. Browse 14 subjects with detail modals via Open Library API.",
+    "tags": ["Open Library API", "Books", "Search", "Live Data"],
+    "path": "projects/books/"
+  },
+  {
     "id": "audiovis",
     "title": "Audio Visualizer",
     "description": "Real-time audio spectrum visualizer with 6 modes (bars, circular, waveform, particles, terrain, mirror), mic/demo/file input, and 5 color themes.",
