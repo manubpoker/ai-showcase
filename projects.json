@@ -249,6 +249,13 @@
     "path": "projects/raymarch/"
   },
   {
+    "id": "art",
+    "title": "Art Atlas",
+    "description": "Explore 300,000+ artworks from the Art Institute of Chicago with high-res IIIF images, 12 curated categories, search, and detailed artwork modals.",
+    "tags": ["AIC API", "IIIF", "Art", "Search"],
+    "path": "projects/art/"
+  },
+  {
     "id": "brightonhub",
     "title": "Brighton Hub",
     "description": "Live city dashboard for Brighton & Hove with real-time transport, environment, crime, housing, health, events, and schools data.",
