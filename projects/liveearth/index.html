@@ -519,6 +519,22 @@ html, body {
 
   const quakeColorScale = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, 400]);
 
+  /* ── ISS fetcher & trail state ──────────────────────────────── */
+  async function fetchISS() {
+    const res = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
+    const data = await res.json();
+    return {
+      lat: data.latitude,
+      lng: data.longitude,
+      altitude: data.altitude,
+      velocity: data.velocity,
+      visibility: data.visibility
+    };
+  }
+
+  const issTrail = [];   // accumulates up to 150 [lat, lng] pairs
+  let issMarkerData = []; // single-element array for the ISS marker
+
   /* ══════════════════════════════════════════════════════════════
      Globe initialisation
      ══════════════════════════════════════════════════════════════ */
@@ -846,9 +862,78 @@ html, body {
       enabled: false,
       data: null,
       interval: null,
-      refreshMs: 0,
-      onEnable: async () => {},
-      onDisable: () => {},
+      refreshMs: 3000,
+      onEnable: async () => {
+        const layer = LAYERS.find(l => l.id === 'iss');
+        issTrail.length = 0;
+
+        async function updateISS() {
+          try {
+            const pos = await fetchISS();
+            layer.data = pos;
+
+            // Append to trail, cap at 150
+            issTrail.push([pos.lat, pos.lng]);
+            if (issTrail.length > 150) issTrail.shift();
+
+            // Update marker
+            issMarkerData = [pos];
+            globe
+              .htmlElementsData(issMarkerData)
+              .htmlLat(d => d.lat)
+              .htmlLng(d => d.lng)
+              .htmlAltitude(0.02)
+              .htmlElement(d => {
+                const existing = d.__issEl;
+                if (existing) return existing;
+                const el = document.createElement('div');
+                el.style.cssText = 'font-size:1.6rem;cursor:pointer;user-select:none;line-height:1;';
+                el.textContent = '\uD83D\uDEF0\uFE0F';
+                el.addEventListener('mouseenter', () => {
+                  globe.controls().autoRotate = false;
+                  const p = layer.data;
+                  if (p) {
+                    showHover(
+                      'International Space Station',
+                      p.altitude.toFixed(0) + ' km altitude',
+                      p.velocity.toFixed(0) + ' km/h \u00B7 ' + p.visibility
+                    );
+                  }
+                });
+                el.addEventListener('mouseleave', () => {
+                  globe.controls().autoRotate = true;
+                  hideHover();
+                });
+                d.__issEl = el;
+                return el;
+              });
+
+            // Update orbit trail
+            globe
+              .pathsData([{ coords: issTrail.slice() }])
+              .pathPointLat(p => p[0])
+              .pathPointLng(p => p[1])
+              .pathColor(() => ['rgba(0, 255, 136, 0.8)', 'rgba(0, 255, 136, 0.1)'])
+              .pathStroke(2)
+              .pathDashLength(0.3)
+              .pathDashGap(0.1)
+              .pathDashAnimateTime(2000);
+          } catch (e) {
+            console.warn('ISS fetch failed:', e);
+          }
+        }
+
+        await updateISS();
+        layer.interval = setInterval(updateISS, layer.refreshMs);
+      },
+      onDisable: () => {
+        const layer = LAYERS.find(l => l.id === 'iss');
+        if (layer.interval) { clearInterval(layer.interval); layer.interval = null; }
+        issTrail.length = 0;
+        issMarkerData = [];
+        globe.htmlElementsData([]).pathsData([]);
+        hideHover();
+      },
     },
     {
       id: 'rockets',
@@ -936,7 +1021,7 @@ html, body {
     for (const group of groups) {
       html += `<div class="panel-section"><div class="group-label">${group}</div></div>`;
       for (const layer of groupMap[group]) {
-        const hasImpl = layer.id === 'base' || layer.id === 'earthquakes';
+        const hasImpl = layer.id === 'base' || layer.id === 'earthquakes' || layer.id === 'iss';
         const isPlaceholder = !hasImpl && !layer.enabled;
         html += `
           <div class="layer-row" data-layer-id="${layer.id}">
