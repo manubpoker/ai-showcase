@@ -337,6 +337,98 @@ html, body {
 .news-item:hover { background: rgba(141,228,239,0.06); }
 .news-title { font-size: 0.85rem; font-weight: 500; line-height: 1.35; }
 .news-meta { font-size: 0.72rem; color: var(--muted-text); margin-top: 3px; }
+.radio-marker {
+  display: flex; flex-direction: column; align-items: center;
+  cursor: pointer !important; pointer-events: auto !important;
+  transform: translate(-50%, -50%); user-select: none; transition: transform 0.15s;
+  z-index: 10;
+}
+.radio-marker:hover { transform: translate(-50%, -50%) scale(1.25); }
+.radio-marker.playing .radio-icon { animation: radioPulse 1s ease-in-out infinite; }
+.radio-icon {
+  font-size: 1.4rem; filter: drop-shadow(0 0 4px rgba(6,182,212,0.8));
+  line-height: 1; pointer-events: auto !important; cursor: pointer !important;
+}
+.radio-label {
+  font-size: 0.7rem; color: #e2e8f0; background: rgba(0,0,0,0.7);
+  padding: 2px 6px; border-radius: 3px; margin-top: 2px; white-space: nowrap;
+  max-width: 110px; overflow: hidden; text-overflow: ellipsis; line-height: 1.3;
+  opacity: 0; transition: opacity 0.3s;
+}
+.radio-label.visible { opacity: 1; }
+@keyframes radioPulse {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(6,182,212,0.8)); }
+  50% { filter: drop-shadow(0 0 10px rgba(6,182,212,1)) drop-shadow(0 0 20px rgba(6,182,212,0.5)); }
+}
+.rocket-marker {
+  display: flex; flex-direction: column; align-items: center;
+  cursor: pointer !important; pointer-events: auto !important;
+  transform: translate(-50%, -50%); user-select: none; transition: transform 0.15s;
+  z-index: 10;
+}
+.rocket-marker:hover { transform: translate(-50%, -50%) scale(1.2); }
+.rocket-icon { font-size: 1.5rem; line-height: 1; }
+.rocket-marker[data-status="Go"] .rocket-icon { filter: drop-shadow(0 0 6px rgba(34,197,94,0.9)); }
+.rocket-marker[data-status="TBD"] .rocket-icon { filter: drop-shadow(0 0 6px rgba(234,179,8,0.9)); }
+.rocket-marker[data-status="Hold"] .rocket-icon { filter: drop-shadow(0 0 6px rgba(249,115,22,0.9)); }
+.rocket-label {
+  font-size: 0.6rem; color: #e2e8f0; background: rgba(0,0,0,0.7);
+  padding: 2px 6px; border-radius: 3px; margin-top: 2px; white-space: nowrap;
+  max-width: 120px; overflow: hidden; text-overflow: ellipsis; line-height: 1.3;
+  opacity: 0; transition: opacity 0.3s;
+}
+.rocket-label.visible { opacity: 1; }
+.traj-panel {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border);
+  border-radius: 12px; padding: 14px 20px; z-index: 600; min-width: 320px; max-width: 480px;
+  color: var(--primary-text); box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.traj-panel h3 { margin: 0 0 6px; font-size: 0.95rem; font-weight: 600; }
+.traj-panel .traj-meta { font-size: 0.78rem; color: var(--muted-text); margin-bottom: 8px; }
+.traj-panel .traj-stats { display: flex; gap: 16px; font-size: 0.78rem; flex-wrap: wrap; }
+.traj-panel .traj-stat-label { color: var(--muted-text); }
+.traj-panel .traj-stat-value { font-weight: 600; }
+.traj-close {
+  position: absolute; top: 8px; right: 12px; background: none; border: none;
+  color: var(--muted-text); cursor: pointer; font-size: 1.1rem; line-height: 1;
+}
+.traj-close:hover { color: var(--primary-text); }
+.traj-progress { margin-top: 8px; }
+.traj-progress-bar {
+  height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;
+}
+.traj-progress-fill {
+  height: 100%; background: linear-gradient(90deg, #f97316, #ef4444, #7c3aed);
+  border-radius: 2px; transition: width 0.1s linear;
+}
+.traj-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 6px currentColor;
+  animation: trajPulse 1.2s ease-in-out infinite alternate;
+}
+@keyframes trajPulse { 0% { opacity: 0.6; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1.2); } }
+.quake-time-filter {
+  display: flex; gap: 4px; padding: 4px 8px 6px; justify-content: center;
+}
+.quake-time-btn {
+  font-size: 0.65rem; padding: 2px 8px; border-radius: 4px; cursor: pointer;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+  color: var(--muted-text); transition: all 0.15s;
+}
+.quake-time-btn:hover { background: rgba(255,255,255,0.1); color: var(--primary-text); }
+.quake-time-btn.active { background: rgba(239,68,68,0.25); color: #ef4444; border-color: rgba(239,68,68,0.4); }
+.news-header { display: flex; align-items: center; justify-content: space-between; }
+.news-header .sheet-section-title { flex: 1; }
+.news-lang-toggle {
+  font-size: 0.68rem; padding: 2px 8px; border-radius: 4px; cursor: pointer;
+  background: rgba(141,228,239,0.1); border: 1px solid var(--glass-border);
+  color: var(--muted-text); transition: all 0.15s; white-space: nowrap;
+}
+.news-lang-toggle:hover { background: rgba(141,228,239,0.2); color: var(--primary-text); }
+.news-lang-toggle.active { background: rgba(141,228,239,0.25); color: var(--primary-text); }
+.news-lang-toggle.loading { opacity: 0.5; pointer-events: none; }
 
 /* ── Legend bar ─────────────────────────────────────────────── */
 #legend-bar {
@@ -619,6 +711,22 @@ html, body {
     } catch { return []; }
   }
 
+  // English-speaking countries (no translation needed)
+  const EN_COUNTRIES = new Set(['US','GB','AU','CA','NZ','IE','NG','KE','GH','ZA','SG','PH','IN','PK','JM','TT','BZ','GY','BB','BS','AG','DM','GD','KN','LC','VC','FJ','SB','VU','TO','WS','KI','NR','TV','PW','MH','FM','CK','NF','AI','BM','FK','GI','MS','SH','TC','VG','VI','AS','GU','PR','MP']);
+
+  async function translateTexts(texts) {
+    try {
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texts, to: 'en' })
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.translations || null;
+    } catch { return null; }
+  }
+
   function capitalize(s) {
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
   }
@@ -746,8 +854,10 @@ html, body {
   };
 
   /* ── Earthquake fetcher ────────────────────────────────────── */
-  async function fetchEarthquakes() {
-    const res = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson');
+  let quakeTimeRange = 'all_day';
+  async function fetchEarthquakes(range) {
+    if (range) quakeTimeRange = range;
+    const res = await fetch(`https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/${quakeTimeRange}.geojson`);
     const json = await res.json();
     return json.features.map(f => ({
       lat: f.geometry.coordinates[1],
@@ -763,19 +873,10 @@ html, body {
 
   /* ── Rocket launches fetcher & countdown helper ──────────────── */
   async function fetchLaunches() {
-    const res = await fetch('https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=20&mode=list');
+    const res = await fetch('/api/launches');
     if (!res.ok) throw new Error(`Launch API ${res.status}`);
     const json = await res.json();
-    return json.results.filter(l => l.pad && l.pad.latitude && l.pad.longitude).map(l => ({
-      name: l.name,
-      net: l.net,
-      status: l.status?.abbrev || 'TBD',
-      provider: l.launch_service_provider?.name || 'Unknown',
-      padName: l.pad.name,
-      location: l.pad.location?.name || '',
-      lat: parseFloat(l.pad.latitude),
-      lng: parseFloat(l.pad.longitude)
-    }));
+    return (json.launches || []).map(l => ({ ...l, _layer: 'rockets' }));
   }
 
   function formatCountdown(netStr) {
@@ -787,6 +888,149 @@ html, body {
     if (d > 0) return `T-${d}d ${h}h ${m}m`;
     if (h > 0) return `T-${h}h ${m}m`;
     return `T-${m}m`;
+  }
+
+  /* ── Trajectory simulation ──────────────────────────────────── */
+  const ORBIT_PARAMS = {
+    LEO:  { apoAlt: 420,   periAlt: 400,  incl: 51.6 },
+    ISS:  { apoAlt: 425,   periAlt: 415,  incl: 51.6 },
+    SSO:  { apoAlt: 560,   periAlt: 540,  incl: 97.5 },
+    MEO:  { apoAlt: 20200, periAlt: 20000, incl: 55 },
+    GEO:  { apoAlt: 35786, periAlt: 35770, incl: 0 },
+    GTO:  { apoAlt: 35786, periAlt: 250,  incl: 28.5 },
+    HEO:  { apoAlt: 39000, periAlt: 500,  incl: 63.4 },
+    PO:   { apoAlt: 820,   periAlt: 780,  incl: 90 },
+  };
+
+  let trajAnim = null;
+  let trajPanel = null;
+  let trajHtmlData = []; // trajectory dots rendered via htmlElementsData
+
+  function simulateTrajectory(launch) {
+    stopTrajectory();
+
+    const orb = ORBIT_PARAMS[launch.orbitAbbrev] || ORBIT_PARAMS.LEO;
+    const R = 6371;
+    const deg = Math.PI / 180;
+    const launchLat = launch.lat * deg;
+    const launchLng = launch.lng * deg;
+    const inclRad = orb.incl * deg;
+
+    // Launch azimuth from inclination
+    const sinAz = Math.cos(inclRad) / Math.cos(launchLat);
+    const az = Math.abs(sinAz) <= 1 ? Math.asin(sinAz) : Math.PI / 4;
+    // Southward for typical prograde launches
+    const launchAz = launch.lat >= 0 ? (Math.PI - az) : az;
+
+    // Pre-compute 40 waypoints along great circle from pad
+    const N = 40;
+    const totalArc = 0.6;
+    const waypoints = [];
+
+    const phases = [
+      { t: 0.00, name: 'Liftoff',     emoji: '\uD83D\uDE80' },
+      { t: 0.06, name: 'Max-Q',       emoji: '\uD83D\uDCA8' },
+      { t: 0.14, name: 'MECO',        emoji: '\u2728' },
+      { t: 0.18, name: 'Stage Sep',   emoji: '\uD83D\uDD27' },
+      { t: 0.22, name: 'SES-1',       emoji: '\uD83D\uDD25' },
+      { t: 0.30, name: 'Fairing Sep', emoji: '\uD83D\uDEE1\uFE0F' },
+      { t: 0.55, name: 'Coast',       emoji: '\uD83C\uDF0C' },
+      { t: 0.78, name: 'SECO',        emoji: '\u2B50' },
+      { t: 0.90, name: 'Orbit',       emoji: '\uD83C\uDF0D' },
+    ];
+
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      const angDist = totalArc * t;
+
+      const lat2 = Math.asin(
+        Math.sin(launchLat) * Math.cos(angDist) +
+        Math.cos(launchLat) * Math.sin(angDist) * Math.cos(launchAz)
+      );
+      const lng2 = launchLng + Math.atan2(
+        Math.sin(launchAz) * Math.sin(angDist) * Math.cos(launchLat),
+        Math.cos(angDist) - Math.sin(launchLat) * Math.sin(lat2)
+      );
+
+      let alt;
+      if (t < 0.12) alt = orb.periAlt * Math.pow(t / 0.12, 1.8);
+      else alt = orb.periAlt + (orb.apoAlt - orb.periAlt) * Math.min(1, (t - 0.12) / 0.88);
+
+      const orbVel = Math.sqrt(398600 / (R + alt));
+      let vel;
+      if (t < 0.12) vel = orbVel * Math.pow(t / 0.12, 0.8);
+      else vel = orbVel * (0.85 + 0.15 * Math.min(1, (t - 0.12) / 0.66));
+
+      const downrange = angDist * R;
+      // Globe altitude: exaggerate for visibility, cap at 0.5
+      const globeAlt = Math.max(0.07, Math.min(0.5, (alt / R) * 3));
+      const phase = [...phases].reverse().find(p => t >= p.t) || phases[0];
+
+      waypoints.push({
+        lat: lat2 / deg, lng: ((lng2 / deg) + 540) % 360 - 180,
+        alt, globeAlt, vel, downrange, t, phase
+      });
+    }
+
+    // Create info panel
+    trajPanel = document.createElement('div');
+    trajPanel.className = 'traj-panel';
+    trajPanel.innerHTML = `
+      <button class="traj-close" title="Close">\u2715</button>
+      <h3>\uD83D\uDE80 ${escHtml(launch.rocketName || launch.name)}</h3>
+      <div class="traj-meta">${escHtml(launch.provider)} \u00B7 ${escHtml(launch.padName)} \u2192 ${escHtml(launch.orbitName || 'LEO')}</div>
+      <div class="traj-stats">
+        <div><span class="traj-stat-label">Phase</span><br><span class="traj-stat-value" id="traj-phase">\uD83D\uDE80 Liftoff</span></div>
+        <div><span class="traj-stat-label">Altitude</span><br><span class="traj-stat-value" id="traj-alt">0 km</span></div>
+        <div><span class="traj-stat-label">Velocity</span><br><span class="traj-stat-value" id="traj-vel">0.00 km/s</span></div>
+        <div><span class="traj-stat-label">Downrange</span><br><span class="traj-stat-value" id="traj-range">0 km</span></div>
+      </div>
+      <div class="traj-progress"><div class="traj-progress-bar"><div class="traj-progress-fill" id="traj-fill" style="width:0%"></div></div></div>
+    `;
+    document.body.appendChild(trajPanel);
+    trajPanel.querySelector('.traj-close').addEventListener('click', stopTrajectory);
+
+    globe.pointOfView({ lat: launch.lat, lng: launch.lng, altitude: 1.8 }, 1000);
+
+    const $phase = document.getElementById('traj-phase');
+    const $alt = document.getElementById('traj-alt');
+    const $vel = document.getElementById('traj-vel');
+    const $range = document.getElementById('traj-range');
+    const $fill = document.getElementById('traj-fill');
+
+    // Use htmlElementsData for trajectory dots (floating at altitude)
+    let revealed = 0;
+
+    function updateTrajOnGlobe() {
+      trajHtmlData = waypoints.slice(0, revealed + 1).map(wp => ({
+        lat: wp.lat, lng: wp.lng, globeAlt: wp.globeAlt, t: wp.t, _layer: 'traj'
+      }));
+      updateCombinedHtml();
+    }
+
+    function tick() {
+      revealed++;
+      if (revealed > N) return;
+
+      const wp = waypoints[revealed];
+      updateTrajOnGlobe();
+
+      if ($phase) $phase.textContent = `${wp.phase.emoji} ${wp.phase.name}`;
+      if ($alt) $alt.textContent = wp.alt < 1000 ? wp.alt.toFixed(0) + ' km' : (wp.alt/1000).toFixed(1) + 'k km';
+      if ($vel) $vel.textContent = wp.vel.toFixed(2) + ' km/s';
+      if ($range) $range.textContent = wp.downrange < 1000 ? wp.downrange.toFixed(0) + ' km' : (wp.downrange/1000).toFixed(1) + 'k km';
+      if ($fill) $fill.style.width = (wp.t * 100).toFixed(1) + '%';
+    }
+
+    tick();
+    trajAnim = setInterval(tick, 300);
+  }
+
+  function stopTrajectory() {
+    if (trajAnim) { clearInterval(trajAnim); trajAnim = null; }
+    if (trajPanel) { trajPanel.remove(); trajPanel = null; }
+    trajHtmlData = [];
+    updateCombinedHtml();
   }
 
   /* ── ISS fetcher & trail state ──────────────────────────────── */
@@ -809,33 +1053,23 @@ html, body {
   let radioAudio = null;
   let currentStation = null;
 
+  let allRadioStations = null; // full cache
+  let radioCountryFilter = null; // ISO2 country code to show
   async function fetchRadioStations() {
-    const endpoints = [
-      'https://all.api.radio-browser.info/json/stations/search?limit=200&order=clickcount&reverse=true&has_geo_info=true&hidebroken=true',
-      'https://nl1.api.radio-browser.info/json/stations/search?limit=200&order=clickcount&reverse=true&has_geo_info=true&hidebroken=true',
-      'https://de1.api.radio-browser.info/json/stations/search?limit=200&order=clickcount&reverse=true&has_geo_info=true&hidebroken=true'
-    ];
-    let res;
-    for (const ep of endpoints) {
-      try { res = await fetch(ep); if (res.ok) break; } catch { continue; }
+    if (!allRadioStations) {
+      const res = await fetch('/api/radio');
+      if (!res.ok) throw new Error('Radio API returned ' + res.status);
+      const data = await res.json();
+      allRadioStations = (data.stations || []).map(s => ({ ...s, _layer: 'radio' }));
     }
-    if (!res || !res.ok) throw new Error('All radio endpoints failed');
-    const stations = await res.json();
-    return stations
-      .filter(s => (s.url_resolved || s.url || '').startsWith('https://'))
-      .filter(s => s.geo_lat && s.geo_long)
-      .slice(0, 150)
-      .map(s => ({
-        name: s.name,
-        url: s.url_resolved || s.url,
-        country: s.country,
-        tags: s.tags,
-        codec: s.codec,
-        bitrate: s.bitrate,
-        lat: s.geo_lat,
-        lng: s.geo_long,
-        _layer: 'radio'
-      }));
+    return allRadioStations;
+  }
+  function getFilteredRadioStations() {
+    if (!allRadioStations) return [];
+    if (!radioCountryFilter) return [];
+    return allRadioStations.filter(s =>
+      s.countryCode && s.countryCode.toUpperCase() === radioCountryFilter.toUpperCase()
+    );
   }
 
   /* ── River gauges fetcher ─────────────────────────────────── */
@@ -964,13 +1198,24 @@ html, body {
     globe.width(container.clientWidth).height(container.clientHeight);
   });
 
-  /* ── Combined points helper (shared by radio, rivers, air quality) ── */
+  // Show radio/rocket labels only when zoomed in (altitude < 1.2 ≈ 50% zoom)
+  let labelsVisible = false;
+  globe.controls().addEventListener('change', () => {
+    const alt = globe.pointOfView().altitude;
+    const shouldShow = alt < 1.2;
+    if (shouldShow !== labelsVisible) {
+      labelsVisible = shouldShow;
+      document.querySelectorAll('.radio-label, .rocket-label').forEach(el => {
+        el.classList.toggle('visible', shouldShow);
+      });
+    }
+  });
+
+  /* ── Combined points helper (shared by rivers, air quality) ── */
   function updateCombinedPoints() {
     const allPts = [];
-    const radioLayer = LAYERS.find(l => l.id === 'radio');
     const riverLayer = LAYERS.find(l => l.id === 'rivers');
     const aqLayer = LAYERS.find(l => l.id === 'airquality');
-    if (radioLayer.enabled && radioLayer.data) allPts.push(...radioLayer.data);
     if (riverLayer.enabled && riverLayer.data) allPts.push(...riverLayer.data);
     if (aqLayer.enabled && aqLayer.data) allPts.push(...aqLayer.data);
     if (quakePointsData.length) allPts.push(...quakePointsData);
@@ -979,37 +1224,19 @@ html, body {
       .pointLng(d => d.lng)
       .pointRadius(d => {
         if (d._layer === 'quake') return Math.max(0.15, d.mag * 0.2);
-        if (d._layer === 'radio') return 0.15;
         if (d._layer === 'rivers') return 0.1 + Math.min(Math.log10(Math.max(d.discharge || 1, 1)) / 6, 0.5) * 0.5;
         if (d._layer === 'airquality') return 0.25;
         return 0.2;
       })
-      .pointAltitude(d => {
-        if (d._layer === 'quake') return 0.01;
-        if (d._layer === 'rivers') return 0.008;
-        if (d._layer === 'airquality') return 0.015;
-        return 0.005;
-      })
+      .pointAltitude(d => 0.07)
       .pointColor(d => {
         if (d._layer === 'quake') return 'rgba(0,0,0,0)';
-        if (d._layer === 'radio') return '#06b6d4';
         if (d._layer === 'rivers') return '#3b82f6';
         if (d._layer === 'airquality') return aqiColor(d.aqi);
         return '#94a3b8';
       })
       .onPointClick(pt => {
         if (!pt) return;
-        if (pt._layer === 'radio') {
-          if (currentStation === pt.name) {
-            if (radioAudio.paused) radioAudio.play().catch(e => console.warn('Audio blocked:', e));
-            else radioAudio.pause();
-          } else {
-            if (radioAudio) { radioAudio.pause(); radioAudio.src = ''; radioAudio.load(); }
-            radioAudio = new Audio(pt.url);
-            radioAudio.play().catch(e => console.warn('Audio blocked:', e));
-            currentStation = pt.name;
-          }
-        }
       })
       .onPointHover(pt => {
         if (!pt) {
@@ -1018,11 +1245,7 @@ html, body {
           return;
         }
         globe.controls().autoRotate = false;
-        if (pt._layer === 'radio') {
-          const tags = pt.tags ? (pt.tags.length > 60 ? pt.tags.slice(0, 57) + '...' : pt.tags) : '';
-          const meta = [tags, pt.bitrate ? pt.bitrate + ' kbps' : '', 'Click to play'].filter(Boolean).join(' \u00B7 ');
-          showHover(pt.name, pt.country, meta);
-        } else if (pt._layer === 'rivers') {
+        if (pt._layer === 'rivers') {
           const discharge = pt.discharge != null ? fmtNum(pt.discharge, 0) + ' cfs' : 'N/A';
           const gauge = pt.gaugeHeight != null ? 'Gauge: ' + fmtNum(pt.gaugeHeight, 2) + ' ft' : '';
           showHover(pt.name, discharge, gauge);
@@ -1058,11 +1281,22 @@ html, body {
     if (issLayer.enabled && issMarkerData.length) allEls.push(...issMarkerData);
     const weatherLayer = LAYERS.find(l => l.id === 'weather');
     if (weatherLayer.enabled && weatherLayer.data) allEls.push(...weatherLayer.data);
+    const radioLayer = LAYERS.find(l => l.id === 'radio');
+    if (radioLayer.enabled && radioLayer.data) allEls.push(...getFilteredRadioStations());
+    const rocketLayer = LAYERS.find(l => l.id === 'rockets');
+    if (rocketLayer.enabled && rocketLayer.data) allEls.push(...rocketLayer.data);
+    if (trajHtmlData.length) allEls.push(...trajHtmlData);
 
     globe.htmlElementsData(allEls)
       .htmlLat(d => d.lat)
       .htmlLng(d => d.lng)
-      .htmlAltitude(d => d._layer === 'iss' ? 0.02 : 0.01)
+      .htmlAltitude(d => {
+        if (d._layer === 'traj') return d.globeAlt;
+        if (d._layer === 'iss') return 0.07;
+        if (d._layer === 'radio') return 0.07;
+        if (d._layer === 'rockets') return 0.07;
+        return 0.07;
+      })
       .htmlElement(d => {
         if (d._layer === 'iss') {
           const existing = d.__issEl;
@@ -1113,6 +1347,89 @@ html, body {
           d.__weatherEl = el;
           return el;
         }
+        if (d._layer === 'radio') {
+          const existing = d.__radioEl;
+          if (existing) {
+            // Update playing state
+            const icon = existing.querySelector('.radio-icon');
+            if (icon) icon.textContent = (currentStation === d.name && radioAudio && !radioAudio.paused) ? '\uD83D\uDD0A' : '\uD83D\uDCE1';
+            return existing;
+          }
+          const el = document.createElement('div');
+          el.className = 'radio-marker';
+          const label = d.name.length > 18 ? d.name.slice(0, 16) + '\u2026' : d.name;
+          el.innerHTML = `<span class="radio-icon">\uD83D\uDCE1</span><span class="radio-label">${escHtml(label)}</span>`;
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (currentStation === d.name) {
+              if (radioAudio.paused) { radioAudio.play().catch(() => {}); el.querySelector('.radio-icon').textContent = '\uD83D\uDD0A'; }
+              else { radioAudio.pause(); el.querySelector('.radio-icon').textContent = '\uD83D\uDCE1'; }
+            } else {
+              // Reset previous playing marker
+              document.querySelectorAll('.radio-marker.playing').forEach(m => { m.classList.remove('playing'); const ic = m.querySelector('.radio-icon'); if (ic) ic.textContent = '\uD83D\uDCE1'; });
+              if (radioAudio) { radioAudio.pause(); radioAudio.src = ''; radioAudio.load(); }
+              radioAudio = new Audio(d.url);
+              radioAudio.play().catch(e => console.warn('Audio blocked:', e));
+              currentStation = d.name;
+              el.classList.add('playing');
+              el.querySelector('.radio-icon').textContent = '\uD83D\uDD0A';
+              radioAudio.addEventListener('ended', () => { el.classList.remove('playing'); el.querySelector('.radio-icon').textContent = '\uD83D\uDCE1'; currentStation = null; });
+              radioAudio.addEventListener('error', () => { el.classList.remove('playing'); el.querySelector('.radio-icon').textContent = '\uD83D\uDCE1'; currentStation = null; });
+            }
+          });
+          el.addEventListener('mouseenter', () => {
+            globe.controls().autoRotate = false;
+            const tags = d.tags ? (d.tags.length > 60 ? d.tags.slice(0, 57) + '...' : d.tags) : '';
+            const meta = [tags, d.bitrate ? d.bitrate + ' kbps' : '', 'Click to play'].filter(Boolean).join(' \u00B7 ');
+            showHover(d.name, d.country, meta);
+          });
+          el.addEventListener('mouseleave', () => {
+            globe.controls().autoRotate = true;
+            hideHover();
+          });
+          d.__radioEl = el;
+          return el;
+        }
+        if (d._layer === 'traj') {
+          const el = document.createElement('div');
+          el.className = 'traj-dot';
+          let color;
+          if (d.t < 0.2) color = '#f97316';
+          else if (d.t < 0.5) color = '#ef4444';
+          else if (d.t < 0.8) color = '#7c3aed';
+          else color = '#22c55e';
+          el.style.backgroundColor = color;
+          el.style.color = color;
+          return el;
+        }
+        if (d._layer === 'rockets') {
+          const existing = d.__rocketEl;
+          if (existing) return existing;
+          const el = document.createElement('div');
+          el.className = 'rocket-marker';
+          el.dataset.status = d.status;
+          const label = d.rocketName ? (d.rocketName.length > 20 ? d.rocketName.slice(0, 18) + '\u2026' : d.rocketName) : d.name.split('|')[0].trim();
+          el.innerHTML = `<span class="rocket-icon">\uD83D\uDE80</span><span class="rocket-label">${escHtml(label)}</span>`;
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            simulateTrajectory(d);
+          });
+          el.addEventListener('mouseenter', () => {
+            globe.controls().autoRotate = false;
+            const name = d.name.length > 40 ? d.name.slice(0, 37) + '...' : d.name;
+            showHover(
+              name,
+              formatCountdown(d.net),
+              `${d.provider} \u00B7 ${d.padName} \u00B7 Click to simulate`
+            );
+          });
+          el.addEventListener('mouseleave', () => {
+            globe.controls().autoRotate = true;
+            hideHover();
+          });
+          d.__rocketEl = el;
+          return el;
+        }
         return document.createElement('div');
       });
   }
@@ -1161,6 +1478,16 @@ html, body {
   function showCountrySheet(iso3, countryName) {
     const details = countryDetails[iso3] || {};
 
+    // Show radio stations for this country if radio layer is enabled
+    const radioLayer = LAYERS.find(l => l.id === 'radio');
+    if (radioLayer && radioLayer.enabled) {
+      const iso2 = ISO3_TO_2[iso3];
+      if (iso2) {
+        radioCountryFilter = iso2;
+        updateCombinedHtml();
+      }
+    }
+
     // Flag
     if (details.flagUrl) {
       $sheetFlag.src = details.flagUrl;
@@ -1205,8 +1532,13 @@ html, body {
         ${detailRow(activeOverlay.title, fmtNum(entry.value, activeOverlay.decimals) + ' ' + activeOverlay.unit)}`;
     }
 
-    const newsPlaceholder = ISO3_TO_2[iso3]
-      ? `<div class="sheet-section-title">Top Headlines</div><div id="sheet-news" style="opacity:0.5;font-size:0.82rem;color:var(--muted-text);">Loading news...</div>`
+    const iso2 = ISO3_TO_2[iso3];
+    const isEnglishCountry = iso2 && EN_COUNTRIES.has(iso2.toUpperCase());
+    const newsPlaceholder = iso2
+      ? `<div class="news-header">
+          <div class="sheet-section-title" style="border:none;margin:0;padding-bottom:0;">Top Headlines</div>
+          ${!isEnglishCountry ? '<button id="news-lang-toggle" class="news-lang-toggle" title="Translate to English">EN</button>' : ''}
+        </div><div id="sheet-news" style="opacity:0.5;font-size:0.82rem;color:var(--muted-text);">Loading news...</div>`
       : '';
 
     $sheetBody.innerHTML = `
@@ -1232,7 +1564,7 @@ html, body {
     $sheet.classList.add('open');
 
     // Fetch news asynchronously
-    if (ISO3_TO_2[iso3]) {
+    if (iso2) {
       fetchNews(iso3).then(articles => {
         const newsEl = document.getElementById('sheet-news');
         if (!newsEl) return;
@@ -1241,15 +1573,49 @@ html, body {
           newsEl.style.opacity = '1';
           return;
         }
-        newsEl.innerHTML = articles.map(a => {
-          const ago = a.publishedAt ? timeAgo(new Date(a.publishedAt).getTime()) : '';
-          const src = a.source ? escHtml(a.source) : '';
-          return `<a href="${escHtml(a.url)}" target="_blank" rel="noopener" class="news-item">
-            <div class="news-title">${escHtml(a.title)}</div>
-            <div class="news-meta">${src}${ago ? ' · ' + ago : ''}</div>
-          </a>`;
-        }).join('');
-        newsEl.style.opacity = '1';
+
+        let showingEnglish = false;
+        let translatedTitles = null;
+        const originalTitles = articles.map(a => a.title);
+
+        function renderArticles(titles) {
+          newsEl.innerHTML = articles.map((a, i) => {
+            const ago = a.publishedAt ? timeAgo(new Date(a.publishedAt).getTime()) : '';
+            const src = a.source ? escHtml(a.source) : '';
+            return `<a href="${escHtml(a.url)}" target="_blank" rel="noopener" class="news-item">
+              <div class="news-title">${escHtml(titles[i])}</div>
+              <div class="news-meta">${src}${ago ? ' · ' + ago : ''}</div>
+            </a>`;
+          }).join('');
+          newsEl.style.opacity = '1';
+        }
+
+        renderArticles(originalTitles);
+
+        // Wire up translate toggle
+        const toggleBtn = document.getElementById('news-lang-toggle');
+        if (toggleBtn) {
+          toggleBtn.addEventListener('click', async () => {
+            if (showingEnglish) {
+              showingEnglish = false;
+              toggleBtn.classList.remove('active');
+              renderArticles(originalTitles);
+              return;
+            }
+            if (!translatedTitles) {
+              toggleBtn.classList.add('loading');
+              toggleBtn.textContent = '...';
+              translatedTitles = await translateTexts(originalTitles);
+              toggleBtn.classList.remove('loading');
+              toggleBtn.textContent = 'EN';
+            }
+            if (translatedTitles) {
+              showingEnglish = true;
+              toggleBtn.classList.add('active');
+              renderArticles(translatedTitles);
+            }
+          });
+        }
       });
     }
   }
@@ -1483,33 +1849,51 @@ html, body {
       refreshMs: 300000,
       onEnable: async () => {
         const layer = LAYERS.find(l => l.id === 'earthquakes');
-        try {
-          layer.data = await fetchEarthquakes();
-        } catch (e) {
-          console.warn('Earthquake fetch failed:', e);
-          layer.data = [];
-        }
-        if (!Array.isArray(layer.data)) layer.data = [];
 
-        globe
-          .ringsData(layer.data)
-          .ringLat(d => d.lat)
-          .ringLng(d => d.lng)
-          .ringMaxRadius(d => d.mag * 1.5)
-          .ringPropagationSpeed(2)
-          .ringRepeatPeriod(800)
-          .ringColor(d => {
-            const c = quakeColorScale(Math.max(0, d.depth));
-            return [c, 'transparent'];
+        function renderQuakes(data) {
+          layer.data = data;
+          if (!Array.isArray(layer.data)) layer.data = [];
+          globe
+            .ringsData(layer.data)
+            .ringLat(d => d.lat).ringLng(d => d.lng)
+            .ringMaxRadius(d => d.mag * 1.5)
+            .ringPropagationSpeed(2).ringRepeatPeriod(800)
+            .ringColor(d => { const c = quakeColorScale(Math.max(0, d.depth)); return [c, 'transparent']; });
+          updateQuakePoints(layer.data);
+          // Update count badge
+          const badge = document.getElementById('quake-count');
+          if (badge) badge.textContent = layer.data.length + ' events';
+        }
+
+        try { renderQuakes(await fetchEarthquakes()); }
+        catch (e) { console.warn('Earthquake fetch failed:', e); renderQuakes([]); }
+
+        // Add time filter below the earthquake row
+        const row = document.querySelector('.layer-row[data-layer-id="earthquakes"]');
+        if (row && !document.getElementById('quake-filter')) {
+          const filterDiv = document.createElement('div');
+          filterDiv.id = 'quake-filter';
+          filterDiv.className = 'quake-time-filter';
+          filterDiv.innerHTML = `
+            <button class="quake-time-btn${quakeTimeRange === 'all_hour' ? ' active' : ''}" data-range="all_hour">1 Hour</button>
+            <button class="quake-time-btn${quakeTimeRange === 'all_day' ? ' active' : ''}" data-range="all_day">24 Hours</button>
+            <button class="quake-time-btn${quakeTimeRange === 'all_week' ? ' active' : ''}" data-range="all_week">7 Days</button>
+            <span id="quake-count" style="font-size:0.6rem;color:var(--muted-text);padding:2px 4px;">${layer.data.length} events</span>
+          `;
+          row.parentNode.insertBefore(filterDiv, row.nextSibling);
+          filterDiv.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.quake-time-btn');
+            if (!btn) return;
+            filterDiv.querySelectorAll('.quake-time-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            try { renderQuakes(await fetchEarthquakes(btn.dataset.range)); }
+            catch (err) { console.warn('Earthquake fetch failed:', err); }
           });
-        updateQuakePoints(layer.data);
+        }
 
         layer.interval = setInterval(async () => {
-          try {
-            layer.data = await fetchEarthquakes();
-            globe.ringsData(layer.data);
-            updateQuakePoints(layer.data);
-          } catch (e) { console.warn('Earthquake refresh failed:', e); }
+          try { renderQuakes(await fetchEarthquakes()); }
+          catch (e) { console.warn('Earthquake refresh failed:', e); }
         }, layer.refreshMs);
       },
       onDisable: () => {
@@ -1518,6 +1902,8 @@ html, body {
         quakePointsData = [];
         updateCombinedPoints();
         if (layer.interval) { clearInterval(layer.interval); layer.interval = null; }
+        const filter = document.getElementById('quake-filter');
+        if (filter) filter.remove();
         hideHover();
       },
     },
@@ -1563,6 +1949,10 @@ html, body {
         }
 
         await updateISS();
+        // Auto-rotate to ISS position
+        if (layer.data) {
+          globe.pointOfView({ lat: layer.data.lat, lng: layer.data.lng, altitude: 1.5 }, 1500);
+        }
         layer.interval = setInterval(updateISS, layer.refreshMs);
       },
       onDisable: () => {
@@ -1589,55 +1979,23 @@ html, body {
         try {
           layer.data = await fetchLaunches();
         } catch (e) {
-          console.warn('Launch fetch failed (rate limited?):', e);
+          console.warn('Launch fetch failed:', e);
           layer.data = [];
         }
-
-        function renderLaunches() {
-          globe
-            .labelsData(layer.data)
-            .labelLat(d => d.lat)
-            .labelLng(d => d.lng)
-            .labelText(() => '\uD83D\uDE80')
-            .labelSize(1.5)
-            .labelDotRadius(0.4)
-            .labelColor(d => {
-              if (d.status === 'Go')   return '#22c55e';
-              if (d.status === 'TBD')  return '#eab308';
-              if (d.status === 'Hold') return '#f97316';
-              return '#94a3b8';
-            })
-            .labelAltitude(0.01)
-            .labelResolution(2)
-            .onLabelHover(d => {
-              if (!d) {
-                hideHover();
-                globe.controls().autoRotate = true;
-                return;
-              }
-              globe.controls().autoRotate = false;
-              const name = d.name.length > 40 ? d.name.slice(0, 37) + '...' : d.name;
-              showHover(
-                name,
-                formatCountdown(d.net),
-                `${d.provider} \u00B7 ${d.padName}`
-              );
-            });
-        }
-
-        renderLaunches();
+        updateCombinedHtml();
 
         layer.interval = setInterval(async () => {
           try {
             layer.data = await fetchLaunches();
-            renderLaunches();
+            updateCombinedHtml();
           } catch (e) { console.warn('Launch refresh failed:', e); }
         }, layer.refreshMs);
       },
       onDisable: () => {
         const layer = LAYERS.find(l => l.id === 'rockets');
-        globe.labelsData([]).onLabelHover(null);
         if (layer.interval) { clearInterval(layer.interval); layer.interval = null; }
+        stopTrajectory();
+        updateCombinedHtml();
         hideHover();
       },
     },
@@ -1660,19 +2018,20 @@ html, body {
             layer.data = [];
           }
         }
-        updateCombinedPoints();
+        updateCombinedHtml();
       },
       onDisable: () => {
         if (radioAudio) radioAudio.pause();
         radioAudio = null;
         currentStation = null;
-        updateCombinedPoints();
+        radioCountryFilter = null;
+        updateCombinedHtml();
         hideHover();
       },
     },
     {
       id: 'rivers',
-      name: 'River Gauges',
+      name: 'River Gauges (US only)',
       icon: '\uD83C\uDF0A',
       group: 'Live Data',
       enabled: false,
