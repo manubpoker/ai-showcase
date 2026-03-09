@@ -109,6 +109,13 @@
     "path": "projects/violin/"
   },
   {
+    "id": "asteroids",
+    "title": "Asteroid Watch",
+    "description": "Near-Earth object tracker using NASA NeoWs API with size comparison charts, close approach timelines, and 7-day asteroid feeds.",
+    "tags": ["NASA API", "Canvas", "Space", "Live Data"],
+    "path": "projects/asteroids/"
+  },
+  {
     "id": "brightonhub",
     "title": "Brighton Hub",
     "description": "Live city dashboard for Brighton & Hove with real-time transport, environment, crime, housing, health, events, and schools data.",
