@@ -137,6 +137,13 @@
     "path": "projects/radio/"
   },
   {
+    "id": "solar",
+    "title": "Solar Pulse",
+    "description": "Real-time solar activity dashboard with NASA DONKI flares, CMEs, geomagnetic storms, Kp index chart, inner solar system orrery, and 30-day timeline.",
+    "tags": ["NASA API", "NOAA", "Space", "Live Data"],
+    "path": "projects/solar/"
+  },
+  {
     "id": "cloth",
     "title": "Cloth Simulation",
     "description": "Real-time Verlet integration cloth physics with wind, tearing, pinning, and lit triangle rendering. 4 presets and 6 fabric colors.",
