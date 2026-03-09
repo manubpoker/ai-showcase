@@ -519,6 +519,34 @@ html, body {
 
   const quakeColorScale = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, 400]);
 
+  /* ── Rocket launches fetcher & countdown helper ──────────────── */
+  async function fetchLaunches() {
+    const res = await fetch('https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=20&mode=list');
+    if (!res.ok) throw new Error(`Launch API ${res.status}`);
+    const json = await res.json();
+    return json.results.filter(l => l.pad && l.pad.latitude && l.pad.longitude).map(l => ({
+      name: l.name,
+      net: l.net,
+      status: l.status?.abbrev || 'TBD',
+      provider: l.launch_service_provider?.name || 'Unknown',
+      padName: l.pad.name,
+      location: l.pad.location?.name || '',
+      lat: parseFloat(l.pad.latitude),
+      lng: parseFloat(l.pad.longitude)
+    }));
+  }
+
+  function formatCountdown(netStr) {
+    const diff = new Date(netStr) - Date.now();
+    if (diff < 0) return 'Launched';
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    if (d > 0) return `T-${d}d ${h}h ${m}m`;
+    if (h > 0) return `T-${h}h ${m}m`;
+    return `T-${m}m`;
+  }
+
   /* ── ISS fetcher & trail state ──────────────────────────────── */
   async function fetchISS() {
     const res = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
@@ -943,9 +971,63 @@ html, body {
       enabled: false,
       data: null,
       interval: null,
-      refreshMs: 0,
-      onEnable: async () => {},
-      onDisable: () => {},
+      refreshMs: 1800000,
+      onEnable: async () => {
+        const layer = LAYERS.find(l => l.id === 'rockets');
+        try {
+          layer.data = await fetchLaunches();
+        } catch (e) {
+          console.warn('Launch fetch failed (rate limited?):', e);
+          layer.data = [];
+        }
+
+        function renderLaunches() {
+          globe
+            .labelsData(layer.data)
+            .labelLat(d => d.lat)
+            .labelLng(d => d.lng)
+            .labelText(() => '\uD83D\uDE80')
+            .labelSize(1.5)
+            .labelDotRadius(0.4)
+            .labelColor(d => {
+              if (d.status === 'Go')   return '#22c55e';
+              if (d.status === 'TBD')  return '#eab308';
+              if (d.status === 'Hold') return '#f97316';
+              return '#94a3b8';
+            })
+            .labelAltitude(0.01)
+            .labelResolution(2)
+            .onLabelHover(d => {
+              if (!d) {
+                hideHover();
+                globe.controls().autoRotate = true;
+                return;
+              }
+              globe.controls().autoRotate = false;
+              const name = d.name.length > 40 ? d.name.slice(0, 37) + '...' : d.name;
+              showHover(
+                name,
+                formatCountdown(d.net),
+                `${d.provider} \u00B7 ${d.padName}`
+              );
+            });
+        }
+
+        renderLaunches();
+
+        layer.interval = setInterval(async () => {
+          try {
+            layer.data = await fetchLaunches();
+            renderLaunches();
+          } catch (e) { console.warn('Launch refresh failed:', e); }
+        }, layer.refreshMs);
+      },
+      onDisable: () => {
+        const layer = LAYERS.find(l => l.id === 'rockets');
+        globe.labelsData([]).onLabelHover(null);
+        if (layer.interval) { clearInterval(layer.interval); layer.interval = null; }
+        hideHover();
+      },
     },
     {
       id: 'radio',
@@ -1021,7 +1103,7 @@ html, body {
     for (const group of groups) {
       html += `<div class="panel-section"><div class="group-label">${group}</div></div>`;
       for (const layer of groupMap[group]) {
-        const hasImpl = layer.id === 'base' || layer.id === 'earthquakes' || layer.id === 'iss';
+        const hasImpl = layer.id === 'base' || layer.id === 'earthquakes' || layer.id === 'iss' || layer.id === 'rockets';
         const isPlaceholder = !hasImpl && !layer.enabled;
         html += `
           <div class="layer-row" data-layer-id="${layer.id}">
