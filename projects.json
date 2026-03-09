@@ -137,6 +137,13 @@
     "path": "projects/radio/"
   },
   {
+    "id": "terrain",
+    "title": "Terrain Generator",
+    "description": "Procedural 3D landscape generator with GPU fractal noise, 6 biomes, flyover camera, water reflections, dynamic lighting, and distance fog via WebGL 2.",
+    "tags": ["WebGL", "GLSL", "Procedural", "3D"],
+    "path": "projects/terrain/"
+  },
+  {
     "id": "solar",
     "title": "Solar Pulse",
     "description": "Real-time solar activity dashboard with NASA DONKI flares, CMEs, geomagnetic storms, Kp index chart, inner solar system orrery, and 30-day timeline.",

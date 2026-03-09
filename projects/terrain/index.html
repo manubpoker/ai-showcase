@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terrain Generator</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;height:100vh;font-family:'Inter',system-ui,sans-serif;color:#ddd}
+canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+.ui{position:absolute;top:16px;left:16px;z-index:10;user-select:none}
+.panel{background:rgba(0,0,0,0.78);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:18px;width:270px;backdrop-filter:blur(14px)}
+.panel h1{font-size:1rem;font-weight:700;margin-bottom:2px}
+.panel h1 span{background:linear-gradient(135deg,#34d399,#3b82f6,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.panel .sub{font-size:0.62rem;color:#555;margin-bottom:14px}
+.ctrl{margin-bottom:9px}
+.ctrl label{display:flex;justify-content:space-between;font-size:0.68rem;color:#888;margin-bottom:3px}
+.ctrl label b{color:#fff;font-weight:600;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;border-radius:2px;background:rgba(255,255,255,0.08);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#fff;cursor:pointer}
+.section-label{font-size:0.58rem;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin:10px 0 5px}
+.themes{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.theme-btn{padding:3px 10px;border:1px solid rgba(255,255,255,0.07);border-radius:14px;background:rgba(255,255,255,0.02);font-size:0.6rem;cursor:pointer;transition:all 0.2s;color:#777}
+.theme-btn:hover{background:rgba(255,255,255,0.07);color:#fff}
+.theme-btn.active{border-color:rgba(52,211,153,0.4);background:rgba(52,211,153,0.1);color:#6ee7b7}
+.btns{display:flex;gap:6px;margin-top:10px}
+.btn{flex:1;padding:5px 0;border:1px solid rgba(255,255,255,0.08);border-radius:7px;background:rgba(255,255,255,0.03);color:#aaa;font-size:0.63rem;font-weight:600;cursor:pointer;text-align:center;transition:all 0.2s}
+.btn:hover{background:rgba(255,255,255,0.07);color:#fff}
+.toggle-btn{position:absolute;top:16px;right:16px;z-index:10;padding:5px 14px;border:1px solid rgba(255,255,255,0.07);border-radius:8px;background:rgba(0,0,0,0.7);color:#777;font-size:0.63rem;cursor:pointer;backdrop-filter:blur(8px)}
+.toggle-btn:hover{color:#fff}
+.stats{position:absolute;bottom:10px;left:16px;font-size:0.55rem;color:#333;z-index:10}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="ui" id="ui">
+<div class="panel">
+  <h1><span>Terrain Generator</span></h1>
+  <div class="sub">Procedural landscape · GPU noise · WebGL 2</div>
+
+  <div class="ctrl">
+    <label>Height Scale <b id="v-height">1.0</b></label>
+    <input type="range" id="height" min="0.1" max="3.0" step="0.05" value="1.0">
+  </div>
+  <div class="ctrl">
+    <label>Noise Octaves <b id="v-octaves">6</b></label>
+    <input type="range" id="octaves" min="1" max="10" step="1" value="6">
+  </div>
+  <div class="ctrl">
+    <label>Frequency <b id="v-freq">1.0</b></label>
+    <input type="range" id="freq" min="0.2" max="4.0" step="0.1" value="1.0">
+  </div>
+  <div class="ctrl">
+    <label>Lacunarity <b id="v-lac">2.0</b></label>
+    <input type="range" id="lac" min="1.2" max="4.0" step="0.1" value="2.0">
+  </div>
+  <div class="ctrl">
+    <label>Water Level <b id="v-water">0.30</b></label>
+    <input type="range" id="water" min="0.0" max="0.8" step="0.02" value="0.30">
+  </div>
+  <div class="ctrl">
+    <label>Fog Density <b id="v-fog">0.5</b></label>
+    <input type="range" id="fog" min="0.0" max="2.0" step="0.05" value="0.5">
+  </div>
+  <div class="ctrl">
+    <label>Fly Speed <b id="v-speed">1.0</b>x</label>
+    <input type="range" id="speed" min="0.0" max="4.0" step="0.1" value="1.0">
+  </div>
+  <div class="ctrl">
+    <label>Sun Angle <b id="v-sun">45</b>°</label>
+    <input type="range" id="sun" min="5" max="85" step="1" value="45">
+  </div>
+
+  <div class="section-label">Biome</div>
+  <div class="themes" id="biomes">
+    <div class="theme-btn active" data-b="temperate">Temperate</div>
+    <div class="theme-btn" data-b="desert">Desert</div>
+    <div class="theme-btn" data-b="arctic">Arctic</div>
+    <div class="theme-btn" data-b="volcanic">Volcanic</div>
+    <div class="theme-btn" data-b="alien">Alien</div>
+    <div class="theme-btn" data-b="ocean">Deep Ocean</div>
+  </div>
+
+  <div class="btns">
+    <div class="btn" id="btnSeed">New Seed</div>
+    <div class="btn" id="btnPause">Pause Flight</div>
+    <div class="btn" id="btnWire">Wireframe</div>
+  </div>
+</div>
+</div>
+
+<button class="toggle-btn" id="toggleUI">Hide Controls</button>
+<div class="stats" id="stats"></div>
+
+<script>
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl2', { antialias: true, alpha: false });
+if (!gl) { document.body.innerHTML = '<p style="color:#fff;padding:40px">WebGL 2 required</p>'; throw 'no gl'; }
+
+// Params
+let heightScale = 1.0, octaves = 6, frequency = 1.0, lacunarity = 2.0;
+let waterLevel = 0.30, fogDensity = 0.5, flySpeed = 1.0, sunAngle = 45;
+let biome = 'temperate', paused = false, wireframe = false;
+let seed = Math.random() * 1000;
+
+// Biome palettes: [deep water, shallow water, beach, grass, forest, rock, snow, sky, fog]
+const BIOMES = {
+  temperate: { colors: [[0.08,0.15,0.35],[0.1,0.3,0.5],[0.76,0.7,0.5],[0.2,0.5,0.15],[0.1,0.35,0.08],[0.4,0.38,0.35],[0.9,0.92,0.95]], sky:[0.45,0.65,0.85], fog:[0.6,0.7,0.82] },
+  desert:    { colors: [[0.15,0.12,0.08],[0.3,0.25,0.15],[0.85,0.75,0.55],[0.75,0.65,0.4],[0.6,0.5,0.3],[0.5,0.42,0.3],[0.95,0.9,0.8]], sky:[0.85,0.75,0.55], fog:[0.8,0.7,0.5] },
+  arctic:    { colors: [[0.05,0.1,0.2],[0.15,0.25,0.4],[0.7,0.75,0.8],[0.8,0.83,0.87],[0.85,0.88,0.92],[0.6,0.62,0.65],[1.0,1.0,1.0]], sky:[0.6,0.65,0.75], fog:[0.75,0.8,0.88] },
+  volcanic:  { colors: [[0.05,0.02,0.0],[0.15,0.05,0.0],[0.2,0.12,0.05],[0.15,0.1,0.08],[0.1,0.08,0.05],[0.25,0.15,0.1],[1.0,0.4,0.1]], sky:[0.2,0.08,0.02], fog:[0.3,0.1,0.05] },
+  alien:     { colors: [[0.05,0.0,0.15],[0.1,0.0,0.3],[0.3,0.1,0.5],[0.1,0.5,0.4],[0.2,0.7,0.3],[0.4,0.3,0.5],[0.8,0.6,1.0]], sky:[0.15,0.05,0.25], fog:[0.2,0.1,0.3] },
+  ocean:     { colors: [[0.02,0.05,0.15],[0.05,0.12,0.3],[0.08,0.2,0.4],[0.1,0.3,0.5],[0.15,0.4,0.55],[0.3,0.35,0.4],[0.5,0.55,0.6]], sky:[0.3,0.4,0.55], fog:[0.2,0.3,0.45] },
+};
+
+// Grid
+const GRID = 200;
+const vertices = [];
+const indices = [];
+
+for (let z = 0; z <= GRID; z++) {
+  for (let x = 0; x <= GRID; x++) {
+    vertices.push(x / GRID - 0.5, 0, z / GRID - 0.5);
+  }
+}
+for (let z = 0; z < GRID; z++) {
+  for (let x = 0; x < GRID; x++) {
+    const i = z * (GRID + 1) + x;
+    indices.push(i, i + GRID + 1, i + 1);
+    indices.push(i + 1, i + GRID + 1, i + GRID + 2);
+  }
+}
+
+// Shaders
+const vsrc = `#version 300 es
+precision highp float;
+in vec3 a_pos;
+uniform mat4 u_mvp;
+uniform float u_time, u_seed, u_height, u_freq, u_lac, u_water;
+uniform int u_octaves;
+out vec3 v_pos;
+out float v_height;
+out vec3 v_normal;
+
+// Simplex-ish noise
+vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
+vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;}
+vec4 perm(vec4 x){return mod289(((x*34.0)+1.0)*x);}
+float noise(vec3 p){
+  vec3 a=floor(p),d=p-a;
+  d=d*d*(3.0-2.0*d);
+  vec4 b=a.xxyy+vec4(0,1,0,1);
+  vec4 k1=perm(b.xyxy);
+  vec4 k2=perm(k1.xyxy+b.zzww);
+  vec4 c=k2+a.zzzz;
+  vec4 k3=perm(c);
+  vec4 k4=perm(c+1.0);
+  vec4 o1=fract(k3*(1.0/41.0));
+  vec4 o2=fract(k4*(1.0/41.0));
+  vec4 o3=o2*d.z+o1*(1.0-d.z);
+  vec2 o4=o3.yw*d.x+o3.xz*(1.0-d.x);
+  return o4.y*d.y+o4.x*(1.0-d.y);
+}
+
+float fbm(vec3 p){
+  float v=0.0,a=0.5;
+  vec3 q=p;
+  for(int i=0;i<10;i++){
+    if(i>=u_octaves) break;
+    v+=a*noise(q);
+    q=q*u_lac+vec3(17.1,31.7,5.3);
+    a*=0.5;
+  }
+  return v;
+}
+
+float getHeight(vec2 p){
+  vec3 np=vec3(p*u_freq+u_seed, u_seed*0.7);
+  float h=fbm(np);
+  // Ridge noise for mountains
+  float ridge=1.0-abs(fbm(np*2.0+vec3(100.0))*2.0-1.0);
+  h=mix(h, ridge*0.5, 0.3);
+  return h*u_height;
+}
+
+void main(){
+  vec3 p=a_pos;
+  // Scroll terrain
+  p.z-=u_time*0.02;
+  float h=getHeight(p.xz*8.0);
+  // Water clamp
+  float worldH=max(h, u_water);
+  v_height=h;
+  p.y=worldH*1.5;
+
+  // Calculate normal via finite differences
+  float eps=0.005;
+  float hL=max(getHeight((p.xz+vec2(-eps,0))*8.0),u_water)*1.5;
+  float hR=max(getHeight((p.xz+vec2(eps,0))*8.0),u_water)*1.5;
+  float hD=max(getHeight((p.xz+vec2(0,-eps))*8.0),u_water)*1.5;
+  float hU=max(getHeight((p.xz+vec2(0,eps))*8.0),u_water)*1.5;
+  v_normal=normalize(vec3(hL-hR,2.0*eps*4.0,hD-hU));
+
+  v_pos=p;
+  gl_Position=u_mvp*vec4(p,1.0);
+}`;
+
+const fsrc = `#version 300 es
+precision highp float;
+in vec3 v_pos;
+in float v_height;
+in vec3 v_normal;
+uniform float u_water, u_fog, u_sunAngle;
+uniform vec3 u_sky, u_fogCol;
+uniform vec3 u_c0,u_c1,u_c2,u_c3,u_c4,u_c5,u_c6;
+out vec4 fragColor;
+
+void main(){
+  float h=v_height;
+  vec3 col;
+
+  // Height-based coloring
+  if(h<u_water-0.02){
+    col=mix(u_c0,u_c1,smoothstep(u_water-0.15,u_water-0.02,h));
+  } else if(h<u_water+0.01){
+    col=u_c2; // beach/shore
+  } else if(h<u_water+0.15){
+    col=mix(u_c2,u_c3,smoothstep(u_water+0.01,u_water+0.15,h));
+  } else if(h<u_water+0.35){
+    col=mix(u_c3,u_c4,smoothstep(u_water+0.15,u_water+0.35,h));
+  } else if(h<u_water+0.6){
+    col=mix(u_c4,u_c5,smoothstep(u_water+0.35,u_water+0.6,h));
+  } else {
+    col=mix(u_c5,u_c6,smoothstep(u_water+0.6,u_water+0.9,h));
+  }
+
+  // Water shading
+  if(h<=u_water){
+    float depth=u_water-h;
+    col=mix(col,u_c1,smoothstep(0.0,0.1,depth));
+    // Specular on water
+    vec3 sunDir=normalize(vec3(0.5,sin(radians(u_sunAngle)),0.3));
+    vec3 viewDir=normalize(vec3(0,1,0.5));
+    vec3 halfDir=normalize(sunDir+viewDir);
+    float spec=pow(max(dot(v_normal,halfDir),0.0),64.0);
+    col+=vec3(spec*0.4);
+  }
+
+  // Lighting
+  float sunElev=radians(u_sunAngle);
+  vec3 sunDir=normalize(vec3(0.4,sin(sunElev),0.3));
+  float ndl=max(dot(v_normal,sunDir),0.0);
+  float ambient=0.25;
+  col*=(ambient+ndl*0.75);
+
+  // Sun color tinting
+  vec3 sunColor=mix(vec3(1.0,0.5,0.2),vec3(1.0,1.0,0.9),sin(sunElev));
+  col*=sunColor;
+
+  // Distance fog
+  float dist=length(v_pos.xz)*2.0;
+  float fogFactor=1.0-exp(-dist*dist*u_fog*0.5);
+  col=mix(col,u_fogCol,fogFactor);
+
+  // Gamma
+  col=pow(col,vec3(0.95));
+  fragColor=vec4(col,1.0);
+}`;
+
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.error(gl.getShaderInfoLog(s)); throw 'shader'; }
+  return s;
+}
+
+const prog = gl.createProgram();
+gl.attachShader(prog, compile(gl.VERTEX_SHADER, vsrc));
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fsrc));
+gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw gl.getProgramInfoLog(prog);
+gl.useProgram(prog);
+
+// Attribs & Uniforms
+const aPos = gl.getAttribLocation(prog, 'a_pos');
+const uniforms = {};
+['u_mvp','u_time','u_seed','u_height','u_freq','u_lac','u_water','u_octaves',
+ 'u_fog','u_sunAngle','u_sky','u_fogCol',
+ 'u_c0','u_c1','u_c2','u_c3','u_c4','u_c5','u_c6'].forEach(n => {
+  uniforms[n] = gl.getUniformLocation(prog, n);
+});
+
+// Buffers
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+
+const vBuf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vBuf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(aPos);
+gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
+
+const iBuf = gl.createBuffer();
+gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuf);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(indices), gl.STATIC_DRAW);
+
+gl.bindVertexArray(null);
+
+const indexCount = indices.length;
+
+// Matrix math
+function perspective(fov, aspect, near, far) {
+  const f = 1 / Math.tan(fov / 2), nf = 1 / (near - far);
+  return new Float32Array([f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0]);
+}
+function lookAt(eye, target, up) {
+  const zx=eye[0]-target[0],zy=eye[1]-target[1],zz=eye[2]-target[2];
+  let l=1/Math.sqrt(zx*zx+zy*zy+zz*zz);
+  const z0=zx*l,z1=zy*l,z2=zz*l;
+  const xx=up[1]*z2-up[2]*z1,xy=up[2]*z0-up[0]*z2,xz=up[0]*z1-up[1]*z0;
+  l=1/Math.sqrt(xx*xx+xy*xy+xz*xz);
+  const x0=xx*l,x1=xy*l,x2=xz*l;
+  const y0=z1*x2-z2*x1,y1=z2*x0-z0*x2,y2=z0*x1-z1*x0;
+  return new Float32Array([x0,y0,z0,0,x1,y1,z1,0,x2,y2,z2,0,
+    -(x0*eye[0]+x1*eye[1]+x2*eye[2]),-(y0*eye[0]+y1*eye[1]+y2*eye[2]),-(z0*eye[0]+z1*eye[1]+z2*eye[2]),1]);
+}
+function mulMat4(a, b) {
+  const o = new Float32Array(16);
+  for (let i=0;i<4;i++) for(let j=0;j<4;j++){
+    let s=0; for(let k=0;k<4;k++) s+=a[i+k*4]*b[k+j*4]; o[i+j*4]=s;
+  }
+  return o;
+}
+
+// Resize
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio, 1.5);
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Camera orbit
+let camTheta = 0, camPhi = 0.5;
+let dragging = false, lastMX = 0, lastMY = 0;
+canvas.addEventListener('pointerdown', e => { dragging = true; lastMX = e.clientX; lastMY = e.clientY; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove', e => { if(!dragging) return; camTheta += (e.clientX - lastMX)*0.003; camPhi = Math.max(0.15,Math.min(1.2, camPhi + (e.clientY - lastMY)*0.003)); lastMX=e.clientX; lastMY=e.clientY; });
+canvas.addEventListener('pointerup', () => dragging = false);
+canvas.style.touchAction = 'none';
+
+// UI
+const sliders = [
+  {id:'height',lbl:'v-height',set:v=>heightScale=v,fmt:v=>v.toFixed(2)},
+  {id:'octaves',lbl:'v-octaves',set:v=>octaves=v,fmt:v=>v.toFixed(0)},
+  {id:'freq',lbl:'v-freq',set:v=>frequency=v,fmt:v=>v.toFixed(1)},
+  {id:'lac',lbl:'v-lac',set:v=>lacunarity=v,fmt:v=>v.toFixed(1)},
+  {id:'water',lbl:'v-water',set:v=>waterLevel=v,fmt:v=>v.toFixed(2)},
+  {id:'fog',lbl:'v-fog',set:v=>fogDensity=v,fmt:v=>v.toFixed(2)},
+  {id:'speed',lbl:'v-speed',set:v=>flySpeed=v,fmt:v=>v.toFixed(1)},
+  {id:'sun',lbl:'v-sun',set:v=>sunAngle=v,fmt:v=>v.toFixed(0)},
+];
+sliders.forEach(s => {
+  document.getElementById(s.id).addEventListener('input', function(){
+    const v=parseFloat(this.value); s.set(v);
+    document.getElementById(s.lbl).textContent=s.fmt(v);
+  });
+});
+
+document.querySelectorAll('.theme-btn').forEach(el => {
+  el.onclick = () => {
+    document.querySelectorAll('.theme-btn').forEach(e=>e.classList.remove('active'));
+    el.classList.add('active');
+    biome = el.dataset.b;
+  };
+});
+
+document.getElementById('btnSeed').onclick = () => { seed = Math.random() * 1000; };
+document.getElementById('btnPause').onclick = function(){ paused=!paused; this.textContent=paused?'Resume':'Pause Flight'; };
+document.getElementById('btnWire').onclick = function(){ wireframe=!wireframe; this.textContent=wireframe?'Solid':'Wireframe'; };
+
+const uiEl = document.getElementById('ui');
+document.getElementById('toggleUI').onclick = function(){
+  const v=uiEl.style.display!=='none';
+  uiEl.style.display=v?'none':'';
+  this.textContent=v?'Show Controls':'Hide Controls';
+};
+
+// Render
+let time = 0, lastT = 0, frameCount = 0, fpsT = 0;
+
+function render(now) {
+  requestAnimationFrame(render);
+  const dt = Math.min((now - lastT) / 1000, 0.05);
+  lastT = now;
+
+  if (!paused) time += dt * flySpeed;
+
+  const aspect = canvas.width / canvas.height;
+  const b = BIOMES[biome];
+
+  // Sky clear color
+  const skyMix = Math.sin(sunAngle * Math.PI / 180);
+  gl.clearColor(b.sky[0]*skyMix, b.sky[1]*skyMix, b.sky[2]*skyMix, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST);
+
+  // Camera
+  const camH = 0.6 + Math.sin(time * 0.15) * 0.15;
+  const camX = Math.sin(camTheta) * 0.3;
+  const camZ = -0.1 + Math.cos(camTheta) * 0.1;
+  const eye = [camX, camH * heightScale + 0.3, camZ - 0.3];
+  const target = [camX + Math.sin(camTheta + 0.1) * 0.3, camH * heightScale * 0.3, camZ + 0.4];
+
+  const proj = perspective(Math.PI / 3.5, aspect, 0.01, 10);
+  const view = lookAt(eye, target, [0, 1, 0]);
+  const mvp = mulMat4(proj, view);
+
+  gl.useProgram(prog);
+  gl.uniformMatrix4fv(uniforms.u_mvp, false, mvp);
+  gl.uniform1f(uniforms.u_time, time);
+  gl.uniform1f(uniforms.u_seed, seed);
+  gl.uniform1f(uniforms.u_height, heightScale);
+  gl.uniform1f(uniforms.u_freq, frequency);
+  gl.uniform1f(uniforms.u_lac, lacunarity);
+  gl.uniform1f(uniforms.u_water, waterLevel);
+  gl.uniform1i(uniforms.u_octaves, octaves);
+  gl.uniform1f(uniforms.u_fog, fogDensity);
+  gl.uniform1f(uniforms.u_sunAngle, sunAngle);
+  gl.uniform3fv(uniforms.u_sky, b.sky);
+  gl.uniform3fv(uniforms.u_fogCol, b.fog);
+
+  for (let i = 0; i < 7; i++) {
+    gl.uniform3fv(uniforms[`u_c${i}`], b.colors[i]);
+  }
+
+  gl.bindVertexArray(vao);
+  if (wireframe) {
+    // Draw as lines
+    for (let i = 0; i < indexCount; i += 3) {
+      gl.drawElements(gl.LINE_LOOP, 3, gl.UNSIGNED_INT, i * 4);
+    }
+  } else {
+    gl.drawElements(gl.TRIANGLES, indexCount, gl.UNSIGNED_INT, 0);
+  }
+  gl.bindVertexArray(null);
+
+  frameCount++;
+  if (now - fpsT > 500) {
+    const fps = frameCount / ((now - fpsT) / 1000);
+    document.getElementById('stats').textContent =
+      `${GRID}x${GRID} grid · ${(indexCount/3).toLocaleString()} triangles · ${fps.toFixed(0)} fps · seed: ${seed.toFixed(1)}`;
+    frameCount = 0;
+    fpsT = now;
+  }
+}
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
