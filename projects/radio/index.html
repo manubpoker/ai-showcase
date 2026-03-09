@@ -202,32 +202,40 @@ const COUNTRIES = {
   IL:{lat:31.0,lon:34.9,name:'Israel'},SG:{lat:1.4,lon:103.8,name:'Singapore'},
 };
 
+// Filter to HTTPS streams only (avoids CORS & mixed-content issues)
+function filterSecure(stations) {
+  return stations.filter(s => {
+    const url = s.url_resolved || s.url || '';
+    return url.startsWith('https://');
+  });
+}
+
 // Fetch top stations by country
 async function fetchStationsByCountry(cc) {
-  const url = `${API_BASE}/stations/bycountrycodeexact/${cc}?limit=100&order=clickcount&reverse=true&hidebroken=true`;
+  const url = `${API_BASE}/stations/bycountrycodeexact/${cc}?limit=200&order=clickcount&reverse=true&hidebroken=true`;
   const res = await fetch(url);
-  return res.json();
+  return filterSecure(await res.json()).slice(0, 100);
 }
 
 // Fetch by search
 async function searchStations(query) {
-  const url = `${API_BASE}/stations/byname/${encodeURIComponent(query)}?limit=80&order=clickcount&reverse=true&hidebroken=true`;
+  const url = `${API_BASE}/stations/byname/${encodeURIComponent(query)}?limit=150&order=clickcount&reverse=true&hidebroken=true`;
   const res = await fetch(url);
-  return res.json();
+  return filterSecure(await res.json()).slice(0, 80);
 }
 
 // Fetch by tag
 async function fetchByTag(tag) {
-  const url = `${API_BASE}/stations/bytag/${encodeURIComponent(tag)}?limit=100&order=clickcount&reverse=true&hidebroken=true`;
+  const url = `${API_BASE}/stations/bytag/${encodeURIComponent(tag)}?limit=200&order=clickcount&reverse=true&hidebroken=true`;
   const res = await fetch(url);
-  return res.json();
+  return filterSecure(await res.json()).slice(0, 100);
 }
 
 // Fetch top stations globally (initial load)
 async function fetchTopStations() {
-  const url = `${API_BASE}/stations/topclick/200?hidebroken=true`;
+  const url = `${API_BASE}/stations/topclick/400?hidebroken=true`;
   const res = await fetch(url);
-  return res.json();
+  return filterSecure(await res.json()).slice(0, 200);
 }
 
 // Station count
@@ -340,6 +348,9 @@ function escHtml(s) {
 }
 
 // Play station
+let skipCount = 0;
+const MAX_SKIPS = 5;
+
 function playStation(station, idx) {
   if (currentStation && currentStation.stationuuid === station.stationuuid && isPlaying) {
     pauseAudio();
@@ -349,22 +360,43 @@ function playStation(station, idx) {
   currentStation = station;
   currentIdx = idx;
 
+  const streamUrl = station.url_resolved || station.url;
+
+  // Block insecure streams on HTTPS page
+  if (streamUrl && streamUrl.startsWith('http://')) {
+    console.warn('Skipping insecure stream:', station.name);
+    skipToNext(idx);
+    return;
+  }
+
   // Record click (helps RadioBrowser ranking)
   fetch(`${API_BASE}/url/${station.stationuuid}`).catch(()=>{});
 
-  audio.src = station.url_resolved || station.url;
+  audio.src = streamUrl;
   audio.play().then(() => {
     isPlaying = true;
+    skipCount = 0;
     updateNowPlaying();
     renderStationList(displayedStations);
   }).catch(e => {
-    console.warn('Playback failed:', e);
-    // Try next station
-    if (displayedStations.length > 1) {
-      const nextIdx = (idx + 1) % displayedStations.length;
-      setTimeout(() => playStation(displayedStations[nextIdx], nextIdx), 500);
-    }
+    console.warn('Playback failed:', station.name, e.message);
+    skipToNext(idx);
   });
+}
+
+function skipToNext(idx) {
+  skipCount++;
+  if (skipCount >= MAX_SKIPS) {
+    skipCount = 0;
+    console.warn('Too many failed stations, stopping auto-skip');
+    isPlaying = false;
+    updateNowPlaying();
+    return;
+  }
+  if (displayedStations.length > 1) {
+    const nextIdx = (idx + 1) % displayedStations.length;
+    setTimeout(() => playStation(displayedStations[nextIdx], nextIdx), 300);
+  }
 }
 
 function pauseAudio() {
@@ -422,10 +454,7 @@ audio.addEventListener('ended', () => {
 });
 
 audio.addEventListener('error', () => {
-  if (displayedStations.length > 1) {
-    const idx = (currentIdx + 1) % displayedStations.length;
-    setTimeout(() => playStation(displayedStations[idx], idx), 1000);
-  }
+  skipToNext(currentIdx);
 });
 
 // Search
