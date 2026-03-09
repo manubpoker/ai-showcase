@@ -137,6 +137,13 @@
     "path": "projects/radio/"
   },
   {
+    "id": "fractal",
+    "title": "Fractal Explorer",
+    "description": "GPU-accelerated fractal renderer with Mandelbrot, Julia, Burning Ship, Tricorn, and Multibrot sets. Infinite zoom, 6 palettes, smooth coloring.",
+    "tags": ["WebGL", "GLSL", "Math", "Generative Art"],
+    "path": "projects/fractal/"
+  },
+  {
     "id": "books",
     "title": "Open Library Explorer",
     "description": "Search millions of books with cover art, author info, ratings, and descriptions. Browse 14 subjects with detail modals via Open Library API.",
