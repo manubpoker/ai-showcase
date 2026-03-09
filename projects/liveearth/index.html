@@ -931,12 +931,12 @@ html, body {
         if (!pt) return;
         if (pt._layer === 'radio') {
           if (currentStation === pt.name) {
-            if (radioAudio.paused) radioAudio.play();
+            if (radioAudio.paused) radioAudio.play().catch(e => console.warn('Audio blocked:', e));
             else radioAudio.pause();
           } else {
             if (radioAudio) radioAudio.pause();
             radioAudio = new Audio(pt.url);
-            radioAudio.play();
+            radioAudio.play().catch(e => console.warn('Audio blocked:', e));
             currentStation = pt.name;
           }
         }
@@ -1559,8 +1559,6 @@ html, body {
         if (radioAudio) radioAudio.pause();
         radioAudio = null;
         currentStation = null;
-        const layer = LAYERS.find(l => l.id === 'radio');
-        layer.data = null;
         updateCombinedPoints();
         hideHover();
       },
@@ -1620,7 +1618,19 @@ html, body {
 
         layer.interval = setInterval(async () => {
           try {
-            layer.data = await fetchWeather();
+            const newData = await fetchWeather();
+            // Transfer cached DOM elements to new data objects to avoid leaking
+            if (layer.data) {
+              newData.forEach((d, i) => {
+                if (layer.data[i] && layer.data[i].__weatherEl) {
+                  const el = layer.data[i].__weatherEl;
+                  const tempColor = d.temp != null ? d3.interpolateRdYlBu(1 - (d.temp + 20) / 65) : '#94a3b8';
+                  el.innerHTML = `<div style="width:8px;height:8px;border-radius:50%;background:${tempColor};margin:0 auto 1px;box-shadow:0 0 4px ${tempColor}"></div><span style="font-size:9px">${d.temp != null ? Math.round(d.temp) + '\u00B0' : '?'}</span>`;
+                  d.__weatherEl = el;
+                }
+              });
+            }
+            layer.data = newData;
             updateCombinedHtml();
           } catch (e) { console.warn('Weather refresh failed:', e); }
         }, layer.refreshMs);
