@@ -123,6 +123,13 @@
     "path": "projects/tides/"
   },
   {
+    "id": "airquality",
+    "title": "Air Quality Live",
+    "description": "Global air quality dashboard monitoring 40 cities with US AQI, PM2.5, ozone, NO₂ levels, hourly forecasts, and interactive map via Open-Meteo.",
+    "tags": ["Open-Meteo API", "Leaflet", "Canvas", "Live Data"],
+    "path": "projects/airquality/"
+  },
+  {
     "id": "reaction",
     "title": "Reaction-Diffusion",
     "description": "GPU-accelerated Gray-Scott reaction-diffusion simulator with 9 organic pattern presets, 8 color maps, and interactive painting via WebGL 2 shaders.",

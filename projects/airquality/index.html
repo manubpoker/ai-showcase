@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Air Quality Live</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0c0f1a;--card:#131829;--border:#1e2640;--text:#e2e8f0;--muted:#64748b;--good:#22c55e;--moderate:#eab308;--unhealthy:#f97316;--bad:#ef4444;--vbad:#7c3aed;--hazardous:#be185d}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:rgba(19,24,41,0.92);backdrop-filter:blur(12px);position:sticky;top:0;z-index:200}
+.header h1{font-size:1.1rem;font-weight:700}
+.header h1 span{background:linear-gradient(135deg,#22c55e,#3b82f6,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header .sub{font-size:0.65rem;color:var(--muted);margin-top:1px}
+.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#22c55e;margin-right:5px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.update-time{font-size:0.68rem;color:var(--muted)}
+
+.layout{display:grid;grid-template-columns:1fr 360px;grid-template-rows:auto 1fr;min-height:calc(100vh - 53px)}
+
+/* Map */
+.map-wrap{grid-row:1/3;position:relative}
+#map{width:100%;height:100%;min-height:calc(100vh - 53px)}
+.map-legend{position:absolute;bottom:20px;left:12px;z-index:500;background:rgba(19,24,41,0.92);border:1px solid var(--border);border-radius:10px;padding:10px 14px;backdrop-filter:blur(10px)}
+.map-legend h3{font-size:0.65rem;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em}
+.legend-row{display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:0.65rem}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* Sidebar */
+.sidebar{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--card)}
+.search-box{padding:10px 14px;border-bottom:1px solid var(--border)}
+.search-box input{width:100%;padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.04);color:var(--text);font-size:0.78rem;outline:none}
+.search-box input:focus{border-color:#3b82f6}
+.search-box input::placeholder{color:#475569}
+
+/* City detail card */
+.city-detail{padding:16px;border-bottom:1px solid var(--border)}
+.city-detail.hidden{display:none}
+.city-name{font-size:1rem;font-weight:700;margin-bottom:2px}
+.city-coords{font-size:0.65rem;color:var(--muted);margin-bottom:12px}
+.aqi-hero{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+.aqi-circle{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;border:3px solid}
+.aqi-circle .num{font-size:1.6rem;font-weight:800;line-height:1}
+.aqi-circle .lbl{font-size:0.5rem;text-transform:uppercase;letter-spacing:0.04em;margin-top:2px}
+.aqi-desc{flex:1}
+.aqi-desc .level{font-size:0.85rem;font-weight:600;margin-bottom:2px}
+.aqi-desc .advice{font-size:0.68rem;color:var(--muted);line-height:1.4}
+
+.pollutants{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.poll-card{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+.poll-name{font-size:0.6rem;color:var(--muted);margin-bottom:2px}
+.poll-val{font-size:0.95rem;font-weight:700}
+.poll-unit{font-size:0.6rem;color:var(--muted)}
+.poll-bar{height:3px;border-radius:2px;background:rgba(255,255,255,0.06);margin-top:4px;overflow:hidden}
+.poll-bar-fill{height:100%;border-radius:2px;transition:width 0.5s}
+
+/* Hourly chart */
+.chart-section{padding:12px 16px;border-bottom:1px solid var(--border)}
+.chart-section h3{font-size:0.75rem;font-weight:600;margin-bottom:8px}
+.chart-wrap{height:120px;position:relative}
+canvas.mini-chart{width:100%;height:100%}
+
+/* City list */
+.city-list{flex:1;overflow-y:auto}
+.city-item{padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.2s;display:flex;align-items:center;justify-content:space-between}
+.city-item:hover{background:rgba(59,130,246,0.06)}
+.city-item.active{background:rgba(59,130,246,0.1);border-left:3px solid #3b82f6}
+.city-item-name{font-size:0.78rem;font-weight:500}
+.city-item-country{font-size:0.62rem;color:var(--muted)}
+.city-item-aqi{font-size:0.85rem;font-weight:700;padding:2px 10px;border-radius:12px;min-width:36px;text-align:center}
+
+@media(max-width:800px){
+  .layout{grid-template-columns:1fr;grid-template-rows:300px auto}
+  .map-wrap{grid-row:auto}
+  #map{min-height:300px}
+  .sidebar{max-height:calc(100vh - 353px)}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1><span class="live-dot"></span><span>Air Quality Live</span></h1>
+    <div class="sub">Global air quality monitoring · Open-Meteo API</div>
+  </div>
+  <div class="update-time" id="updateTime">Loading...</div>
+</div>
+
+<div class="layout">
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="map-legend">
+      <h3>US AQI Scale</h3>
+      <div class="legend-row"><div class="legend-dot" style="background:#22c55e"></div> 0–50 Good</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#eab308"></div> 51–100 Moderate</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#f97316"></div> 101–150 Unhealthy (Sensitive)</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#ef4444"></div> 151–200 Unhealthy</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#7c3aed"></div> 201–300 Very Unhealthy</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#be185d"></div> 300+ Hazardous</div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Search cities worldwide...">
+    </div>
+    <div class="city-detail hidden" id="cityDetail">
+      <div class="city-name" id="detailName">—</div>
+      <div class="city-coords" id="detailCoords">—</div>
+      <div class="aqi-hero">
+        <div class="aqi-circle" id="aqiCircle">
+          <div class="num" id="aqiNum">—</div>
+          <div class="lbl">AQI</div>
+        </div>
+        <div class="aqi-desc">
+          <div class="level" id="aqiLevel">—</div>
+          <div class="advice" id="aqiAdvice">—</div>
+        </div>
+      </div>
+      <div class="pollutants" id="pollutants"></div>
+      <div class="chart-section">
+        <h3>24h AQI Forecast</h3>
+        <div class="chart-wrap"><canvas class="mini-chart" id="aqiChart"></canvas></div>
+      </div>
+    </div>
+    <div class="city-list" id="cityList">
+      <div style="padding:30px;text-align:center;color:#475569;font-size:0.8rem">Loading cities...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Cities to monitor
+const CITIES = [
+  { name: 'New York', country: 'US', lat: 40.7128, lon: -74.0060 },
+  { name: 'Los Angeles', country: 'US', lat: 34.0522, lon: -118.2437 },
+  { name: 'London', country: 'UK', lat: 51.5074, lon: -0.1278 },
+  { name: 'Paris', country: 'FR', lat: 48.8566, lon: 2.3522 },
+  { name: 'Beijing', country: 'CN', lat: 39.9042, lon: 116.4074 },
+  { name: 'Tokyo', country: 'JP', lat: 35.6762, lon: 139.6503 },
+  { name: 'Delhi', country: 'IN', lat: 28.7041, lon: 77.1025 },
+  { name: 'Mumbai', country: 'IN', lat: 19.0760, lon: 72.8777 },
+  { name: 'São Paulo', country: 'BR', lat: -23.5505, lon: -46.6333 },
+  { name: 'Cairo', country: 'EG', lat: 30.0444, lon: 31.2357 },
+  { name: 'Lagos', country: 'NG', lat: 6.5244, lon: 3.3792 },
+  { name: 'Shanghai', country: 'CN', lat: 31.2304, lon: 121.4737 },
+  { name: 'Mexico City', country: 'MX', lat: 19.4326, lon: -99.1332 },
+  { name: 'Berlin', country: 'DE', lat: 52.5200, lon: 13.4050 },
+  { name: 'Sydney', country: 'AU', lat: -33.8688, lon: 151.2093 },
+  { name: 'Dubai', country: 'AE', lat: 25.2048, lon: 55.2708 },
+  { name: 'Singapore', country: 'SG', lat: 1.3521, lon: 103.8198 },
+  { name: 'Seoul', country: 'KR', lat: 37.5665, lon: 126.9780 },
+  { name: 'Moscow', country: 'RU', lat: 55.7558, lon: 37.6173 },
+  { name: 'Istanbul', country: 'TR', lat: 41.0082, lon: 28.9784 },
+  { name: 'Bangkok', country: 'TH', lat: 13.7563, lon: 100.5018 },
+  { name: 'Jakarta', country: 'ID', lat: -6.2088, lon: 106.8456 },
+  { name: 'Buenos Aires', country: 'AR', lat: -34.6037, lon: -58.3816 },
+  { name: 'Nairobi', country: 'KE', lat: -1.2921, lon: 36.8219 },
+  { name: 'Rome', country: 'IT', lat: 41.9028, lon: 12.4964 },
+  { name: 'Toronto', country: 'CA', lat: 43.6532, lon: -79.3832 },
+  { name: 'San Francisco', country: 'US', lat: 37.7749, lon: -122.4194 },
+  { name: 'Chicago', country: 'US', lat: 41.8781, lon: -87.6298 },
+  { name: 'Dhaka', country: 'BD', lat: 23.8103, lon: 90.4125 },
+  { name: 'Karachi', country: 'PK', lat: 24.8607, lon: 67.0011 },
+  { name: 'Lima', country: 'PE', lat: -12.0464, lon: -77.0428 },
+  { name: 'Madrid', country: 'ES', lat: 40.4168, lon: -3.7038 },
+  { name: 'Johannesburg', country: 'ZA', lat: -26.2041, lon: 28.0473 },
+  { name: 'Ho Chi Minh', country: 'VN', lat: 10.8231, lon: 106.6297 },
+  { name: 'Taipei', country: 'TW', lat: 25.0330, lon: 121.5654 },
+  { name: 'Bogotá', country: 'CO', lat: 4.7110, lon: -74.0721 },
+  { name: 'Kathmandu', country: 'NP', lat: 27.7172, lon: 85.3240 },
+  { name: 'Lahore', country: 'PK', lat: 31.5204, lon: 74.3587 },
+  { name: 'Warsaw', country: 'PL', lat: 52.2297, lon: 21.0122 },
+  { name: 'Amsterdam', country: 'NL', lat: 52.3676, lon: 4.9041 },
+];
+
+// AQI scales
+function aqiColor(aqi) {
+  if (aqi <= 50) return '#22c55e';
+  if (aqi <= 100) return '#eab308';
+  if (aqi <= 150) return '#f97316';
+  if (aqi <= 200) return '#ef4444';
+  if (aqi <= 300) return '#7c3aed';
+  return '#be185d';
+}
+
+function aqiLevel(aqi) {
+  if (aqi <= 50) return { level: 'Good', advice: 'Air quality is satisfactory. Enjoy outdoor activities.' };
+  if (aqi <= 100) return { level: 'Moderate', advice: 'Acceptable quality. Unusually sensitive people should limit prolonged outdoor exertion.' };
+  if (aqi <= 150) return { level: 'Unhealthy for Sensitive Groups', advice: 'Sensitive groups should reduce prolonged outdoor exertion.' };
+  if (aqi <= 200) return { level: 'Unhealthy', advice: 'Everyone may experience health effects. Sensitive groups more seriously affected.' };
+  if (aqi <= 300) return { level: 'Very Unhealthy', advice: 'Health alert: everyone may experience more serious health effects.' };
+  return { level: 'Hazardous', advice: 'Health emergency. Everyone is likely to be affected.' };
+}
+
+function aqiBgAlpha(aqi) {
+  const c = aqiColor(aqi);
+  return c + '22';
+}
+
+// Map
+const map = L.map('map', { zoomControl: false }).setView([20, 10], 2);
+L.control.zoom({ position: 'topright' }).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; CARTO', maxZoom: 18
+}).addTo(map);
+
+let markers = {};
+let cityData = {};
+let activeCity = null;
+let searchResults = null;
+
+// Fetch air quality for a city
+async function fetchAQ(city) {
+  const params = new URLSearchParams({
+    latitude: city.lat,
+    longitude: city.lon,
+    current: 'us_aqi,pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone',
+    hourly: 'us_aqi,pm2_5,pm10,ozone,nitrogen_dioxide',
+    timezone: 'auto',
+    forecast_days: 1
+  });
+  const res = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${params}`);
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json();
+}
+
+// Load all cities
+async function loadAll() {
+  // Batch in groups of 8 for politeness
+  const batches = [];
+  for (let i = 0; i < CITIES.length; i += 8) batches.push(CITIES.slice(i, i + 8));
+
+  for (const batch of batches) {
+    const results = await Promise.allSettled(batch.map(c => fetchAQ(c)));
+    results.forEach((r, i) => {
+      const city = batch[i];
+      const key = city.name;
+      if (r.status === 'fulfilled' && r.value.current) {
+        cityData[key] = { city, data: r.value };
+        updateMarker(city, r.value.current.us_aqi);
+      }
+    });
+    renderCityList();
+  }
+
+  document.getElementById('updateTime').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+
+  // Select worst city by default if none selected
+  if (!activeCity) {
+    const worst = Object.values(cityData).sort((a, b) => (b.data.current.us_aqi || 0) - (a.data.current.us_aqi || 0))[0];
+    if (worst) selectCity(worst.city.name);
+  }
+}
+
+function updateMarker(city, aqi) {
+  if (aqi == null) return;
+  const color = aqiColor(aqi);
+  const size = Math.max(20, Math.min(36, 16 + aqi / 10));
+
+  if (markers[city.name]) {
+    map.removeLayer(markers[city.name]);
+  }
+
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:${size}px;height:${size}px;border-radius:50%;
+      background:${color}33;border:2px solid ${color};
+      display:flex;align-items:center;justify-content:center;
+      font-size:${size < 26 ? 8 : 10}px;font-weight:700;color:${color};
+      font-family:Inter,system-ui;box-shadow:0 0 12px ${color}44;
+      cursor:pointer;
+    ">${aqi}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2]
+  });
+
+  const m = L.marker([city.lat, city.lon], { icon })
+    .addTo(map)
+    .bindTooltip(`${city.name}: AQI ${aqi}`, { direction: 'top', offset: [0, -size/2] });
+  m.on('click', () => selectCity(city.name));
+  markers[city.name] = m;
+}
+
+// Render city list
+function renderCityList() {
+  const list = document.getElementById('cityList');
+  const filter = document.getElementById('searchInput').value.toLowerCase();
+
+  let entries = Object.values(cityData);
+  if (filter) {
+    entries = entries.filter(e =>
+      e.city.name.toLowerCase().includes(filter) ||
+      e.city.country.toLowerCase().includes(filter)
+    );
+  }
+  entries.sort((a, b) => (b.data.current.us_aqi || 0) - (a.data.current.us_aqi || 0));
+
+  list.innerHTML = entries.map(e => {
+    const aqi = e.data.current.us_aqi || 0;
+    const color = aqiColor(aqi);
+    const isActive = activeCity === e.city.name;
+    return `<div class="city-item${isActive ? ' active' : ''}" data-name="${e.city.name}">
+      <div>
+        <div class="city-item-name">${e.city.name}</div>
+        <div class="city-item-country">${e.city.country}</div>
+      </div>
+      <div class="city-item-aqi" style="background:${color}22;color:${color}">${aqi}</div>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('.city-item').forEach(el => {
+    el.onclick = () => selectCity(el.dataset.name);
+  });
+}
+
+document.getElementById('searchInput').addEventListener('input', renderCityList);
+
+// Select city
+function selectCity(name) {
+  activeCity = name;
+  const entry = cityData[name];
+  if (!entry) return;
+
+  const { city, data } = entry;
+  const cur = data.current;
+  const aqi = cur.us_aqi || 0;
+  const color = aqiColor(aqi);
+  const info = aqiLevel(aqi);
+
+  const detail = document.getElementById('cityDetail');
+  detail.classList.remove('hidden');
+  document.getElementById('detailName').textContent = `${city.name}, ${city.country}`;
+  document.getElementById('detailCoords').textContent = `${Math.abs(city.lat).toFixed(2)}°${city.lat>=0?'N':'S'}, ${Math.abs(city.lon).toFixed(2)}°${city.lon>=0?'E':'W'}`;
+
+  const circle = document.getElementById('aqiCircle');
+  circle.style.borderColor = color;
+  circle.style.background = color + '18';
+  document.getElementById('aqiNum').textContent = aqi;
+  document.getElementById('aqiNum').style.color = color;
+  document.getElementById('aqiLevel').textContent = info.level;
+  document.getElementById('aqiLevel').style.color = color;
+  document.getElementById('aqiAdvice').textContent = info.advice;
+
+  // Pollutant cards
+  const pollutants = [
+    { key: 'pm2_5', name: 'PM2.5', unit: 'μg/m³', max: 150 },
+    { key: 'pm10', name: 'PM10', unit: 'μg/m³', max: 300 },
+    { key: 'ozone', name: 'Ozone (O₃)', unit: 'μg/m³', max: 200 },
+    { key: 'nitrogen_dioxide', name: 'NO₂', unit: 'μg/m³', max: 200 },
+    { key: 'sulphur_dioxide', name: 'SO₂', unit: 'μg/m³', max: 350 },
+    { key: 'carbon_monoxide', name: 'CO', unit: 'μg/m³', max: 15000 },
+  ];
+
+  document.getElementById('pollutants').innerHTML = pollutants.map(p => {
+    const val = cur[p.key];
+    if (val == null) return '';
+    const pct = Math.min(100, (val / p.max) * 100);
+    const barColor = pct < 33 ? '#22c55e' : pct < 66 ? '#eab308' : '#ef4444';
+    return `<div class="poll-card">
+      <div class="poll-name">${p.name}</div>
+      <div class="poll-val">${val.toFixed(1)}<span class="poll-unit"> ${p.unit}</span></div>
+      <div class="poll-bar"><div class="poll-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+    </div>`;
+  }).join('');
+
+  // Hourly chart
+  drawHourlyChart(data);
+
+  // Fly map
+  map.flyTo([city.lat, city.lon], 6, { duration: 1 });
+  renderCityList();
+}
+
+// Draw hourly AQI chart
+function drawHourlyChart(data) {
+  const canvas = document.getElementById('aqiChart');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  const pad = { top: 10, right: 10, bottom: 22, left: 35 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (!data.hourly || !data.hourly.us_aqi) return;
+
+  const hours = data.hourly.time;
+  const values = data.hourly.us_aqi;
+  const len = Math.min(hours.length, 24);
+
+  const maxVal = Math.max(80, ...values.slice(0, len).filter(v => v != null)) * 1.15;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.fillStyle = '#475569';
+  ctx.font = '9px Inter, system-ui';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (ch / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    ctx.fillText(Math.round(maxVal - (i / 4) * maxVal), pad.left - 5, y + 3);
+  }
+
+  // Time labels
+  ctx.textAlign = 'center';
+  for (let i = 0; i < len; i += 4) {
+    const x = pad.left + (i / (len - 1)) * cw;
+    const t = new Date(hours[i]);
+    ctx.fillText(t.getHours().toString().padStart(2, '0') + ':00', x, H - 4);
+  }
+
+  // Gradient fill
+  const gradient = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
+  gradient.addColorStop(0, 'rgba(59,130,246,0.25)');
+  gradient.addColorStop(1, 'rgba(59,130,246,0.02)');
+
+  ctx.beginPath();
+  ctx.moveTo(pad.left, H - pad.bottom);
+  for (let i = 0; i < len; i++) {
+    const x = pad.left + (i / (len - 1)) * cw;
+    const v = values[i] || 0;
+    const y = pad.top + ch - (v / maxVal) * ch;
+    if (i === 0) ctx.lineTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.lineTo(pad.left + cw, H - pad.bottom);
+  ctx.closePath();
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  // Line with color segments
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  for (let i = 1; i < len; i++) {
+    const x0 = pad.left + ((i-1) / (len - 1)) * cw;
+    const x1 = pad.left + (i / (len - 1)) * cw;
+    const v0 = values[i-1] || 0, v1 = values[i] || 0;
+    const y0 = pad.top + ch - (v0 / maxVal) * ch;
+    const y1 = pad.top + ch - (v1 / maxVal) * ch;
+    ctx.strokeStyle = aqiColor(Math.max(v0, v1));
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+  }
+
+  // Dots at each hour
+  for (let i = 0; i < len; i++) {
+    const x = pad.left + (i / (len - 1)) * cw;
+    const v = values[i] || 0;
+    const y = pad.top + ch - (v / maxVal) * ch;
+    ctx.fillStyle = aqiColor(v);
+    ctx.beginPath();
+    ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // "Now" line
+  const nowHour = new Date().getHours();
+  const nowIdx = hours.findIndex(h => new Date(h).getHours() === nowHour);
+  if (nowIdx >= 0 && nowIdx < len) {
+    const nx = pad.left + (nowIdx / (len - 1)) * cw;
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(nx, pad.top); ctx.lineTo(nx, H - pad.bottom); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '8px Inter, system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Now', nx, pad.top - 2);
+  }
+}
+
+// Search for custom cities via Open-Meteo geocoding
+let searchTimeout;
+document.getElementById('searchInput').addEventListener('input', e => {
+  clearTimeout(searchTimeout);
+  const q = e.target.value.trim();
+  if (q.length < 2) { renderCityList(); return; }
+
+  // First filter existing cities
+  renderCityList();
+
+  // Then search for new ones
+  searchTimeout = setTimeout(async () => {
+    try {
+      const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=en`);
+      const data = await res.json();
+      if (data.results) {
+        for (const r of data.results) {
+          const name = r.name;
+          if (!cityData[name]) {
+            const city = { name, country: r.country_code || '', lat: r.latitude, lon: r.longitude };
+            try {
+              const aq = await fetchAQ(city);
+              if (aq.current) {
+                cityData[name] = { city, data: aq };
+                updateMarker(city, aq.current.us_aqi);
+              }
+            } catch(e) {}
+          }
+        }
+        renderCityList();
+      }
+    } catch(e) {}
+  }, 600);
+});
+
+// Init
+loadAll();
+
+// Auto-refresh every 10 minutes
+setInterval(loadAll, 600000);
+
+// Resize chart
+window.addEventListener('resize', () => {
+  if (activeCity && cityData[activeCity]) {
+    drawHourlyChart(cityData[activeCity].data);
+  }
+});
+</script>
+</body>
+</html>
