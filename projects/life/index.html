@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Life Engine — GPU Cellular Automata</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#050508;--card:rgba(10,12,18,.88);--border:rgba(255,255,255,.08);--text:#e2e8f0;--dim:#5a7494;--accent:#10b981;--accent2:#34d399}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100vh}
+canvas{display:block;position:absolute;top:0;left:0;image-rendering:pixelated}
+
+.ui{position:fixed;z-index:10}
+
+.title{top:14px;left:14px;background:var(--card);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:12px 16px}
+.title h1{font-size:1rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.title .sub{font-size:.65rem;color:var(--dim);margin-top:3px}
+
+.panel{top:90px;left:14px;background:var(--card);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:12px 16px;width:210px}
+.panel h3{font-size:.68rem;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-top:10px}
+.panel h3:first-child{margin-top:0}
+
+.s-row{margin-bottom:6px}
+.s-row label{display:flex;justify-content:space-between;font-size:.68rem;margin-bottom:2px}
+.s-row label span{color:var(--accent);font-weight:600}
+input[type=range]{width:100%;height:3px;-webkit-appearance:none;background:rgba(255,255,255,.1);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:var(--accent);border-radius:50%;cursor:pointer}
+
+select.sel{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:.7rem;font-family:inherit;outline:none;margin-bottom:6px}
+
+.btn-row{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px}
+.btn{background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--dim);padding:5px 10px;border-radius:7px;font-size:.65rem;cursor:pointer;transition:all .2s;font-family:inherit}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.active{background:rgba(16,185,129,.15);border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#000;font-weight:600}
+.btn.primary:hover{background:var(--accent2)}
+
+.patterns{top:14px;right:14px;background:var(--card);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:12px 16px;width:170px;max-height:80vh;overflow-y:auto}
+.patterns h3{font-size:.68rem;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.pat-list{display:flex;flex-direction:column;gap:4px}
+.pat-btn{background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--dim);padding:5px 10px;border-radius:6px;font-size:.65rem;cursor:pointer;text-align:left;font-family:inherit;transition:all .15s}
+.pat-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+.info{bottom:14px;left:14px;background:var(--card);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:8px 14px;font-size:.68rem}
+.info-row{display:flex;gap:16px}
+.info-row .lbl{color:var(--dim)}
+.info-row .val{font-weight:600;font-variant-numeric:tabular-nums}
+
+.hint{bottom:14px;right:14px;background:var(--card);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:8px 14px;font-size:.62rem;color:var(--dim);line-height:1.5}
+.hint b{color:var(--text)}
+
+@media(max-width:700px){.panel,.patterns,.hint{display:none}}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="ui title">
+  <h1><span style="font-size:1.2rem">🧬</span> Life Engine</h1>
+  <div class="sub">GPU Cellular Automata Simulator</div>
+</div>
+
+<div class="ui panel">
+  <h3>Rules</h3>
+  <select class="sel" id="ruleSel">
+    <option value="life">Conway's Life (B3/S23)</option>
+    <option value="highlife">HighLife (B36/S23)</option>
+    <option value="daynight">Day & Night (B3678/S34678)</option>
+    <option value="seeds">Seeds (B2/S)</option>
+    <option value="diamoeba">Diamoeba (B35678/S5678)</option>
+    <option value="replicator">Replicator (B1357/S1357)</option>
+    <option value="maze">Maze (B3/S12345)</option>
+    <option value="anneal">Anneal (B4678/S35678)</option>
+  </select>
+
+  <h3>Color</h3>
+  <select class="sel" id="colorSel">
+    <option value="emerald">Emerald</option>
+    <option value="fire">Fire</option>
+    <option value="ocean">Ocean</option>
+    <option value="plasma">Plasma</option>
+    <option value="mono">Mono</option>
+    <option value="neon">Neon</option>
+  </select>
+
+  <h3>Speed</h3>
+  <div class="s-row"><label>Steps/Frame <span id="vSpeed">1</span></label><input type="range" id="sSpeed" min="1" max="20" value="1"></div>
+
+  <h3>Grid</h3>
+  <select class="sel" id="sizeSel">
+    <option value="256">256 × 256</option>
+    <option value="512" selected>512 × 512</option>
+    <option value="1024">1024 × 1024</option>
+    <option value="2048">2048 × 2048</option>
+  </select>
+
+  <h3>Controls</h3>
+  <div class="btn-row">
+    <button class="btn active" id="bPlay" onclick="togglePlay()">⏸ Pause</button>
+    <button class="btn" onclick="stepOnce()">Step</button>
+    <button class="btn" onclick="randomize()">Random</button>
+    <button class="btn" onclick="clearGrid()">Clear</button>
+  </div>
+  <div class="btn-row" style="margin-top:4px">
+    <button class="btn active" id="bWrap" onclick="toggleWrap()">Wrap</button>
+    <button class="btn" id="bDraw" onclick="toggleDraw()">Draw: On</button>
+  </div>
+</div>
+
+<div class="ui patterns">
+  <h3>Patterns</h3>
+  <div class="pat-list" id="patList"></div>
+</div>
+
+<div class="ui info">
+  <div class="info-row">
+    <span><span class="lbl">Gen: </span><span class="val" id="infoGen">0</span></span>
+    <span><span class="lbl">Alive: </span><span class="val" id="infoAlive">0</span></span>
+    <span><span class="lbl">FPS: </span><span class="val" id="infoFps">60</span></span>
+  </div>
+</div>
+
+<div class="ui hint">
+  <b>Click/drag</b> to draw cells<br>
+  <b>Scroll</b> to zoom<br>
+  <b>Right-drag</b> to pan<br>
+  <b>Space</b> play/pause
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: false });
+
+let N = 512;
+let playing = true, wrap = true, drawMode = true;
+let generation = 0, stepsPerFrame = 1;
+let camX = 0, camY = 0, camZoom = 1;
+
+// Rules: [birth, survival] as arrays of neighbor counts
+const RULES = {
+  life:       { b: [3], s: [2,3] },
+  highlife:   { b: [3,6], s: [2,3] },
+  daynight:   { b: [3,6,7,8], s: [3,4,6,7,8] },
+  seeds:      { b: [2], s: [] },
+  diamoeba:   { b: [3,5,6,7,8], s: [5,6,7,8] },
+  replicator: { b: [1,3,5,7], s: [1,3,5,7] },
+  maze:       { b: [3], s: [1,2,3,4,5] },
+  anneal:     { b: [4,6,7,8], s: [3,5,6,7,8] }
+};
+
+let currentRule = 'life';
+let currentColor = 'emerald';
+
+// Color palettes (sampled as 4 stops: bg, young, mid, old)
+const PALETTES = {
+  emerald: [[5,5,8],[16,185,129],[52,211,153],[6,95,70]],
+  fire:    [[5,5,8],[239,68,68],[249,115,22],[153,27,27]],
+  ocean:   [[5,5,8],[14,165,233],[56,189,248],[7,89,133]],
+  plasma:  [[5,5,8],[168,85,247],[232,121,249],[88,28,135]],
+  mono:    [[5,5,8],[226,232,240],[148,163,184],[51,65,85]],
+  neon:    [[5,5,8],[74,222,128],[250,204,21],[244,63,94]]
+};
+
+// Patterns (RLE-like, stored as [x,y] offsets)
+const PATTERNS = {
+  'Glider': [[1,0],[2,1],[0,2],[1,2],[2,2]],
+  'LWSS': [[1,0],[4,0],[0,1],[0,2],[4,2],[0,3],[1,3],[2,3],[3,3]],
+  'R-pentomino': [[1,0],[2,0],[0,1],[1,1],[1,2]],
+  'Acorn': [[1,0],[3,1],[0,2],[1,2],[4,2],[5,2],[6,2]],
+  'Diehard': [[6,0],[0,1],[1,1],[1,2],[5,2],[6,2],[7,2]],
+  'Gosper Gun': (function(){const p=[];const rows=[[24,0],[22,1],[24,1],[12,2],[13,2],[20,2],[21,2],[34,2],[35,2],[11,3],[15,3],[20,3],[21,3],[34,3],[35,3],[0,4],[1,4],[10,4],[16,4],[20,4],[21,4],[0,5],[1,5],[10,5],[14,5],[16,5],[17,5],[22,5],[24,5],[10,6],[16,6],[24,6],[11,7],[15,7],[12,8],[13,8]];return rows;})(),
+  'Pulsar': (function(){const p=[];const template=[[2,0],[3,0],[4,0],[8,0],[9,0],[10,0]];for(const[x,y]of template){p.push([x,y],[x,y+5],[x,y+7],[x,y+12]);}const vtemplate=[[0,2],[0,3],[0,4],[0,8],[0,9],[0,10]];for(const[x,y]of vtemplate){p.push([x+5,y],[x+7,y],[x+12,y]);}/* simplified */return p;})(),
+  'Pentadecathlon': [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0],[9,0]],
+  'Block': [[0,0],[1,0],[0,1],[1,1]],
+  'Beehive': [[1,0],[2,0],[0,1],[3,1],[1,2],[2,2]],
+  'Blinker': [[0,0],[1,0],[2,0]],
+  'Toad': [[1,0],[2,0],[3,0],[0,1],[1,1],[2,1]],
+  'Beacon': [[0,0],[1,0],[0,1],[3,2],[2,3],[3,3]],
+  'Spaceship': [[0,0],[3,0],[4,1],[0,2],[4,2],[1,3],[2,3],[3,3],[4,3]]
+};
+
+// Build pattern buttons
+const patList = document.getElementById('patList');
+Object.keys(PATTERNS).forEach(name => {
+  const btn = document.createElement('button');
+  btn.className = 'pat-btn';
+  btn.textContent = name;
+  btn.onclick = () => placePattern(name);
+  patList.appendChild(btn);
+});
+
+// === WebGL Setup ===
+const VS = `#version 300 es
+in vec2 a;out vec2 vUv;
+void main(){vUv=a*.5+.5;gl_Position=vec4(a,0,1);}`;
+
+// Simulation shader
+const SIM_FS = `#version 300 es
+precision highp float;
+uniform sampler2D u_state;
+uniform vec2 u_size;
+uniform float u_birth[9];
+uniform float u_surv[9];
+uniform float u_wrap;
+in vec2 vUv;
+out vec4 O;
+
+void main(){
+  vec2 px=1./u_size;
+  float self=texture(u_state,vUv).r;
+  float age=texture(u_state,vUv).g;
+  int neighbors=0;
+  for(int dy=-1;dy<=1;dy++){
+    for(int dx=-1;dx<=1;dx++){
+      if(dx==0&&dy==0) continue;
+      vec2 uv=vUv+vec2(float(dx),float(dy))*px;
+      if(u_wrap>.5){
+        uv=fract(uv);
+      } else {
+        if(uv.x<0.||uv.x>1.||uv.y<0.||uv.y>1.) continue;
+      }
+      if(texture(u_state,uv).r>.5) neighbors++;
+    }
+  }
+  float alive=0.;
+  float newAge=0.;
+  if(self>.5){
+    alive=u_surv[neighbors];
+    newAge=alive>.5?min(age+1./255.,1.):0.;
+  } else {
+    alive=u_birth[neighbors];
+    newAge=alive>.5?1./255.:0.;
+  }
+  O=vec4(alive,newAge,0,1);
+}`;
+
+// Render shader
+const RENDER_FS = `#version 300 es
+precision highp float;
+uniform sampler2D u_state;
+uniform vec3 u_colors[4];
+uniform vec2 u_cam;
+uniform float u_zoom;
+uniform vec2 u_res;
+in vec2 vUv;
+out vec4 O;
+
+void main(){
+  vec2 uv=(vUv-.5)*u_res/min(u_res.x,u_res.y);
+  uv=uv/u_zoom+u_cam+.5;
+  if(uv.x<0.||uv.x>1.||uv.y<0.||uv.y>1.){O=vec4(u_colors[0]/255.,1);return;}
+  vec4 s=texture(u_state,uv);
+  if(s.r<.5){O=vec4(u_colors[0]/255.,1);return;}
+  float age=s.g;
+  vec3 col;
+  if(age<.33) col=mix(u_colors[1],u_colors[2],age*3.);
+  else col=mix(u_colors[2],u_colors[3],min((age-.33)*1.5,1.));
+  O=vec4(col/255.,1);
+}`;
+
+function createShader(src,type){
+  const s=gl.createShader(type);
+  gl.shaderSource(s,src);gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){console.error(gl.getShaderInfoLog(s));return null;}
+  return s;
+}
+
+function createProgram(vsSrc,fsSrc){
+  const p=gl.createProgram();
+  gl.attachShader(p,createShader(vsSrc,gl.VERTEX_SHADER));
+  gl.attachShader(p,createShader(fsSrc,gl.FRAGMENT_SHADER));
+  gl.linkProgram(p);
+  return p;
+}
+
+const simProg=createProgram(VS,SIM_FS);
+const renderProg=createProgram(VS,RENDER_FS);
+
+// Quad
+const buf=gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+
+function setupAttrib(prog){
+  const a=gl.getAttribLocation(prog,'a');
+  gl.enableVertexAttribArray(a);
+  gl.vertexAttribPointer(a,2,gl.FLOAT,false,0,0);
+}
+
+// Framebuffers for ping-pong
+let fbA,fbB,texA,texB;
+
+function createFBPair(){
+  if(texA) gl.deleteTexture(texA);
+  if(texB) gl.deleteTexture(texB);
+  if(fbA) gl.deleteFramebuffer(fbA);
+  if(fbB) gl.deleteFramebuffer(fbB);
+
+  function makeFB(){
+    const tex=gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D,tex);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,N,N,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    const fb=gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER,fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tex,0);
+    return{fb,tex};
+  }
+
+  const a=makeFB(),b=makeFB();
+  fbA=a.fb;texA=a.tex;fbB=b.fb;texB=b.tex;
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+}
+
+function uploadState(data){
+  gl.bindTexture(gl.TEXTURE_2D,texA);
+  gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,N,N,gl.RGBA,gl.UNSIGNED_BYTE,data);
+}
+
+function randomize(){
+  const data=new Uint8Array(N*N*4);
+  for(let i=0;i<N*N;i++){
+    const alive=Math.random()<0.3?255:0;
+    data[i*4]=alive;
+    data[i*4+1]=alive?4:0;
+    data[i*4+2]=0;
+    data[i*4+3]=255;
+  }
+  uploadState(data);
+  generation=0;
+}
+
+function clearGrid(){
+  const data=new Uint8Array(N*N*4);
+  for(let i=0;i<N*N;i++) data[i*4+3]=255;
+  uploadState(data);
+  generation=0;
+}
+
+function placePattern(name){
+  const pat=PATTERNS[name];
+  if(!pat) return;
+  // Read current state
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fbA);
+  const data=new Uint8Array(N*N*4);
+  gl.readPixels(0,0,N,N,gl.RGBA,gl.UNSIGNED_BYTE,data);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+
+  const cx=Math.floor(N/2), cy=Math.floor(N/2);
+  for(const[dx,dy] of pat){
+    const x=cx+dx, y=cy+dy;
+    if(x>=0&&x<N&&y>=0&&y<N){
+      const idx=(y*N+x)*4;
+      data[idx]=255;
+      data[idx+1]=4;
+    }
+  }
+  uploadState(data);
+}
+
+// Simulate one step
+function simStep(){
+  const rule=RULES[currentRule];
+  gl.useProgram(simProg);
+  setupAttrib(simProg);
+
+  // Set birth/survival arrays
+  const birth=new Float32Array(9);
+  const surv=new Float32Array(9);
+  for(const n of rule.b) birth[n]=1;
+  for(const n of rule.s) surv[n]=1;
+
+  gl.uniform1fv(gl.getUniformLocation(simProg,'u_birth'),birth);
+  gl.uniform1fv(gl.getUniformLocation(simProg,'u_surv'),surv);
+  gl.uniform2f(gl.getUniformLocation(simProg,'u_size'),N,N);
+  gl.uniform1f(gl.getUniformLocation(simProg,'u_wrap'),wrap?1:0);
+
+  // Read from A, write to B
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fbB);
+  gl.viewport(0,0,N,N);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D,texA);
+  gl.uniform1i(gl.getUniformLocation(simProg,'u_state'),0);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+
+  // Swap
+  [fbA,fbB]=[fbB,fbA];
+  [texA,texB]=[texB,texA];
+  generation++;
+}
+
+// Render to screen
+function renderFrame(){
+  const pal=PALETTES[currentColor];
+  gl.useProgram(renderProg);
+  setupAttrib(renderProg);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  gl.viewport(0,0,canvas.width,canvas.height);
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D,texA);
+  gl.uniform1i(gl.getUniformLocation(renderProg,'u_state'),0);
+
+  const colLoc=gl.getUniformLocation(renderProg,'u_colors');
+  const flat=[];
+  pal.forEach(c=>flat.push(...c));
+  gl.uniform3fv(colLoc,new Float32Array(flat));
+
+  gl.uniform2f(gl.getUniformLocation(renderProg,'u_cam'),camX,camY);
+  gl.uniform1f(gl.getUniformLocation(renderProg,'u_zoom'),camZoom);
+  gl.uniform2f(gl.getUniformLocation(renderProg,'u_res'),canvas.width,canvas.height);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+}
+
+// Resize
+function resize(){
+  const dpr=Math.min(devicePixelRatio,2);
+  canvas.width=innerWidth*dpr;
+  canvas.height=innerHeight*dpr;
+  canvas.style.width=innerWidth+'px';
+  canvas.style.height=innerHeight+'px';
+}
+window.addEventListener('resize',resize);
+resize();
+
+// Init
+createFBPair();
+randomize();
+
+// Count alive (read pixels occasionally)
+let aliveCount=0;
+function countAlive(){
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fbA);
+  // Sample a subset for performance
+  const sampleSize=Math.min(N,256);
+  const data=new Uint8Array(sampleSize*sampleSize*4);
+  const offset=Math.floor((N-sampleSize)/2);
+  gl.readPixels(offset,offset,sampleSize,sampleSize,gl.RGBA,gl.UNSIGNED_BYTE,data);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  let count=0;
+  for(let i=0;i<sampleSize*sampleSize;i++){
+    if(data[i*4]>128) count++;
+  }
+  // Extrapolate
+  aliveCount=Math.round(count*(N*N)/(sampleSize*sampleSize));
+}
+
+// Drawing
+let drawing=false, erasing=false;
+
+function screenToGrid(sx,sy){
+  const aspect=canvas.width/canvas.height;
+  const minDim=Math.min(canvas.width,canvas.height);
+  let ux=(sx/innerWidth-.5)*canvas.width/minDim;
+  let uy=(sy/innerHeight-.5)*canvas.height/minDim;
+  ux=ux/camZoom+camX+.5;
+  uy=uy/camZoom+camY+.5;
+  return[Math.floor(ux*N),Math.floor((1-uy)*N)];
+}
+
+function paintCell(sx,sy,alive){
+  const[gx,gy]=screenToGrid(sx,sy);
+  if(gx<0||gx>=N||gy<0||gy>=N) return;
+  // Read, modify, upload single pixel
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fbA);
+  const pixel=new Uint8Array(4);
+  gl.readPixels(gx,gy,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);
+  pixel[0]=alive?255:0;
+  pixel[1]=alive?4:0;
+  gl.bindTexture(gl.TEXTURE_2D,texA);
+  gl.texSubImage2D(gl.TEXTURE_2D,0,gx,gy,1,1,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([pixel[0],pixel[1],0,255]));
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+}
+
+let panning=false, panSX,panSY,panCX,panCY;
+
+canvas.addEventListener('pointerdown',e=>{
+  if(e.button===2||e.button===1){
+    panning=true;panSX=e.clientX;panSY=e.clientY;panCX=camX;panCY=camY;
+    canvas.setPointerCapture(e.pointerId);return;
+  }
+  if(!drawMode) return;
+  drawing=true;
+  const[gx,gy]=screenToGrid(e.clientX,e.clientY);
+  // Check if cell is alive to determine erase mode
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fbA);
+  const px=new Uint8Array(4);
+  if(gx>=0&&gx<N&&gy>=0&&gy<N) gl.readPixels(gx,gy,1,1,gl.RGBA,gl.UNSIGNED_BYTE,px);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  erasing=px[0]>128;
+  paintCell(e.clientX,e.clientY,!erasing);
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener('pointermove',e=>{
+  if(panning){
+    camX=panCX-(e.clientX-panSX)/(innerWidth*camZoom);
+    camY=panCY+(e.clientY-panSY)/(innerHeight*camZoom);
+    return;
+  }
+  if(drawing) paintCell(e.clientX,e.clientY,!erasing);
+});
+
+canvas.addEventListener('pointerup',()=>{drawing=false;panning=false;});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  camZoom*=e.deltaY>0?.9:1.1;
+  camZoom=Math.max(.2,Math.min(30,camZoom));
+},{passive:false});
+
+// Keyboard
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();togglePlay();}
+});
+
+function togglePlay(){
+  playing=!playing;
+  document.getElementById('bPlay').textContent=playing?'⏸ Pause':'▶ Play';
+  document.getElementById('bPlay').classList.toggle('active',playing);
+}
+
+function stepOnce(){
+  playing=false;
+  document.getElementById('bPlay').textContent='▶ Play';
+  document.getElementById('bPlay').classList.remove('active');
+  simStep();
+}
+
+function toggleWrap(){
+  wrap=!wrap;
+  document.getElementById('bWrap').classList.toggle('active',wrap);
+}
+
+function toggleDraw(){
+  drawMode=!drawMode;
+  document.getElementById('bDraw').textContent='Draw: '+(drawMode?'On':'Off');
+  document.getElementById('bDraw').classList.toggle('active',drawMode);
+  canvas.style.cursor=drawMode?'crosshair':'grab';
+}
+
+// Settings listeners
+document.getElementById('ruleSel').addEventListener('change',e=>{currentRule=e.target.value;});
+document.getElementById('colorSel').addEventListener('change',e=>{currentColor=e.target.value;});
+document.getElementById('sSpeed').addEventListener('input',e=>{
+  stepsPerFrame=parseInt(e.target.value);
+  document.getElementById('vSpeed').textContent=stepsPerFrame;
+});
+document.getElementById('sizeSel').addEventListener('change',e=>{
+  N=parseInt(e.target.value);
+  createFBPair();
+  randomize();
+  generation=0;
+});
+
+// Main loop
+let frames=0,lastFpsT=0,fps=60;
+
+function animate(t){
+  requestAnimationFrame(animate);
+
+  if(playing){
+    for(let i=0;i<stepsPerFrame;i++) simStep();
+  }
+
+  renderFrame();
+
+  frames++;
+  if(t-lastFpsT>500){
+    fps=Math.round(frames/((t-lastFpsT)/1000));
+    lastFpsT=t;frames=0;
+    countAlive();
+  }
+
+  document.getElementById('infoGen').textContent=generation.toLocaleString();
+  document.getElementById('infoAlive').textContent=aliveCount.toLocaleString();
+  document.getElementById('infoFps').textContent=fps;
+}
+
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>

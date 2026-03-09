@@ -270,6 +270,13 @@
     "path": "projects/nations/"
   },
   {
+    "id": "life",
+    "title": "Life Engine",
+    "description": "GPU-accelerated cellular automata with 8 rulesets (Life, HighLife, Seeds, etc.), age-based coloring, 6 palettes, pattern library, draw mode, and up to 2048×2048 grids.",
+    "tags": ["WebGL", "GLSL", "Cellular Automata", "Simulation"],
+    "path": "projects/life/"
+  },
+  {
     "id": "brightonhub",
     "title": "Brighton Hub",
     "description": "Live city dashboard for Brighton & Hove with real-time transport, environment, crime, housing, health, events, and schools data.",
