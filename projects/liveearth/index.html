@@ -587,6 +587,44 @@ html, body {
       }));
   }
 
+  /* ── River gauges fetcher ─────────────────────────────────── */
+  const RIVER_SITES = [
+    '07010000','07289000','07022000','03611500','03086000',
+    '06934500','06893000','06818000','06610000','06486000',
+    '14105700','14211720','12472800','14113000','12045500',
+    '09380000','09402500','09415000','09427520','09429490',
+    '03294500','03293000','03274000','03234500','03049625',
+    '02089500','02085000','02084000','01463500','01578310',
+    '08158000','08176500','08181500','08188500','08475000',
+    '05587450','05543500','05446500','05420500','05331000',
+    '02323500','02358000','02329000','02313000','02231000',
+    '01646500','01570500','01463500','01357500','01334000'
+  ].join(',');
+
+  async function fetchRiverGauges() {
+    const res = await fetch(`https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${RIVER_SITES}&parameterCd=00060,00065&siteStatus=active`);
+    const json = await res.json();
+    const sites = {};
+    json.value.timeSeries.forEach(ts => {
+      const siteCode = ts.sourceInfo.siteCode[0].value;
+      if (!sites[siteCode]) {
+        const geo = ts.sourceInfo.geoLocation.geogLocation;
+        sites[siteCode] = {
+          name: ts.sourceInfo.siteName,
+          lat: parseFloat(geo.latitude),
+          lng: parseFloat(geo.longitude),
+          _layer: 'rivers'
+        };
+      }
+      const param = ts.variable.variableCode[0].value;
+      const val = ts.values[0].value;
+      const latest = val.length ? parseFloat(val[val.length - 1].value) : null;
+      if (param === '00060') sites[siteCode].discharge = latest;
+      if (param === '00065') sites[siteCode].gaugeHeight = latest;
+    });
+    return Object.values(sites).filter(s => s.lat && s.lng);
+  }
+
   /* ══════════════════════════════════════════════════════════════
      Globe initialisation
      ══════════════════════════════════════════════════════════════ */
@@ -615,6 +653,60 @@ html, body {
   window.addEventListener('resize', () => {
     globe.width(container.clientWidth).height(container.clientHeight);
   });
+
+  /* ── Combined points helper (shared by radio, rivers, air quality) ── */
+  function updateCombinedPoints() {
+    const allPts = [];
+    const radioLayer = LAYERS.find(l => l.id === 'radio');
+    const riverLayer = LAYERS.find(l => l.id === 'rivers');
+    if (radioLayer.enabled && radioLayer.data) allPts.push(...radioLayer.data);
+    if (riverLayer.enabled && riverLayer.data) allPts.push(...riverLayer.data);
+    globe.pointsData(allPts)
+      .pointLat(d => d.lat)
+      .pointLng(d => d.lng)
+      .pointRadius(d => {
+        if (d._layer === 'radio') return 0.15;
+        if (d._layer === 'rivers') return 0.1 + Math.min(Math.log10(Math.max(d.discharge || 1, 1)) / 6, 0.5) * 0.5;
+        return 0.2;
+      })
+      .pointAltitude(d => d._layer === 'rivers' ? 0.008 : 0.005)
+      .pointColor(d => {
+        if (d._layer === 'radio') return '#06b6d4';
+        if (d._layer === 'rivers') return '#3b82f6';
+        return '#94a3b8';
+      })
+      .onPointClick(pt => {
+        if (!pt) return;
+        if (pt._layer === 'radio') {
+          if (currentStation === pt.name) {
+            if (radioAudio.paused) radioAudio.play();
+            else radioAudio.pause();
+          } else {
+            if (radioAudio) radioAudio.pause();
+            radioAudio = new Audio(pt.url);
+            radioAudio.play();
+            currentStation = pt.name;
+          }
+        }
+      })
+      .onPointHover(pt => {
+        if (!pt) {
+          hideHover();
+          globe.controls().autoRotate = true;
+          return;
+        }
+        globe.controls().autoRotate = false;
+        if (pt._layer === 'radio') {
+          const tags = pt.tags ? (pt.tags.length > 60 ? pt.tags.slice(0, 57) + '...' : pt.tags) : '';
+          const meta = [tags, pt.bitrate ? pt.bitrate + ' kbps' : '', 'Click to play'].filter(Boolean).join(' \u00B7 ');
+          showHover(pt.name, pt.country, meta);
+        } else if (pt._layer === 'rivers') {
+          const discharge = pt.discharge != null ? fmtNum(pt.discharge, 0) + ' cfs' : 'N/A';
+          const gauge = pt.gaugeHeight != null ? 'Gauge: ' + fmtNum(pt.gaugeHeight, 2) + ' ft' : '';
+          showHover(pt.name, discharge, gauge);
+        }
+      });
+  }
 
   /* ══════════════════════════════════════════════════════════════
      Data cache
@@ -1067,43 +1159,15 @@ html, body {
         if (!layer.data) {
           layer.data = await fetchRadioStations();
         }
-
-        globe
-          .pointsData(layer.data)
-          .pointLat(d => d.lat)
-          .pointLng(d => d.lng)
-          .pointRadius(0.15)
-          .pointAltitude(0.005)
-          .pointColor(() => '#06b6d4')
-          .onPointClick(pt => {
-            if (!pt || pt._layer !== 'radio') return;
-            if (currentStation === pt.name) {
-              if (radioAudio.paused) radioAudio.play();
-              else radioAudio.pause();
-            } else {
-              if (radioAudio) radioAudio.pause();
-              radioAudio = new Audio(pt.url);
-              radioAudio.play();
-              currentStation = pt.name;
-            }
-          })
-          .onPointHover(pt => {
-            if (!pt || pt._layer !== 'radio') {
-              hideHover();
-              globe.controls().autoRotate = true;
-              return;
-            }
-            globe.controls().autoRotate = false;
-            const tags = pt.tags ? (pt.tags.length > 60 ? pt.tags.slice(0, 57) + '...' : pt.tags) : '';
-            const meta = [tags, pt.bitrate ? pt.bitrate + ' kbps' : '', 'Click to play'].filter(Boolean).join(' \u00B7 ');
-            showHover(pt.name, pt.country, meta);
-          });
+        updateCombinedPoints();
       },
       onDisable: () => {
         if (radioAudio) radioAudio.pause();
         radioAudio = null;
         currentStation = null;
-        globe.pointsData([]).onPointClick(null).onPointHover(null);
+        const layer = LAYERS.find(l => l.id === 'radio');
+        layer.data = null;
+        updateCombinedPoints();
         hideHover();
       },
     },
@@ -1115,9 +1179,31 @@ html, body {
       enabled: false,
       data: null,
       interval: null,
-      refreshMs: 0,
-      onEnable: async () => {},
-      onDisable: () => {},
+      refreshMs: 900000,
+      onEnable: async () => {
+        const layer = LAYERS.find(l => l.id === 'rivers');
+        try {
+          layer.data = await fetchRiverGauges();
+        } catch (e) {
+          console.warn('River gauges fetch failed:', e);
+          layer.data = [];
+        }
+        updateCombinedPoints();
+
+        layer.interval = setInterval(async () => {
+          try {
+            layer.data = await fetchRiverGauges();
+            updateCombinedPoints();
+          } catch (e) { console.warn('River gauges refresh failed:', e); }
+        }, layer.refreshMs);
+      },
+      onDisable: () => {
+        const layer = LAYERS.find(l => l.id === 'rivers');
+        layer.data = null;
+        updateCombinedPoints();
+        if (layer.interval) { clearInterval(layer.interval); layer.interval = null; }
+        hideHover();
+      },
     },
     {
       id: 'weather',
@@ -1169,7 +1255,7 @@ html, body {
     for (const group of groups) {
       html += `<div class="panel-section"><div class="group-label">${group}</div></div>`;
       for (const layer of groupMap[group]) {
-        const hasImpl = layer.id === 'base' || layer.id === 'earthquakes' || layer.id === 'iss' || layer.id === 'rockets' || layer.id === 'radio';
+        const hasImpl = layer.id === 'base' || layer.id === 'earthquakes' || layer.id === 'iss' || layer.id === 'rockets' || layer.id === 'radio' || layer.id === 'rivers';
         const isPlaceholder = !hasImpl && !layer.enabled;
         html += `
           <div class="layer-row" data-layer-id="${layer.id}">
