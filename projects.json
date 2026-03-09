@@ -116,6 +116,13 @@
     "path": "projects/asteroids/"
   },
   {
+    "id": "lorenz",
+    "title": "Lorenz Attractor",
+    "description": "Interactive 3D visualization of the chaotic Lorenz system with WebGL trails, multiple particles, color schemes, parameter controls, and presets.",
+    "tags": ["WebGL", "Math", "Chaos Theory", "3D"],
+    "path": "projects/lorenz/"
+  },
+  {
     "id": "brightonhub",
     "title": "Brighton Hub",
     "description": "Live city dashboard for Brighton & Hove with real-time transport, environment, crime, housing, health, events, and schools data.",
