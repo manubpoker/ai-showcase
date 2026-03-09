@@ -130,6 +130,13 @@
     "path": "projects/airquality/"
   },
   {
+    "id": "metaballs",
+    "title": "Metaball Lava Lamp",
+    "description": "GPU ray-marched metaball simulation with smooth organic blending, 7 color themes, mouse attraction physics, and glow effects via WebGL 2.",
+    "tags": ["WebGL", "GLSL", "Physics", "Generative Art"],
+    "path": "projects/metaballs/"
+  },
+  {
     "id": "reaction",
     "title": "Reaction-Diffusion",
     "description": "GPU-accelerated Gray-Scott reaction-diffusion simulator with 9 organic pattern presets, 8 color maps, and interactive painting via WebGL 2 shaders.",

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metaball Lava Lamp</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;height:100vh;font-family:'Inter',system-ui,sans-serif;color:#e0e0e0}
+canvas{display:block;width:100%;height:100%;position:absolute;top:0;left:0}
+
+.ui{position:absolute;top:16px;left:16px;z-index:10;user-select:none}
+.panel{background:rgba(0,0,0,0.78);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:18px;width:260px;backdrop-filter:blur(14px)}
+.panel h1{font-size:1rem;font-weight:700;margin-bottom:2px}
+.panel h1 span{background:linear-gradient(135deg,#ff6b35,#ff3366,#ff6bff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.panel .sub{font-size:0.62rem;color:#555;margin-bottom:14px}
+.ctrl{margin-bottom:10px}
+.ctrl label{display:flex;justify-content:space-between;font-size:0.7rem;color:#888;margin-bottom:3px}
+.ctrl label span{color:#fff;font-weight:600;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;border-radius:2px;background:rgba(255,255,255,0.08);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#fff;cursor:pointer}
+
+.themes{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.theme-btn{padding:3px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:14px;background:rgba(255,255,255,0.03);font-size:0.6rem;cursor:pointer;transition:all 0.2s;color:#888}
+.theme-btn:hover{background:rgba(255,255,255,0.08);color:#fff}
+.theme-btn.active{border-color:rgba(255,100,100,0.4);background:rgba(255,100,100,0.12);color:#ff8888}
+
+.btns{display:flex;gap:6px;margin-top:12px}
+.btn{flex:1;padding:5px 0;border:1px solid rgba(255,255,255,0.1);border-radius:7px;background:rgba(255,255,255,0.03);color:#aaa;font-size:0.65rem;font-weight:600;cursor:pointer;text-align:center;transition:all 0.2s}
+.btn:hover{background:rgba(255,255,255,0.08);color:#fff}
+
+.toggle-btn{position:absolute;top:16px;right:16px;z-index:10;padding:5px 14px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;background:rgba(0,0,0,0.7);color:#888;font-size:0.65rem;cursor:pointer;backdrop-filter:blur(8px)}
+.toggle-btn:hover{color:#fff}
+.stats{position:absolute;bottom:10px;left:16px;font-size:0.58rem;color:#333;z-index:10}
+.hint{position:absolute;bottom:10px;right:16px;font-size:0.58rem;color:#333;z-index:10}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="ui" id="ui">
+<div class="panel">
+  <h1><span>Metaball Lava Lamp</span></h1>
+  <div class="sub">GPU ray-marched metaballs · WebGL 2</div>
+
+  <div class="ctrl">
+    <label>Blob Count <span id="v-count">12</span></label>
+    <input type="range" id="count" min="4" max="24" step="1" value="12">
+  </div>
+  <div class="ctrl">
+    <label>Blob Size <span id="v-size">1.00</span></label>
+    <input type="range" id="size" min="0.3" max="2.0" step="0.05" value="1.0">
+  </div>
+  <div class="ctrl">
+    <label>Speed <span id="v-speed">1.0</span>x</label>
+    <input type="range" id="speed" min="0.1" max="3.0" step="0.1" value="1.0">
+  </div>
+  <div class="ctrl">
+    <label>Glow Intensity <span id="v-glow">1.0</span></label>
+    <input type="range" id="glow" min="0.0" max="3.0" step="0.1" value="1.0">
+  </div>
+  <div class="ctrl">
+    <label>Smoothness <span id="v-smooth">0.80</span></label>
+    <input type="range" id="smooth" min="0.2" max="2.0" step="0.05" value="0.80">
+  </div>
+  <div class="ctrl">
+    <label>Gravity <span id="v-gravity">0.50</span></label>
+    <input type="range" id="gravity" min="0.0" max="2.0" step="0.05" value="0.50">
+  </div>
+
+  <div class="sub" style="margin-top:10px;margin-bottom:5px">Theme</div>
+  <div class="themes" id="themes">
+    <div class="theme-btn active" data-t="lava">Lava</div>
+    <div class="theme-btn" data-t="ocean">Ocean</div>
+    <div class="theme-btn" data-t="toxic">Toxic</div>
+    <div class="theme-btn" data-t="sunset">Sunset</div>
+    <div class="theme-btn" data-t="vapor">Vapor</div>
+    <div class="theme-btn" data-t="gold">Gold</div>
+    <div class="theme-btn" data-t="ice">Ice</div>
+  </div>
+
+  <div class="btns">
+    <div class="btn" id="btnReset">Scatter</div>
+    <div class="btn" id="btnPause">Pause</div>
+  </div>
+</div>
+</div>
+
+<button class="toggle-btn" id="toggleUI">Hide Controls</button>
+<div class="stats" id="stats"></div>
+<div class="hint">Click to attract blobs · Drag to pull</div>
+
+<script>
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, preserveDrawingBuffer: false });
+if (!gl) { document.body.innerHTML = '<p style="color:#fff;padding:40px">WebGL 2 required</p>'; throw 'no webgl2'; }
+
+// Params
+let blobCount = 12, blobSize = 1.0, simSpeed = 1.0, glowIntensity = 1.0;
+let smoothK = 0.80, gravity = 0.50, paused = false;
+let mouseX = -999, mouseY = -999, mouseDown = false;
+let theme = 'lava';
+
+// Themes: [bgColor, blobColor1, blobColor2, glowColor]
+const THEMES = {
+  lava:   { bg: [0.02,0.01,0.01], c1: [1.0,0.25,0.05], c2: [1.0,0.6,0.1], glow: [1.0,0.3,0.05], rim: [0.4,0.05,0.0] },
+  ocean:  { bg: [0.01,0.02,0.06], c1: [0.1,0.5,0.9],   c2: [0.2,0.8,1.0], glow: [0.1,0.4,1.0],  rim: [0.0,0.1,0.3] },
+  toxic:  { bg: [0.01,0.03,0.01], c1: [0.2,0.9,0.1],   c2: [0.5,1.0,0.2], glow: [0.1,0.8,0.1],  rim: [0.0,0.2,0.0] },
+  sunset: { bg: [0.04,0.01,0.02], c1: [1.0,0.4,0.2],   c2: [1.0,0.2,0.5], glow: [1.0,0.3,0.4],  rim: [0.3,0.05,0.1] },
+  vapor:  { bg: [0.02,0.01,0.04], c1: [0.8,0.2,1.0],   c2: [0.3,0.5,1.0], glow: [0.6,0.2,1.0],  rim: [0.15,0.0,0.3] },
+  gold:   { bg: [0.03,0.02,0.01], c1: [1.0,0.8,0.2],   c2: [0.9,0.6,0.1], glow: [1.0,0.7,0.1],  rim: [0.3,0.2,0.0] },
+  ice:    { bg: [0.02,0.03,0.05], c1: [0.6,0.85,1.0],  c2: [0.9,0.95,1.0],glow: [0.5,0.7,1.0],  rim: [0.1,0.15,0.25] },
+};
+
+const MAX_BLOBS = 24;
+
+// Blob physics
+class Blob {
+  constructor(i) {
+    this.x = (Math.random() - 0.5) * 3;
+    this.y = (Math.random() - 0.5) * 3;
+    this.vx = (Math.random() - 0.5) * 0.5;
+    this.vy = (Math.random() - 0.5) * 0.5;
+    this.r = 0.25 + Math.random() * 0.35;
+    this.phase = Math.random() * Math.PI * 2;
+    this.freq = 0.3 + Math.random() * 0.6;
+  }
+  update(dt, aspect) {
+    // Buoyancy-like motion
+    this.vy += Math.sin(this.phase) * 0.3 * dt;
+    this.vx += Math.cos(this.phase * 1.3) * 0.15 * dt;
+    this.phase += this.freq * dt;
+
+    // Gravity pulls down
+    this.vy -= gravity * 0.3 * dt;
+
+    // Mouse attraction
+    if (mouseDown && mouseX > -900) {
+      const dx = mouseX - this.x;
+      const dy = mouseY - this.y;
+      const dist = Math.sqrt(dx*dx + dy*dy) + 0.1;
+      const force = 2.0 / (dist * dist + 0.5);
+      this.vx += dx * force * dt;
+      this.vy += dy * force * dt;
+    }
+
+    // Damping
+    this.vx *= 0.995;
+    this.vy *= 0.995;
+
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+
+    // Bounce off walls
+    const bx = aspect * 1.5, by = 1.5;
+    if (this.x < -bx) { this.x = -bx; this.vx = Math.abs(this.vx) * 0.6; }
+    if (this.x > bx) { this.x = bx; this.vx = -Math.abs(this.vx) * 0.6; }
+    if (this.y < -by) { this.y = -by; this.vy = Math.abs(this.vy) * 0.6; }
+    if (this.y > by) { this.y = by; this.vy = -Math.abs(this.vy) * 0.6; }
+  }
+}
+
+let blobs = [];
+function initBlobs() {
+  blobs = [];
+  for (let i = 0; i < MAX_BLOBS; i++) blobs.push(new Blob(i));
+}
+initBlobs();
+
+// Shaders
+const vsrc = `#version 300 es
+in vec2 a_pos;
+out vec2 v_uv;
+void main(){
+  v_uv = a_pos;
+  gl_Position = vec4(a_pos, 0, 1);
+}`;
+
+const fsrc = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+
+uniform float u_time;
+uniform vec2 u_res;
+uniform int u_count;
+uniform vec3 u_blobs[${MAX_BLOBS}]; // x, y, radius
+uniform float u_size;
+uniform float u_glow;
+uniform float u_smooth;
+uniform vec3 u_bg, u_c1, u_c2, u_gCol, u_rim;
+
+// Smooth minimum for organic blending
+float smin(float a, float b, float k) {
+  float h = clamp(0.5 + 0.5*(a-b)/k, 0.0, 1.0);
+  return mix(a, b, h) - k*h*(1.0-h);
+}
+
+void main(){
+  vec2 uv = v_uv;
+  float aspect = u_res.x / u_res.y;
+  uv.x *= aspect;
+
+  // Compute metaball field
+  float field = 100.0;
+  float totalInfluence = 0.0;
+  vec2 nearestDir = vec2(0.0);
+
+  for (int i = 0; i < ${MAX_BLOBS}; i++) {
+    if (i >= u_count) break;
+    vec2 p = u_blobs[i].xy;
+    float r = u_blobs[i].z * u_size;
+    float d = length(uv - p) - r;
+    field = smin(field, d, u_smooth);
+
+    // Track closest blob for shading
+    float influence = 1.0 / (length(uv - p) * length(uv - p) + 0.01);
+    totalInfluence += influence;
+    nearestDir += (uv - p) * influence;
+  }
+
+  nearestDir = normalize(nearestDir + 0.001);
+
+  // Core color
+  vec3 col = u_bg;
+
+  if (field < 0.0) {
+    // Inside blob
+    float depth = clamp(-field * 3.0, 0.0, 1.0);
+    vec3 baseCol = mix(u_c1, u_c2, depth);
+
+    // Fake lighting
+    float light = 0.5 + 0.5 * dot(nearestDir, normalize(vec2(0.5, 0.8)));
+    baseCol *= 0.6 + 0.6 * light;
+
+    // Rim highlight
+    float rim = smoothstep(-0.15, 0.0, field);
+    baseCol += u_rim * rim * 2.0;
+
+    // Internal glow variation
+    float pulse = sin(u_time * 1.5 + totalInfluence * 0.3) * 0.5 + 0.5;
+    baseCol += u_c2 * pulse * 0.15;
+
+    col = baseCol;
+  }
+
+  // Outer glow
+  if (field > 0.0) {
+    float glowFactor = exp(-field * (3.0 - u_glow * 0.8)) * u_glow * 0.6;
+    col += u_gCol * glowFactor;
+  }
+
+  // Subtle outer glow halo
+  float halo = exp(-field * 1.2) * u_glow * 0.12;
+  col += u_gCol * halo;
+
+  // Glass container effect — vertical gradient
+  float vignette = 1.0 - dot(v_uv, v_uv) * 0.25;
+  col *= vignette;
+
+  // Lamp glass reflections
+  float glassReflect = pow(max(0.0, 1.0 - abs(v_uv.x * aspect) / (aspect * 0.8)), 8.0) * 0.06;
+  col += vec3(glassReflect);
+
+  // Bottom warm glow (heat source)
+  float bottomGlow = exp(-(v_uv.y + 1.0) * 2.0) * 0.08;
+  col += u_gCol * bottomGlow;
+
+  // Gamma
+  col = pow(col, vec3(0.9));
+
+  fragColor = vec4(col, 1.0);
+}`;
+
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.error(gl.getShaderInfoLog(s)); throw 'shader'; }
+  return s;
+}
+const prog = gl.createProgram();
+gl.attachShader(prog, compile(gl.VERTEX_SHADER, vsrc));
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fsrc));
+gl.linkProgram(prog);
+gl.useProgram(prog);
+
+const aPos = gl.getAttribLocation(prog, 'a_pos');
+const uTime = gl.getUniformLocation(prog, 'u_time');
+const uRes = gl.getUniformLocation(prog, 'u_res');
+const uCount = gl.getUniformLocation(prog, 'u_count');
+const uSize = gl.getUniformLocation(prog, 'u_size');
+const uGlow = gl.getUniformLocation(prog, 'u_glow');
+const uSmooth = gl.getUniformLocation(prog, 'u_smooth');
+const uBg = gl.getUniformLocation(prog, 'u_bg');
+const uC1 = gl.getUniformLocation(prog, 'u_c1');
+const uC2 = gl.getUniformLocation(prog, 'u_c2');
+const uGCol = gl.getUniformLocation(prog, 'u_gCol');
+const uRim = gl.getUniformLocation(prog, 'u_rim');
+
+const blobLocs = [];
+for (let i = 0; i < MAX_BLOBS; i++) blobLocs.push(gl.getUniformLocation(prog, `u_blobs[${i}]`));
+
+// Quad
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(aPos);
+gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+// Resize
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio, 1.5); // Cap for performance
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Input
+canvas.addEventListener('pointerdown', e => {
+  mouseDown = true;
+  updateMouse(e);
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', e => { if (mouseDown) updateMouse(e); });
+canvas.addEventListener('pointerup', () => { mouseDown = false; mouseX = -999; });
+canvas.addEventListener('pointercancel', () => { mouseDown = false; mouseX = -999; });
+canvas.style.touchAction = 'none';
+
+function updateMouse(e) {
+  const aspect = window.innerWidth / window.innerHeight;
+  mouseX = ((e.clientX / window.innerWidth) * 2 - 1) * aspect * 1.5;
+  mouseY = -((e.clientY / window.innerHeight) * 2 - 1) * 1.5;
+}
+
+// UI
+const bindings = [
+  { id:'count', lbl:'v-count', set:v=>{blobCount=v}, fmt:v=>v.toFixed(0) },
+  { id:'size',  lbl:'v-size',  set:v=>{blobSize=v},  fmt:v=>v.toFixed(2) },
+  { id:'speed', lbl:'v-speed', set:v=>{simSpeed=v},  fmt:v=>v.toFixed(1) },
+  { id:'glow',  lbl:'v-glow',  set:v=>{glowIntensity=v}, fmt:v=>v.toFixed(1) },
+  { id:'smooth',lbl:'v-smooth',set:v=>{smoothK=v},   fmt:v=>v.toFixed(2) },
+  { id:'gravity',lbl:'v-gravity',set:v=>{gravity=v}, fmt:v=>v.toFixed(2) },
+];
+bindings.forEach(b => {
+  document.getElementById(b.id).addEventListener('input', function() {
+    const v = parseFloat(this.value);
+    b.set(v);
+    document.getElementById(b.lbl).textContent = b.fmt(v);
+  });
+});
+
+document.querySelectorAll('.theme-btn').forEach(el => {
+  el.onclick = () => {
+    document.querySelectorAll('.theme-btn').forEach(e=>e.classList.remove('active'));
+    el.classList.add('active');
+    theme = el.dataset.t;
+  };
+});
+
+document.getElementById('btnReset').onclick = initBlobs;
+document.getElementById('btnPause').onclick = function() {
+  paused = !paused;
+  this.textContent = paused ? 'Resume' : 'Pause';
+};
+
+const uiEl = document.getElementById('ui');
+document.getElementById('toggleUI').onclick = function() {
+  const vis = uiEl.style.display !== 'none';
+  uiEl.style.display = vis ? 'none' : '';
+  this.textContent = vis ? 'Show Controls' : 'Hide Controls';
+};
+
+// Render
+let lastTime = 0, time = 0, frameCount = 0, fpsTime = 0;
+function render(now) {
+  requestAnimationFrame(render);
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+
+  if (!paused) {
+    time += dt * simSpeed;
+    const aspect = window.innerWidth / window.innerHeight;
+    for (let i = 0; i < blobCount; i++) {
+      blobs[i].update(dt * simSpeed, aspect);
+    }
+  }
+
+  // Set theme colors
+  const t = THEMES[theme];
+  gl.uniform3fv(uBg, t.bg);
+  gl.uniform3fv(uC1, t.c1);
+  gl.uniform3fv(uC2, t.c2);
+  gl.uniform3fv(uGCol, t.glow);
+  gl.uniform3fv(uRim, t.rim);
+
+  gl.uniform1f(uTime, time);
+  gl.uniform2f(uRes, canvas.width, canvas.height);
+  gl.uniform1i(uCount, blobCount);
+  gl.uniform1f(uSize, blobSize);
+  gl.uniform1f(uGlow, glowIntensity);
+  gl.uniform1f(uSmooth, smoothK);
+
+  for (let i = 0; i < blobCount; i++) {
+    gl.uniform3f(blobLocs[i], blobs[i].x, blobs[i].y, blobs[i].r);
+  }
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  frameCount++;
+  if (now - fpsTime > 500) {
+    document.getElementById('stats').textContent =
+      `${blobCount} blobs · ${(frameCount / ((now - fpsTime) / 1000)).toFixed(0)} fps`;
+    frameCount = 0;
+    fpsTime = now;
+  }
+}
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
