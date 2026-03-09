@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ocean Pulse — Global Marine & Surf Conditions</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#040d1a;--card:#0a1628;--card2:#0f1d32;--border:#152238;
+  --text:#e2e8f0;--dim:#5a7494;--accent:#0ea5e9;--teal:#14b8a6;
+  --wave1:#0284c7;--wave2:#0369a1;--green:#22c55e;--yellow:#eab308;
+  --orange:#f97316;--red:#ef4444;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+
+/* Header */
+.header{background:linear-gradient(135deg,#041225,#0c1e3a);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.header h1{font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:10px}
+.header h1 .icon{font-size:1.5rem}
+.header .sub{color:var(--dim);font-size:.8rem;margin-left:auto;display:flex;align-items:center;gap:8px}
+.live-dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Stats row */
+.stats-row{display:flex;gap:10px;padding:12px 16px;overflow-x:auto;background:var(--card);border-bottom:1px solid var(--border)}
+.stat{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:130px;text-align:center;flex-shrink:0}
+.stat .s-label{font-size:.65rem;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+.stat .s-value{font-size:1.2rem;font-weight:700;margin-top:2px}
+
+/* Layout */
+.layout{display:grid;grid-template-columns:1fr 400px;height:calc(100vh - 110px)}
+
+/* Map */
+.map-wrap{position:relative}
+#map{width:100%;height:100%;background:#040d1a}
+.map-overlay{position:absolute;bottom:16px;left:16px;z-index:1000;background:rgba(10,22,40,.9);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:.72rem}
+.map-overlay h4{margin-bottom:6px;font-size:.75rem;color:var(--dim)}
+.legend-row{display:flex;align-items:center;gap:8px;margin:3px 0}
+.legend-bar{width:14px;height:14px;border-radius:3px}
+
+/* Sidebar */
+.sidebar{background:var(--card);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.sidebar-head h3{font-size:.9rem}
+.sort-select{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:.72rem;font-family:inherit}
+.spot-list{flex:1;overflow-y:auto;padding:8px}
+.spot-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;cursor:pointer;transition:all .2s}
+.spot-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.spot-card.selected{border-color:var(--accent);background:var(--card2)}
+.spot-name{font-size:.85rem;font-weight:600;margin-bottom:2px}
+.spot-loc{font-size:.7rem;color:var(--dim)}
+.spot-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+.metric{text-align:center}
+.metric .m-val{font-size:1rem;font-weight:700}
+.metric .m-unit{font-size:.6rem;color:var(--dim)}
+.metric .m-label{font-size:.6rem;color:var(--dim);margin-top:1px}
+.wave-bar{height:4px;border-radius:2px;margin-top:6px;background:var(--border)}
+.wave-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+.swell-tag{display:inline-block;font-size:.6rem;padding:2px 8px;border-radius:10px;margin-top:6px;font-weight:600}
+
+/* Detail panel */
+.detail-panel{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(4,13,26,.96);z-index:3000;overflow-y:auto;padding:24px}
+.detail-panel.open{display:block}
+.detail-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
+.detail-top h2{font-size:1.3rem}
+.close-btn{background:none;border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center}
+.close-btn:hover{background:var(--card)}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px}
+.d-stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
+.d-stat .ds-label{font-size:.65rem;color:var(--dim);text-transform:uppercase}
+.d-stat .ds-val{font-size:1.3rem;font-weight:700;margin-top:4px}
+.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px}
+.chart-wrap h4{font-size:.8rem;color:var(--dim);margin-bottom:12px}
+.chart-canvas{width:100%;height:180px}
+.wind-rose{display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:20px}
+.compass{position:relative;width:140px;height:140px}
+.compass canvas{width:100%;height:100%}
+.compass-label{position:absolute;font-size:.6rem;color:var(--dim);font-weight:600}
+.compass-label.n{top:2px;left:50%;transform:translateX(-50%)}
+.compass-label.s{bottom:2px;left:50%;transform:translateX(-50%)}
+.compass-label.e{right:2px;top:50%;transform:translateY(-50%)}
+.compass-label.w{left:2px;top:50%;transform:translateY(-50%)}
+
+/* Wave animation */
+.wave-anim{position:relative;height:60px;overflow:hidden;border-radius:8px;margin-bottom:20px}
+.wave-anim canvas{width:100%;height:100%}
+
+/* Responsive */
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr;grid-template-rows:50vh 1fr}
+  .sidebar{border-left:none;border-top:1px solid var(--border)}
+}
+
+/* Loading */
+.loader{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .5s}
+.loader.hidden{opacity:0;pointer-events:none}
+.loader-wave{display:flex;gap:4px;margin-bottom:16px}
+.loader-wave span{width:4px;height:20px;background:var(--accent);border-radius:2px;animation:wave-load 1s ease-in-out infinite}
+.loader-wave span:nth-child(2){animation-delay:.1s}
+.loader-wave span:nth-child(3){animation-delay:.2s}
+.loader-wave span:nth-child(4){animation-delay:.3s}
+.loader-wave span:nth-child(5){animation-delay:.4s}
+@keyframes wave-load{0%,100%{height:20px}50%{height:40px}}
+.loader-text{color:var(--dim);font-size:.85rem}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+</head>
+<body>
+<div class="loader" id="loader">
+  <div class="loader-wave"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="loader-text">Fetching marine conditions…</div>
+</div>
+
+<header class="header">
+  <h1><span class="icon">🌊</span> Ocean Pulse</h1>
+  <div class="sub"><span class="live-dot"></span> Global Marine & Surf Conditions</div>
+</header>
+
+<div class="stats-row" id="statsRow">
+  <div class="stat"><div class="s-label">Spots</div><div class="s-value" id="stSpots">—</div></div>
+  <div class="stat"><div class="s-label">Avg Wave</div><div class="s-value" id="stAvgWave">—</div></div>
+  <div class="stat"><div class="s-label">Max Wave</div><div class="s-value" id="stMaxWave">—</div></div>
+  <div class="stat"><div class="s-label">Avg Swell</div><div class="s-value" id="stAvgSwell">—</div></div>
+  <div class="stat"><div class="s-label">Best Spot</div><div class="s-value" id="stBest" style="font-size:.85rem">—</div></div>
+  <div class="stat"><div class="s-label">Updated</div><div class="s-value" id="stTime" style="font-size:.85rem">—</div></div>
+</div>
+
+<div class="layout">
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="map-overlay">
+      <h4>Wave Height</h4>
+      <div class="legend-row"><div class="legend-bar" style="background:#22c55e"></div> &lt; 1m — Flat</div>
+      <div class="legend-row"><div class="legend-bar" style="background:#0ea5e9"></div> 1–2m — Small</div>
+      <div class="legend-row"><div class="legend-bar" style="background:#eab308"></div> 2–3m — Medium</div>
+      <div class="legend-row"><div class="legend-bar" style="background:#f97316"></div> 3–5m — Large</div>
+      <div class="legend-row"><div class="legend-bar" style="background:#ef4444"></div> &gt; 5m — Heavy</div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <h3>Surf Spots</h3>
+      <select class="sort-select" id="sortSelect">
+        <option value="wave-desc">Biggest waves</option>
+        <option value="wave-asc">Smallest waves</option>
+        <option value="swell-desc">Biggest swell</option>
+        <option value="name">A–Z</option>
+      </select>
+    </div>
+    <div class="spot-list" id="spotList"></div>
+  </div>
+</div>
+
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-top">
+    <div>
+      <h2 id="detailName">—</h2>
+      <div style="color:var(--dim);font-size:.8rem;margin-top:4px" id="detailLoc">—</div>
+    </div>
+    <button class="close-btn" onclick="closeDetail()">×</button>
+  </div>
+  <div class="wave-anim"><canvas id="waveAnimCanvas"></canvas></div>
+  <div class="detail-grid" id="detailGrid"></div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap">
+    <div class="chart-wrap" style="flex:1;min-width:300px">
+      <h4>Wave Height Forecast (48h)</h4>
+      <canvas class="chart-canvas" id="chartWave"></canvas>
+    </div>
+    <div class="chart-wrap" style="flex:1;min-width:300px">
+      <h4>Swell Height Forecast (48h)</h4>
+      <canvas class="chart-canvas" id="chartSwell"></canvas>
+    </div>
+  </div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap">
+    <div class="chart-wrap" style="flex:1;min-width:300px">
+      <h4>Wave Period (48h)</h4>
+      <canvas class="chart-canvas" id="chartPeriod"></canvas>
+    </div>
+    <div class="chart-wrap" style="width:200px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+      <h4 style="font-size:.75rem;color:var(--dim);margin-bottom:10px">Wave Direction</h4>
+      <div class="compass">
+        <canvas id="compassCanvas" width="280" height="280"></canvas>
+        <span class="compass-label n">N</span>
+        <span class="compass-label s">S</span>
+        <span class="compass-label e">E</span>
+        <span class="compass-label w">W</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// === Famous Surf & Coastal Spots ===
+const SPOTS = [
+  {name:"Pipeline",region:"Oahu, Hawaii",lat:21.665,lon:-158.053,emoji:"🏄"},
+  {name:"Mavericks",region:"California, USA",lat:37.494,lon:-122.498,emoji:"🌊"},
+  {name:"Nazaré",region:"Portugal",lat:39.601,lon:-9.070,emoji:"🇵🇹"},
+  {name:"Teahupo'o",region:"Tahiti, French Polynesia",lat:-17.855,lon:-149.256,emoji:"🏝️"},
+  {name:"Jeffreys Bay",region:"South Africa",lat:-33.968,lon:25.964,emoji:"🇿🇦"},
+  {name:"Hossegor",region:"France",lat:43.668,lon:-1.440,emoji:"🇫🇷"},
+  {name:"Bells Beach",region:"Victoria, Australia",lat:-38.369,lon:144.279,emoji:"🇦🇺"},
+  {name:"Uluwatu",region:"Bali, Indonesia",lat:-8.810,lon:115.084,emoji:"🇮🇩"},
+  {name:"Trestles",region:"California, USA",lat:33.383,lon:-117.594,emoji:"🏄"},
+  {name:"Cloudbreak",region:"Fiji",lat:-17.861,lon:177.177,emoji:"🇫🇯"},
+  {name:"Mundaka",region:"Basque Country, Spain",lat:43.407,lon:-2.698,emoji:"🇪🇸"},
+  {name:"Snapper Rocks",region:"Gold Coast, Australia",lat:-28.166,lon:153.552,emoji:"🇦🇺"},
+  {name:"Supertubos",region:"Peniche, Portugal",lat:39.341,lon:-9.378,emoji:"🇵🇹"},
+  {name:"Margaret River",region:"Western Australia",lat:-33.956,lon:114.986,emoji:"🇦🇺"},
+  {name:"Banzai",region:"North Shore, Hawaii",lat:21.672,lon:-158.049,emoji:"🏄"},
+  {name:"Jaws (Pe'ahi)",region:"Maui, Hawaii",lat:20.939,lon:-156.226,emoji:"🦈"},
+  {name:"Chicama",region:"Peru",lat:-7.841,lon:-79.447,emoji:"🇵🇪"},
+  {name:"Raglan",region:"New Zealand",lat:-37.806,lon:174.827,emoji:"🇳🇿"},
+  {name:"Tavarua",region:"Fiji",lat:-17.855,lon:177.188,emoji:"🇫🇯"},
+  {name:"Ericeira",region:"Portugal",lat:38.970,lon:-9.420,emoji:"🇵🇹"},
+  {name:"Skeleton Bay",region:"Namibia",lat:-24.767,lon:14.962,emoji:"🇳🇦"},
+  {name:"Thurso East",region:"Scotland, UK",lat:58.594,lon:-3.513,emoji:"🏴"},
+  {name:"Siargao",region:"Philippines",lat:9.870,lon:126.120,emoji:"🇵🇭"},
+  {name:"Santa Cruz",region:"California, USA",lat:36.951,lon:-122.027,emoji:"🏄"},
+  {name:"Huntington Beach",region:"California, USA",lat:33.646,lon:-117.999,emoji:"🏄"},
+  {name:"Bondi Beach",region:"Sydney, Australia",lat:-33.891,lon:151.274,emoji:"🇦🇺"},
+  {name:"Waikiki",region:"Oahu, Hawaii",lat:21.269,lon:-157.827,emoji:"🌺"},
+  {name:"Peniche",region:"Portugal",lat:39.364,lon:-9.391,emoji:"🇵🇹"}
+];
+
+let map, markers = [], allData = [], currentSort = 'wave-desc';
+
+function initMap() {
+  map = L.map('map', { center: [20, -20], zoom: 2, zoomControl: false });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO', maxZoom: 18
+  }).addTo(map);
+  L.control.zoom({ position: 'topright' }).addTo(map);
+}
+
+function waveColor(h) {
+  if (h < 1) return '#22c55e';
+  if (h < 2) return '#0ea5e9';
+  if (h < 3) return '#eab308';
+  if (h < 5) return '#f97316';
+  return '#ef4444';
+}
+
+function waveLabel(h) {
+  if (h < 0.5) return 'Flat';
+  if (h < 1) return 'Ankle';
+  if (h < 1.5) return 'Knee–Waist';
+  if (h < 2) return 'Waist–Chest';
+  if (h < 3) return 'Head–Overhead';
+  if (h < 5) return 'Double OH+';
+  return 'XXL';
+}
+
+function dirLabel(deg) {
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg / 22.5) % 16];
+}
+
+// Fetch data from Open-Meteo Marine API
+async function fetchAllData() {
+  // Batch requests: Open-Meteo allows multiple latitudes/longitudes
+  const batchSize = 10;
+  allData = [];
+
+  for (let i = 0; i < SPOTS.length; i += batchSize) {
+    const batch = SPOTS.slice(i, i + batchSize);
+    const promises = batch.map(spot => {
+      const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${spot.lat}&longitude=${spot.lon}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period&hourly=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period&forecast_days=2&timezone=auto`;
+      return fetch(url).then(r => r.json()).then(json => ({ spot, json })).catch(() => ({ spot, json: null }));
+    });
+    const results = await Promise.all(promises);
+    for (const { spot, json } of results) {
+      if (!json || !json.current) continue;
+      const c = json.current;
+      allData.push({
+        ...spot,
+        waveHeight: c.wave_height ?? 0,
+        waveDir: c.wave_direction ?? 0,
+        wavePeriod: c.wave_period ?? 0,
+        swellHeight: c.swell_wave_height ?? 0,
+        swellDir: c.swell_wave_direction ?? 0,
+        swellPeriod: c.swell_wave_period ?? 0,
+        hourly: json.hourly || null
+      });
+    }
+  }
+
+  updateUI();
+  document.getElementById('loader').classList.add('hidden');
+}
+
+function updateUI() {
+  updateStats();
+  updateMarkers();
+  updateList();
+}
+
+function updateStats() {
+  const waves = allData.map(d => d.waveHeight);
+  const swells = allData.map(d => d.swellHeight);
+  const avg = arr => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+  const max = arr => arr.length ? Math.max(...arr) : 0;
+  const maxWave = max(waves);
+  const bestSpot = allData.find(d => d.waveHeight === maxWave);
+
+  document.getElementById('stSpots').textContent = allData.length;
+  document.getElementById('stAvgWave').textContent = avg(waves).toFixed(1) + 'm';
+  document.getElementById('stMaxWave').textContent = maxWave.toFixed(1) + 'm';
+  document.getElementById('stAvgSwell').textContent = avg(swells).toFixed(1) + 'm';
+  document.getElementById('stBest').textContent = bestSpot ? bestSpot.name : '—';
+  document.getElementById('stTime').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function updateMarkers() {
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+
+  for (const d of allData) {
+    const color = waveColor(d.waveHeight);
+    const size = Math.max(10, Math.min(24, 8 + d.waveHeight * 4));
+
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:${size}px;height:${size}px;background:${color};border-radius:50%;
+        border:2px solid ${color}66;box-shadow:0 0 ${size}px ${color}66;
+        display:flex;align-items:center;justify-content:center;
+        font-size:${size*0.5}px;
+      "></div>`,
+      iconSize: [size, size], iconAnchor: [size/2, size/2]
+    });
+
+    const marker = L.marker([d.lat, d.lon], { icon }).addTo(map);
+    marker.bindPopup(`
+      <div style="font-family:system-ui;min-width:180px">
+        <strong>${d.emoji} ${d.name}</strong><br>
+        <span style="font-size:.75rem;color:#888">${d.region}</span><br><br>
+        <b>Waves:</b> ${d.waveHeight.toFixed(1)}m (${waveLabel(d.waveHeight)})<br>
+        <b>Period:</b> ${d.wavePeriod.toFixed(1)}s<br>
+        <b>Direction:</b> ${dirLabel(d.waveDir)} (${Math.round(d.waveDir)}°)<br>
+        <b>Swell:</b> ${d.swellHeight.toFixed(1)}m @ ${d.swellPeriod.toFixed(1)}s<br><br>
+        <a href="javascript:void(0)" onclick="openDetail('${d.name}')" style="color:#0ea5e9">View Forecast →</a>
+      </div>
+    `, { className: 'ocean-popup' });
+
+    markers.push(marker);
+  }
+
+  // Popup styling
+  if (!document.getElementById('popup-styles')) {
+    const s = document.createElement('style');
+    s.id = 'popup-styles';
+    s.textContent = `.ocean-popup .leaflet-popup-content-wrapper{background:#0f1d32;color:#e2e8f0;border-radius:10px;border:1px solid #152238}.ocean-popup .leaflet-popup-tip{background:#0f1d32}.ocean-popup .leaflet-popup-close-button{color:#5a7494}`;
+    document.head.appendChild(s);
+  }
+}
+
+function updateList() {
+  let sorted = [...allData];
+  switch (currentSort) {
+    case 'wave-desc': sorted.sort((a, b) => b.waveHeight - a.waveHeight); break;
+    case 'wave-asc': sorted.sort((a, b) => a.waveHeight - b.waveHeight); break;
+    case 'swell-desc': sorted.sort((a, b) => b.swellHeight - a.swellHeight); break;
+    case 'name': sorted.sort((a, b) => a.name.localeCompare(b.name)); break;
+  }
+
+  const list = document.getElementById('spotList');
+  list.innerHTML = sorted.map(d => {
+    const color = waveColor(d.waveHeight);
+    const pct = Math.min(100, (d.waveHeight / 8) * 100);
+    const label = waveLabel(d.waveHeight);
+    return `
+      <div class="spot-card" onclick="openDetail('${d.name}')" data-name="${d.name}">
+        <div class="spot-name">${d.emoji} ${d.name}</div>
+        <div class="spot-loc">${d.region}</div>
+        <div class="spot-metrics">
+          <div class="metric">
+            <div class="m-val" style="color:${color}">${d.waveHeight.toFixed(1)}</div>
+            <div class="m-unit">m</div>
+            <div class="m-label">Waves</div>
+          </div>
+          <div class="metric">
+            <div class="m-val">${d.wavePeriod.toFixed(0)}</div>
+            <div class="m-unit">s</div>
+            <div class="m-label">Period</div>
+          </div>
+          <div class="metric">
+            <div class="m-val">${d.swellHeight.toFixed(1)}</div>
+            <div class="m-unit">m</div>
+            <div class="m-label">Swell</div>
+          </div>
+        </div>
+        <div class="wave-bar"><div class="wave-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <span class="swell-tag" style="background:${color}22;color:${color}">${label} • ${dirLabel(d.waveDir)}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+document.getElementById('sortSelect').addEventListener('change', e => {
+  currentSort = e.target.value;
+  updateList();
+});
+
+// Detail view
+let waveAnimId = null;
+
+function openDetail(name) {
+  const d = allData.find(s => s.name === name);
+  if (!d) return;
+
+  document.getElementById('detailName').textContent = `${d.emoji} ${d.name}`;
+  document.getElementById('detailLoc').textContent = `${d.region} • ${d.lat.toFixed(2)}°, ${d.lon.toFixed(2)}°`;
+
+  const color = waveColor(d.waveHeight);
+  document.getElementById('detailGrid').innerHTML = `
+    <div class="d-stat"><div class="ds-label">Wave Height</div><div class="ds-val" style="color:${color}">${d.waveHeight.toFixed(1)}m</div></div>
+    <div class="d-stat"><div class="ds-label">Condition</div><div class="ds-val" style="color:${color};font-size:.9rem">${waveLabel(d.waveHeight)}</div></div>
+    <div class="d-stat"><div class="ds-label">Wave Period</div><div class="ds-val">${d.wavePeriod.toFixed(1)}s</div></div>
+    <div class="d-stat"><div class="ds-label">Wave Dir</div><div class="ds-val">${dirLabel(d.waveDir)} ${Math.round(d.waveDir)}°</div></div>
+    <div class="d-stat"><div class="ds-label">Swell Height</div><div class="ds-val">${d.swellHeight.toFixed(1)}m</div></div>
+    <div class="d-stat"><div class="ds-label">Swell Period</div><div class="ds-val">${d.swellPeriod.toFixed(1)}s</div></div>
+    <div class="d-stat"><div class="ds-label">Swell Dir</div><div class="ds-val">${dirLabel(d.swellDir)} ${Math.round(d.swellDir)}°</div></div>
+  `;
+
+  // Draw forecast charts
+  if (d.hourly) {
+    const h = d.hourly;
+    const times = h.time.slice(0, 48);
+    drawForecastChart('chartWave', times, h.wave_height.slice(0, 48), '#0ea5e9', 'm');
+    drawForecastChart('chartSwell', times, h.swell_wave_height.slice(0, 48), '#14b8a6', 'm');
+    drawForecastChart('chartPeriod', times, h.wave_period.slice(0, 48), '#a855f7', 's');
+  }
+
+  drawCompass(d.waveDir, d.swellDir);
+  startWaveAnimation(d.waveHeight, d.wavePeriod, waveColor(d.waveHeight));
+
+  document.getElementById('detailPanel').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detailPanel').classList.remove('open');
+  if (waveAnimId) cancelAnimationFrame(waveAnimId);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+
+function drawForecastChart(canvasId, times, values, color, unit) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  const pad = { t: 16, r: 16, b: 28, l: 44 };
+  const cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const data = values.map(v => v ?? 0);
+  let minV = Math.min(...data), maxV = Math.max(...data);
+  const range = maxV - minV || 1;
+  minV -= range * 0.1; maxV += range * 0.1;
+  const fRange = maxV - minV;
+
+  const toX = i => pad.l + (i / (data.length - 1)) * cW;
+  const toY = v => pad.t + (1 - (v - minV) / fRange) * cH;
+
+  // Grid
+  ctx.strokeStyle = '#152238';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + (i / 4) * cH;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+    const val = maxV - (i / 4) * fRange;
+    ctx.fillStyle = '#5a7494';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText(val.toFixed(1) + unit, pad.l - 6, y + 3);
+  }
+
+  // Time labels
+  ctx.textAlign = 'center';
+  for (let i = 0; i < times.length; i += 12) {
+    const t = new Date(times[i]);
+    const x = toX(i);
+    ctx.fillText(t.toLocaleDateString([], { weekday: 'short' }) + ' ' + t.getHours() + 'h', x, H - 4);
+  }
+
+  // Area
+  ctx.beginPath();
+  ctx.moveTo(toX(0), toY(data[0]));
+  for (let i = 1; i < data.length; i++) ctx.lineTo(toX(i), toY(data[i]));
+  ctx.lineTo(toX(data.length - 1), pad.t + cH);
+  ctx.lineTo(toX(0), pad.t + cH);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + cH);
+  grad.addColorStop(0, color + '30');
+  grad.addColorStop(1, color + '05');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.moveTo(toX(0), toY(data[0]));
+  for (let i = 1; i < data.length; i++) ctx.lineTo(toX(i), toY(data[i]));
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawCompass(waveDir, swellDir) {
+  const canvas = document.getElementById('compassCanvas');
+  const ctx = canvas.getContext('2d');
+  const s = 140, c = s / 2;
+  canvas.width = s * 2; canvas.height = s * 2;
+  ctx.scale(2, 2);
+  ctx.clearRect(0, 0, s, s);
+
+  // Rings
+  for (let r = 15; r <= 55; r += 20) {
+    ctx.strokeStyle = '#152238';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(c, c, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Cross lines
+  ctx.strokeStyle = '#152238';
+  ctx.beginPath();
+  ctx.moveTo(c, 8); ctx.lineTo(c, s - 8);
+  ctx.moveTo(8, c); ctx.lineTo(s - 8, c);
+  ctx.stroke();
+
+  // Wave direction arrow
+  drawArrow(ctx, c, c, waveDir, 48, '#0ea5e9', 'Wave');
+  // Swell direction arrow
+  drawArrow(ctx, c, c, swellDir, 40, '#14b8a6', 'Swell');
+}
+
+function drawArrow(ctx, cx, cy, deg, len, color, label) {
+  const rad = (deg - 90) * Math.PI / 180;
+  const ex = cx + Math.cos(rad) * len;
+  const ey = cy + Math.sin(rad) * len;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+
+  // Arrowhead
+  const headLen = 8;
+  const a1 = rad + Math.PI * 0.8;
+  const a2 = rad - Math.PI * 0.8;
+  ctx.beginPath();
+  ctx.moveTo(ex, ey);
+  ctx.lineTo(ex + Math.cos(a1) * headLen, ey + Math.sin(a1) * headLen);
+  ctx.moveTo(ex, ey);
+  ctx.lineTo(ex + Math.cos(a2) * headLen, ey + Math.sin(a2) * headLen);
+  ctx.stroke();
+
+  // Label
+  const lx = cx + Math.cos(rad) * (len + 14);
+  const ly = cy + Math.sin(rad) * (len + 14);
+  ctx.fillStyle = color;
+  ctx.font = 'bold 7px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText(label, lx, ly + 3);
+}
+
+// Animated wave at top of detail panel
+function startWaveAnimation(height, period, color) {
+  if (waveAnimId) cancelAnimationFrame(waveAnimId);
+  const canvas = document.getElementById('waveAnimCanvas');
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  const amp = Math.min(H * 0.35, height * 8);
+  const freq = 1 / Math.max(period, 4);
+
+  function draw(t) {
+    ctx.clearRect(0, 0, W, H);
+    const time = t / 1000;
+
+    for (let layer = 2; layer >= 0; layer--) {
+      const alpha = 0.15 + layer * 0.15;
+      const yOff = H * 0.5 + layer * 4;
+      const speed = (1 + layer * 0.3) * freq;
+      const a = amp * (0.6 + layer * 0.2);
+
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      for (let x = 0; x <= W; x += 2) {
+        const y = yOff + Math.sin(x * 0.015 - time * speed * Math.PI * 2) * a
+                       + Math.sin(x * 0.008 + time * speed * 1.3) * a * 0.4;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(W, H);
+      ctx.closePath();
+
+      const grad = ctx.createLinearGradient(0, yOff - a, 0, H);
+      grad.addColorStop(0, color + Math.round(alpha * 255).toString(16).padStart(2, '0'));
+      grad.addColorStop(1, color + '08');
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    waveAnimId = requestAnimationFrame(draw);
+  }
+  waveAnimId = requestAnimationFrame(draw);
+}
+
+// Init
+initMap();
+fetchAllData();
+
+// Refresh every 10 minutes
+setInterval(fetchAllData, 600000);
+</script>
+</body>
+</html>
