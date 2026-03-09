@@ -256,6 +256,13 @@
     "path": "projects/art/"
   },
   {
+    "id": "gravity",
+    "title": "Gravity Lab",
+    "description": "Interactive N-body gravitational simulator with click-to-spawn bodies, orbital trails, collision merging, 6 presets, velocity vectors, and zoom/pan controls.",
+    "tags": ["Canvas", "Physics", "Simulation", "N-Body"],
+    "path": "projects/gravity/"
+  },
+  {
     "id": "brightonhub",
     "title": "Brighton Hub",
     "description": "Live city dashboard for Brighton & Hove with real-time transport, environment, crime, housing, health, events, and schools data.",
