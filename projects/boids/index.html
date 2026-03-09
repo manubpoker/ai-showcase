@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boids Flocking</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{background:#06080c;overflow:hidden;height:100vh;font-family:'Inter',system-ui,sans-serif;color:#ddd}
+canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+
+.ui{position:absolute;top:16px;left:16px;z-index:10;user-select:none}
+.panel{background:rgba(6,8,12,0.82);border:1px solid rgba(255,255,255,0.05);border-radius:14px;padding:18px;width:270px;backdrop-filter:blur(16px)}
+.panel h1{font-size:1.05rem;font-weight:700;margin-bottom:2px}
+.panel h1 span{background:linear-gradient(135deg,#60a5fa,#a78bfa,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.panel .sub{font-size:0.6rem;color:#444;margin-bottom:12px}
+
+.section-label{font-size:0.56rem;color:#444;text-transform:uppercase;letter-spacing:0.05em;margin:10px 0 5px}
+.ctrl{margin-bottom:8px}
+.ctrl label{display:flex;justify-content:space-between;font-size:0.66rem;color:#777;margin-bottom:2px}
+.ctrl label b{color:#fff;font-weight:600;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;border-radius:2px;background:rgba(255,255,255,0.07);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:#fff;cursor:pointer}
+
+.modes{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.mode-btn{padding:3px 10px;border:1px solid rgba(255,255,255,0.06);border-radius:12px;background:rgba(255,255,255,0.02);font-size:0.58rem;cursor:pointer;transition:all 0.2s;color:#666}
+.mode-btn:hover{background:rgba(255,255,255,0.06);color:#fff}
+.mode-btn.active{border-color:rgba(96,165,250,0.35);background:rgba(96,165,250,0.1);color:#93c5fd}
+
+.check-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:0.65rem;color:#888;cursor:pointer}
+.check-row input{accent-color:#60a5fa}
+
+.btns{display:flex;gap:5px;margin-top:10px}
+.btn{flex:1;padding:4px 0;border:1px solid rgba(255,255,255,0.07);border-radius:6px;background:rgba(255,255,255,0.02);color:#999;font-size:0.6rem;font-weight:600;cursor:pointer;text-align:center;transition:all 0.2s}
+.btn:hover{background:rgba(255,255,255,0.06);color:#fff}
+
+.toggle-btn{position:absolute;top:16px;right:16px;z-index:10;padding:5px 12px;border:1px solid rgba(255,255,255,0.05);border-radius:8px;background:rgba(6,8,12,0.75);color:#666;font-size:0.6rem;cursor:pointer;backdrop-filter:blur(8px)}
+.toggle-btn:hover{color:#fff}
+.stats{position:absolute;bottom:10px;left:16px;font-size:0.55rem;color:#2a2a2a;z-index:10}
+.hint{position:absolute;bottom:10px;right:16px;font-size:0.55rem;color:#2a2a2a;z-index:10}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="ui" id="ui">
+<div class="panel">
+  <h1><span>Boids Flocking</span></h1>
+  <div class="sub">Emergent swarm intelligence · Reynolds flocking model</div>
+
+  <div class="ctrl">
+    <label>Flock Size <b id="v-count">600</b></label>
+    <input type="range" id="count" min="50" max="2000" step="50" value="600">
+  </div>
+
+  <div class="section-label">Flocking Rules</div>
+  <div class="ctrl">
+    <label>Separation <b id="v-sep">1.5</b></label>
+    <input type="range" id="sep" min="0" max="4" step="0.1" value="1.5">
+  </div>
+  <div class="ctrl">
+    <label>Alignment <b id="v-ali">1.0</b></label>
+    <input type="range" id="ali" min="0" max="4" step="0.1" value="1.0">
+  </div>
+  <div class="ctrl">
+    <label>Cohesion <b id="v-coh">1.0</b></label>
+    <input type="range" id="coh" min="0" max="4" step="0.1" value="1.0">
+  </div>
+
+  <div class="section-label">Perception</div>
+  <div class="ctrl">
+    <label>Visual Range <b id="v-range">60</b>px</label>
+    <input type="range" id="range" min="20" max="150" step="5" value="60">
+  </div>
+  <div class="ctrl">
+    <label>Max Speed <b id="v-speed">3.0</b></label>
+    <input type="range" id="speed" min="1" max="8" step="0.25" value="3.0">
+  </div>
+  <div class="ctrl">
+    <label>Turn Factor <b id="v-turn">0.4</b></label>
+    <input type="range" id="turn" min="0.1" max="1.5" step="0.05" value="0.4">
+  </div>
+
+  <div class="section-label">Appearance</div>
+  <div class="modes" id="colorMode">
+    <div class="mode-btn active" data-c="velocity">Velocity</div>
+    <div class="mode-btn" data-c="flock">Flock ID</div>
+    <div class="mode-btn" data-c="depth">Depth</div>
+    <div class="mode-btn" data-c="rainbow">Rainbow</div>
+    <div class="mode-btn" data-c="mono">Mono</div>
+  </div>
+
+  <label class="check-row"><input type="checkbox" id="chkTrails" checked> Trails</label>
+  <label class="check-row"><input type="checkbox" id="chkPredator"> Predator (mouse)</label>
+  <label class="check-row"><input type="checkbox" id="chkWind"> Wind gusts</label>
+  <label class="check-row"><input type="checkbox" id="chkObstacle"> Obstacles</label>
+
+  <div class="section-label">Presets</div>
+  <div class="modes" id="presets">
+    <div class="mode-btn active" data-p="natural">Natural</div>
+    <div class="mode-btn" data-p="tight">Tight Flock</div>
+    <div class="mode-btn" data-p="chaos">Chaos</div>
+    <div class="mode-btn" data-p="murmur">Murmuration</div>
+    <div class="mode-btn" data-p="swarm">Swarm</div>
+  </div>
+
+  <div class="btns">
+    <div class="btn" id="btnScatter">Scatter</div>
+    <div class="btn" id="btnPause">Pause</div>
+  </div>
+</div>
+</div>
+
+<button class="toggle-btn" id="toggleUI">Hide Controls</button>
+<div class="stats" id="stats"></div>
+<div class="hint">Enable predator mode and move mouse to chase the flock</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// Params
+let flockSize = 600;
+let separation = 1.5, alignment = 1.0, cohesion = 1.0;
+let visualRange = 60, maxSpeed = 3.0, turnFactor = 0.4;
+let colorMode = 'velocity', trails = true, predatorMode = false;
+let windMode = false, obstacleMode = false, paused = false;
+
+let mouseX = -9999, mouseY = -9999;
+let obstacles = [];
+let time = 0;
+
+// Spatial grid for O(n) neighbor lookup
+let grid = {};
+let cellSize = 60;
+
+// Boid
+class Boid {
+  constructor() {
+    this.x = Math.random() * window.innerWidth;
+    this.y = Math.random() * window.innerHeight;
+    this.vx = (Math.random() - 0.5) * maxSpeed * 2;
+    this.vy = (Math.random() - 0.5) * maxSpeed * 2;
+    this.id = Math.floor(Math.random() * 5);
+    this.depth = 0.5 + Math.random() * 0.5; // fake z
+  }
+}
+
+let boids = [];
+function initBoids(n) {
+  boids = [];
+  for (let i = 0; i < n; i++) boids.push(new Boid());
+}
+initBoids(flockSize);
+
+// Resize
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Mouse
+canvas.addEventListener('pointermove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+canvas.addEventListener('pointerleave', () => { mouseX = -9999; mouseY = -9999; });
+canvas.style.touchAction = 'none';
+
+// Click to add obstacles
+canvas.addEventListener('pointerdown', e => {
+  if (obstacleMode) {
+    obstacles.push({ x: e.clientX, y: e.clientY, r: 30 + Math.random() * 30 });
+    if (obstacles.length > 10) obstacles.shift();
+  }
+});
+
+// Build spatial grid
+function buildGrid() {
+  grid = {};
+  cellSize = visualRange;
+  for (let i = 0; i < boids.length; i++) {
+    const b = boids[i];
+    const cx = Math.floor(b.x / cellSize);
+    const cy = Math.floor(b.y / cellSize);
+    const key = cx + ',' + cy;
+    if (!grid[key]) grid[key] = [];
+    grid[key].push(i);
+  }
+}
+
+function getNeighborIndices(x, y) {
+  const cx = Math.floor(x / cellSize);
+  const cy = Math.floor(y / cellSize);
+  const indices = [];
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const cell = grid[(cx + dx) + ',' + (cy + dy)];
+      if (cell) {
+        for (let i = 0; i < cell.length; i++) indices.push(cell[i]);
+      }
+    }
+  }
+  return indices;
+}
+
+// Physics update
+function update() {
+  const W = window.innerWidth, H = window.innerHeight;
+  const vr2 = visualRange * visualRange;
+  const sepDist = visualRange * 0.35;
+  const sepDist2 = sepDist * sepDist;
+
+  buildGrid();
+
+  // Wind
+  let windX = 0, windY = 0;
+  if (windMode) {
+    windX = Math.sin(time * 0.3) * 0.15 + Math.sin(time * 0.7) * 0.1;
+    windY = Math.cos(time * 0.5) * 0.08;
+  }
+
+  for (let i = 0; i < boids.length; i++) {
+    const b = boids[i];
+    let sepX = 0, sepY = 0;
+    let aliVx = 0, aliVy = 0, aliCount = 0;
+    let cohX = 0, cohY = 0, cohCount = 0;
+
+    const neighbors = getNeighborIndices(b.x, b.y);
+    for (let ni = 0; ni < neighbors.length; ni++) {
+      const j = neighbors[ni];
+      if (j === i) continue;
+      const o = boids[j];
+      const dx = b.x - o.x, dy = b.y - o.y;
+      const d2 = dx * dx + dy * dy;
+
+      if (d2 < vr2) {
+        // Separation
+        if (d2 < sepDist2 && d2 > 0) {
+          const d = Math.sqrt(d2);
+          sepX += (dx / d) / d;
+          sepY += (dy / d) / d;
+        }
+        // Alignment
+        aliVx += o.vx;
+        aliVy += o.vy;
+        aliCount++;
+        // Cohesion
+        cohX += o.x;
+        cohY += o.y;
+        cohCount++;
+      }
+    }
+
+    // Apply rules
+    b.vx += sepX * separation * 8;
+    b.vy += sepY * separation * 8;
+
+    if (aliCount > 0) {
+      aliVx /= aliCount;
+      aliVy /= aliCount;
+      b.vx += (aliVx - b.vx) * alignment * 0.05;
+      b.vy += (aliVy - b.vy) * alignment * 0.05;
+    }
+
+    if (cohCount > 0) {
+      cohX /= cohCount;
+      cohY /= cohCount;
+      b.vx += (cohX - b.x) * cohesion * 0.003;
+      b.vy += (cohY - b.y) * cohesion * 0.003;
+    }
+
+    // Predator avoidance
+    if (predatorMode && mouseX > -9000) {
+      const dx = b.x - mouseX, dy = b.y - mouseY;
+      const d2 = dx * dx + dy * dy;
+      const fleeR = visualRange * 2.5;
+      if (d2 < fleeR * fleeR && d2 > 0) {
+        const d = Math.sqrt(d2);
+        const force = (fleeR - d) / fleeR * 3;
+        b.vx += (dx / d) * force;
+        b.vy += (dy / d) * force;
+      }
+    }
+
+    // Obstacle avoidance
+    for (const obs of obstacles) {
+      const dx = b.x - obs.x, dy = b.y - obs.y;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      if (d < obs.r + 40 && d > 0) {
+        const force = (obs.r + 40 - d) / 40 * 2;
+        b.vx += (dx / d) * force;
+        b.vy += (dy / d) * force;
+      }
+    }
+
+    // Wind
+    b.vx += windX;
+    b.vy += windY;
+
+    // Edge turning
+    const margin = 80;
+    if (b.x < margin) b.vx += turnFactor;
+    if (b.x > W - margin) b.vx -= turnFactor;
+    if (b.y < margin) b.vy += turnFactor;
+    if (b.y > H - margin) b.vy -= turnFactor;
+
+    // Speed limit
+    const spd = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+    const ms = maxSpeed * b.depth;
+    if (spd > ms) {
+      b.vx = (b.vx / spd) * ms;
+      b.vy = (b.vy / spd) * ms;
+    }
+    const minSpd = ms * 0.3;
+    if (spd < minSpd && spd > 0) {
+      b.vx = (b.vx / spd) * minSpd;
+      b.vy = (b.vy / spd) * minSpd;
+    }
+
+    b.x += b.vx;
+    b.y += b.vy;
+
+    // Depth wobble
+    b.depth += (Math.sin(time * 2 + i * 0.1) * 0.002);
+    b.depth = Math.max(0.3, Math.min(1.0, b.depth));
+  }
+}
+
+// Color
+function boidColor(b, i) {
+  const spd = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+  const t = spd / maxSpeed;
+  switch (colorMode) {
+    case 'velocity': {
+      const h = 200 + t * 160;
+      return `hsla(${h}, 80%, ${50 + t * 20}%, ${0.6 + b.depth * 0.3})`;
+    }
+    case 'flock': {
+      const hues = [210, 330, 150, 40, 280];
+      return `hsla(${hues[b.id]}, 75%, 60%, ${0.6 + b.depth * 0.3})`;
+    }
+    case 'depth': {
+      const l = 30 + b.depth * 50;
+      return `hsla(220, 60%, ${l}%, ${0.5 + b.depth * 0.4})`;
+    }
+    case 'rainbow': {
+      const h = (time * 20 + i * 0.5) % 360;
+      return `hsla(${h}, 80%, 60%, ${0.6 + b.depth * 0.3})`;
+    }
+    case 'mono':
+      return `rgba(200,210,220,${0.3 + b.depth * 0.5})`;
+  }
+}
+
+// Render
+function render() {
+  const W = window.innerWidth, H = window.innerHeight;
+
+  if (trails) {
+    ctx.fillStyle = 'rgba(6,8,12,0.12)';
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    ctx.fillStyle = '#06080c';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // Sort by depth for pseudo-3D
+  const sorted = boids.map((b, i) => ({ b, i }));
+  sorted.sort((a, b) => a.b.depth - b.b.depth);
+
+  for (const { b, i } of sorted) {
+    const angle = Math.atan2(b.vy, b.vx);
+    const size = 3 + b.depth * 5;
+    const color = boidColor(b, i);
+
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.rotate(angle);
+
+    // Triangle boid
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(size, 0);
+    ctx.lineTo(-size * 0.6, size * 0.4);
+    ctx.lineTo(-size * 0.6, -size * 0.4);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // Predator cursor
+  if (predatorMode && mouseX > -9000) {
+    ctx.strokeStyle = 'rgba(239,68,68,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(mouseX, mouseY, visualRange * 2.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(239,68,68,0.15)';
+    ctx.beginPath();
+    ctx.arc(mouseX, mouseY, 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Obstacles
+  for (const obs of obstacles) {
+    ctx.strokeStyle = 'rgba(251,191,36,0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(obs.x, obs.y, obs.r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(251,191,36,0.04)';
+    ctx.fill();
+  }
+
+  // Wind indicator
+  if (windMode) {
+    const wx = Math.sin(time * 0.3) * 20;
+    const wy = Math.cos(time * 0.5) * 10;
+    ctx.strokeStyle = 'rgba(100,150,255,0.15)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(W - 50, 50);
+    ctx.lineTo(W - 50 + wx, 50 + wy);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(100,150,255,0.08)';
+    ctx.font = '9px Inter, system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('WIND', W - 50, 70);
+  }
+}
+
+// Presets
+const PRESETS = {
+  natural: { sep: 1.5, ali: 1.0, coh: 1.0, range: 60, speed: 3.0, turn: 0.4 },
+  'tight': { sep: 2.0, ali: 2.0, coh: 2.5, range: 80, speed: 2.5, turn: 0.5 },
+  chaos: { sep: 0.3, ali: 0.2, coh: 0.3, range: 40, speed: 5.0, turn: 0.2 },
+  murmur: { sep: 1.8, ali: 2.5, coh: 1.5, range: 100, speed: 4.0, turn: 0.6 },
+  swarm: { sep: 0.8, ali: 0.5, coh: 3.0, range: 120, speed: 2.0, turn: 0.3 },
+};
+
+// UI
+const sliders = [
+  { id:'count', lbl:'v-count', set:v=>{flockSize=v;while(boids.length<v)boids.push(new Boid());while(boids.length>v)boids.pop();}, fmt:v=>v.toFixed(0) },
+  { id:'sep', lbl:'v-sep', set:v=>separation=v, fmt:v=>v.toFixed(1) },
+  { id:'ali', lbl:'v-ali', set:v=>alignment=v, fmt:v=>v.toFixed(1) },
+  { id:'coh', lbl:'v-coh', set:v=>cohesion=v, fmt:v=>v.toFixed(1) },
+  { id:'range', lbl:'v-range', set:v=>visualRange=v, fmt:v=>v.toFixed(0) },
+  { id:'speed', lbl:'v-speed', set:v=>maxSpeed=v, fmt:v=>v.toFixed(1) },
+  { id:'turn', lbl:'v-turn', set:v=>turnFactor=v, fmt:v=>v.toFixed(2) },
+];
+sliders.forEach(s => {
+  document.getElementById(s.id).addEventListener('input', function(){
+    const v=parseFloat(this.value); s.set(v);
+    document.getElementById(s.lbl).textContent=s.fmt(v);
+  });
+});
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  separation=p.sep; alignment=p.ali; cohesion=p.coh;
+  visualRange=p.range; maxSpeed=p.speed; turnFactor=p.turn;
+  document.getElementById('sep').value=p.sep; document.getElementById('v-sep').textContent=p.sep.toFixed(1);
+  document.getElementById('ali').value=p.ali; document.getElementById('v-ali').textContent=p.ali.toFixed(1);
+  document.getElementById('coh').value=p.coh; document.getElementById('v-coh').textContent=p.coh.toFixed(1);
+  document.getElementById('range').value=p.range; document.getElementById('v-range').textContent=p.range.toFixed(0);
+  document.getElementById('speed').value=p.speed; document.getElementById('v-speed').textContent=p.speed.toFixed(1);
+  document.getElementById('turn').value=p.turn; document.getElementById('v-turn').textContent=p.turn.toFixed(2);
+}
+
+document.querySelectorAll('#colorMode .mode-btn').forEach(el=>{
+  el.onclick=()=>{
+    document.querySelectorAll('#colorMode .mode-btn').forEach(e=>e.classList.remove('active'));
+    el.classList.add('active'); colorMode=el.dataset.c;
+  };
+});
+
+document.querySelectorAll('#presets .mode-btn').forEach(el=>{
+  el.onclick=()=>{
+    document.querySelectorAll('#presets .mode-btn').forEach(e=>e.classList.remove('active'));
+    el.classList.add('active'); applyPreset(el.dataset.p);
+  };
+});
+
+document.getElementById('chkTrails').onchange=function(){trails=this.checked};
+document.getElementById('chkPredator').onchange=function(){predatorMode=this.checked};
+document.getElementById('chkWind').onchange=function(){windMode=this.checked};
+document.getElementById('chkObstacle').onchange=function(){obstacleMode=this.checked;if(!this.checked)obstacles=[];};
+
+document.getElementById('btnScatter').onclick=()=>{
+  for(const b of boids){b.vx=(Math.random()-0.5)*maxSpeed*4;b.vy=(Math.random()-0.5)*maxSpeed*4;}
+};
+document.getElementById('btnPause').onclick=function(){paused=!paused;this.textContent=paused?'Resume':'Pause';};
+
+const uiEl=document.getElementById('ui');
+document.getElementById('toggleUI').onclick=function(){
+  const v=uiEl.style.display!=='none';
+  uiEl.style.display=v?'none':'';
+  this.textContent=v?'Show Controls':'Hide Controls';
+};
+
+// Loop
+let frameCount=0,fpsTime=0;
+function loop(now) {
+  requestAnimationFrame(loop);
+  if (!paused) { time+=0.016; update(); }
+  render();
+  frameCount++;
+  if(now-fpsTime>500){
+    document.getElementById('stats').textContent=`${boids.length} boids · ${(frameCount/((now-fpsTime)/1000)).toFixed(0)} fps`;
+    frameCount=0;fpsTime=now;
+  }
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
