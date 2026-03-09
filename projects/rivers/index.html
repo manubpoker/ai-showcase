@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>River Pulse — Live USGS Stream Gauges</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0e1a;--card:#111827;--border:#1e2a3a;--text:#e2e8f0;
+  --dim:#64748b;--accent:#3b82f6;--green:#22c55e;--yellow:#eab308;
+  --orange:#f97316;--red:#ef4444;--cyan:#06b6d4;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+a{color:var(--accent);text-decoration:none}
+
+/* Header */
+.header{background:linear-gradient(135deg,#0f172a,#1e293b);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.header h1{font-size:1.4rem;font-weight:700;display:flex;align-items:center;gap:10px}
+.header h1 .icon{font-size:1.6rem}
+.header .subtitle{color:var(--dim);font-size:.85rem;margin-left:auto}
+.header .live-dot{width:8px;height:8px;background:var(--green);border-radius:50%;display:inline-block;animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Layout */
+.layout{display:grid;grid-template-columns:1fr 380px;grid-template-rows:auto 1fr;height:calc(100vh - 64px)}
+.stats-bar{grid-column:1/-1;display:flex;gap:12px;padding:12px 16px;overflow-x:auto;background:var(--card);border-bottom:1px solid var(--border)}
+.stat-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:140px;text-align:center}
+.stat-card .label{font-size:.7rem;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+.stat-card .value{font-size:1.3rem;font-weight:700;margin-top:2px}
+
+/* Map */
+.map-wrap{position:relative}
+#map{width:100%;height:100%;background:#0a0e1a}
+.map-legend{position:absolute;bottom:20px;left:20px;background:rgba(17,24,39,.92);border:1px solid var(--border);border-radius:8px;padding:12px 16px;z-index:1000;font-size:.75rem}
+.map-legend h4{margin-bottom:6px;font-size:.8rem}
+.legend-item{display:flex;align-items:center;gap:8px;margin:4px 0}
+.legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+
+/* Sidebar */
+.sidebar{background:var(--card);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.sidebar-head h3{font-size:.95rem}
+.filter-row{display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.filter-btn{background:var(--bg);border:1px solid var(--border);color:var(--dim);padding:4px 10px;border-radius:14px;font-size:.7rem;cursor:pointer;transition:all .2s}
+.filter-btn.active,.filter-btn:hover{border-color:var(--accent);color:var(--accent)}
+.station-list{flex:1;overflow-y:auto;padding:8px}
+.station-item{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all .2s}
+.station-item:hover{border-color:var(--accent);transform:translateY(-1px)}
+.station-item.selected{border-color:var(--accent);background:#1e293b}
+.station-name{font-size:.85rem;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.station-id{font-size:.7rem;color:var(--dim)}
+.station-readings{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+.reading{font-size:.75rem}
+.reading .r-label{color:var(--dim)}
+.reading .r-value{font-weight:600;margin-left:4px}
+.flood-badge{display:inline-block;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px}
+.flood-normal{background:#166534;color:#86efac}
+.flood-action{background:#854d0e;color:#fde047}
+.flood-minor{background:#9a3412;color:#fdba74}
+.flood-moderate{background:#7f1d1d;color:#fca5a5}
+.flood-major{background:#7f1d1d;color:#fff;animation:flash-badge 1s infinite}
+@keyframes flash-badge{50%{opacity:.5}}
+
+/* Detail Panel */
+.detail-panel{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,14,26,.95);z-index:2000;overflow-y:auto;padding:24px}
+.detail-panel.open{display:block}
+.detail-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
+.detail-header h2{font-size:1.2rem}
+.close-btn{background:none;border:1px solid var(--border);color:var(--text);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center}
+.close-btn:hover{background:var(--card)}
+.detail-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px}
+.detail-stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px}
+.detail-stat .ds-label{font-size:.7rem;color:var(--dim);text-transform:uppercase}
+.detail-stat .ds-value{font-size:1.2rem;font-weight:700;margin-top:4px}
+.chart-container{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px}
+.chart-container h4{font-size:.85rem;margin-bottom:12px;color:var(--dim)}
+.chart-canvas{width:100%;height:200px}
+
+/* Responsive */
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr;grid-template-rows:auto 50vh auto}
+  .sidebar{border-left:none;border-top:1px solid var(--border);max-height:40vh}
+}
+.loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .5s}
+.loading-overlay.hidden{opacity:0;pointer-events:none}
+.loading-spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{margin-top:16px;color:var(--dim);font-size:.9rem}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+</head>
+<body>
+<div class="loading-overlay" id="loader">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Loading USGS stream gauges…</div>
+</div>
+
+<header class="header">
+  <h1><span class="icon">🌊</span> River Pulse</h1>
+  <span class="subtitle"><span class="live-dot"></span> Live USGS Stream Gauges</span>
+</header>
+
+<div class="layout">
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-card"><div class="label">Stations</div><div class="value" id="statTotal">—</div></div>
+    <div class="stat-card"><div class="label">Normal</div><div class="value" style="color:var(--green)" id="statNormal">—</div></div>
+    <div class="stat-card"><div class="label">Action</div><div class="value" style="color:var(--yellow)" id="statAction">—</div></div>
+    <div class="stat-card"><div class="label">Flood</div><div class="value" style="color:var(--red)" id="statFlood">—</div></div>
+    <div class="stat-card"><div class="label">Avg Discharge</div><div class="value" id="statAvgDischarge">—</div></div>
+    <div class="stat-card"><div class="label">Max Gauge Ht</div><div class="value" id="statMaxGauge">—</div></div>
+    <div class="stat-card"><div class="label">Last Update</div><div class="value" id="statUpdate">—</div></div>
+  </div>
+
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="map-legend">
+      <h4>Flood Status</h4>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> Normal</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div> Action Stage</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div> Minor Flood</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> Moderate Flood</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div> Major Flood</div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <h3>Stations</h3>
+      <span id="stationCount" style="font-size:.8rem;color:var(--dim)"></span>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="flood">Flooding</button>
+      <button class="filter-btn" data-filter="action">Action</button>
+      <button class="filter-btn" data-filter="high-flow">High Flow</button>
+      <button class="filter-btn" data-filter="temp">Has Temp</button>
+    </div>
+    <div class="station-list" id="stationList"></div>
+  </div>
+</div>
+
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-header">
+    <div>
+      <h2 id="detailName">—</h2>
+      <div style="color:var(--dim);font-size:.8rem;margin-top:4px" id="detailMeta">—</div>
+    </div>
+    <button class="close-btn" onclick="closeDetail()">×</button>
+  </div>
+  <div class="detail-stats" id="detailStats"></div>
+  <div class="chart-container">
+    <h4>Discharge (cfs) — Last 7 Days</h4>
+    <canvas class="chart-canvas" id="chartDischarge"></canvas>
+  </div>
+  <div class="chart-container">
+    <h4>Gauge Height (ft) — Last 7 Days</h4>
+    <canvas class="chart-canvas" id="chartGauge"></canvas>
+  </div>
+  <div class="chart-container" id="tempChartWrap" style="display:none">
+    <h4>Water Temperature (°F) — Last 7 Days</h4>
+    <canvas class="chart-canvas" id="chartTemp"></canvas>
+  </div>
+</div>
+
+<script>
+// === USGS Major River Stations ===
+// Curated list of well-known gauges across the US with flood stages
+const STATIONS = [
+  {id:'07010000',name:'Mississippi at St. Louis, MO',flood:30,action:28,lat:38.6270,lon:-90.1809},
+  {id:'07289000',name:'Mississippi at Vicksburg, MS',flood:43,action:41,lat:32.3127,lon:-90.9071},
+  {id:'03611500',name:'Ohio at Metropolis, IL',flood:42,action:38,lat:37.1512,lon:-88.7321},
+  {id:'07032000',name:'Mississippi at Memphis, TN',flood:34,action:32,lat:35.1250,lon:-90.0765},
+  {id:'06934500',name:'Missouri at Hermann, MO',flood:21,action:19,lat:38.7050,lon:-91.4326},
+  {id:'06610000',name:'Missouri at Omaha, NE',flood:27,action:25,lat:41.2586,lon:-95.9252},
+  {id:'05587450',name:'Mississippi at Grafton, IL',flood:25,action:22,lat:38.9656,lon:-90.4268},
+  {id:'01463500',name:'Delaware at Trenton, NJ',flood:20,action:18,lat:40.2217,lon:-74.7796},
+  {id:'01570500',name:'Susquehanna at Harrisburg, PA',flood:17,action:14,lat:40.2548,lon:-76.8867},
+  {id:'02037000',name:'James at Richmond, VA',flood:12,action:9,lat:37.5294,lon:-77.4376},
+  {id:'02089500',name:'Neuse at Kinston, NC',flood:14,action:12,lat:35.2615,lon:-77.5834},
+  {id:'02231000',name:'St. Johns at Jacksonville, FL',flood:5,action:3.5,lat:30.3244,lon:-81.6600},
+  {id:'03274000',name:'Great Miami at Hamilton, OH',flood:42,action:38,lat:39.3940,lon:-84.5661},
+  {id:'03085000',name:'Monongahela at Braddock, PA',flood:22,action:19,lat:40.4019,lon:-79.8639},
+  {id:'04264331',name:'St. Lawrence at Massena, NY',flood:48,action:46,lat:44.9631,lon:-74.7936},
+  {id:'05420500',name:'Mississippi at Clinton, IA',flood:16,action:14,lat:41.8014,lon:-90.2527},
+  {id:'12340000',name:'Clark Fork at St. Regis, MT',flood:14,action:12,lat:47.3006,lon:-115.0894},
+  {id:'13317000',name:'Salmon at White Bird, ID',flood:12,action:10,lat:45.7502,lon:-116.3216},
+  {id:'14105700',name:'Columbia at The Dalles, OR',flood:28,action:25,lat:45.6082,lon:-121.1714},
+  {id:'11377100',name:'Sacramento at Bend Bridge, CA',flood:39,action:35,lat:40.2882,lon:-122.1860},
+  {id:'09380000',name:'Colorado at Lees Ferry, AZ',flood:40,action:35,lat:36.8660,lon:-111.5880},
+  {id:'08164000',name:'Guadalupe at Victoria, TX',flood:22,action:19,lat:28.7889,lon:-96.9994},
+  {id:'07144100',name:'Arkansas at Wichita, KS',flood:18,action:16,lat:37.7070,lon:-97.3444},
+  {id:'06805500',name:'Platte at Louisville, NE',flood:10,action:8,lat:41.0143,lon:-96.1612},
+  {id:'05474500',name:'Des Moines at Keosauqua, IA',flood:14,action:12,lat:40.7298,lon:-91.9611},
+  {id:'02136000',name:'Black at Kingstree, SC',flood:16,action:14,lat:33.6668,lon:-79.8309},
+  {id:'03360500',name:'White at Newberry, IN',flood:15,action:13,lat:38.9251,lon:-87.0167},
+  {id:'05325000',name:'Minnesota at Mankato, MN',flood:22,action:19,lat:44.1652,lon:-94.0022},
+  {id:'07022000',name:'Mississippi at Thebes, IL',flood:33,action:30,lat:37.2192,lon:-89.4650},
+  {id:'01573560',name:'Swatara Creek at Hershey, PA',flood:13,action:11,lat:40.2712,lon:-76.6399}
+];
+
+let map, markers = [], allData = [], activeFilter = 'all';
+
+function initMap() {
+  map = L.map('map', {
+    center: [39, -96], zoom: 4,
+    zoomControl: false,
+    attributionControl: true
+  });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO',
+    maxZoom: 18
+  }).addTo(map);
+  L.control.zoom({ position: 'topright' }).addTo(map);
+}
+
+function getFloodStatus(gaugeHeight, station) {
+  if (!gaugeHeight || !station.flood) return 'normal';
+  if (gaugeHeight >= station.flood + 5) return 'major';
+  if (gaugeHeight >= station.flood) return 'moderate';
+  if (gaugeHeight >= station.flood - 2) return 'minor';
+  if (gaugeHeight >= station.action) return 'action';
+  return 'normal';
+}
+
+const statusColors = {
+  normal: '#22c55e', action: '#eab308', minor: '#f97316',
+  moderate: '#ef4444', major: '#dc2626'
+};
+
+const statusLabels = {
+  normal: 'Normal', action: 'Action', minor: 'Minor Flood',
+  moderate: 'Moderate', major: 'Major Flood'
+};
+
+async function fetchData() {
+  const siteIds = STATIONS.map(s => s.id).join(',');
+  // Fetch instantaneous values: discharge (00060), gauge height (00065), water temp (00010)
+  const url = `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${siteIds}&parameterCd=00060,00065,00010&siteStatus=active`;
+
+  try {
+    const res = await fetch(url);
+    const json = await res.json();
+    const ts = json.value.timeSeries;
+
+    const dataMap = {};
+    for (const series of ts) {
+      const siteCode = series.sourceInfo.siteCode[0].value;
+      const paramCode = series.variable.variableCode[0].value;
+      const vals = series.values[0].value;
+      if (!dataMap[siteCode]) {
+        dataMap[siteCode] = {
+          siteName: series.sourceInfo.siteName,
+          lat: parseFloat(series.sourceInfo.geoLocation.geogLocation.latitude),
+          lon: parseFloat(series.sourceInfo.geoLocation.geogLocation.longitude)
+        };
+      }
+      if (vals.length > 0) {
+        const latest = vals[vals.length - 1];
+        const v = parseFloat(latest.value);
+        if (!isNaN(v) && v >= 0) {
+          if (paramCode === '00060') { dataMap[siteCode].discharge = v; dataMap[siteCode].dischargeTime = latest.dateTime; }
+          if (paramCode === '00065') { dataMap[siteCode].gaugeHeight = v; dataMap[siteCode].gaugeTime = latest.dateTime; }
+          if (paramCode === '00010') { dataMap[siteCode].waterTemp = v; }
+        }
+      }
+    }
+
+    allData = STATIONS.map(s => {
+      const d = dataMap[s.id] || {};
+      return {
+        ...s,
+        siteName: d.siteName || s.name,
+        discharge: d.discharge,
+        gaugeHeight: d.gaugeHeight,
+        waterTemp: d.waterTemp,
+        dischargeTime: d.dischargeTime,
+        gaugeTime: d.gaugeTime,
+        status: getFloodStatus(d.gaugeHeight, s)
+      };
+    }).filter(d => d.discharge !== undefined || d.gaugeHeight !== undefined);
+
+    updateUI();
+    document.getElementById('loader').classList.add('hidden');
+  } catch (e) {
+    console.error('Fetch error:', e);
+    document.querySelector('.loading-text').textContent = 'Error loading data. Retrying…';
+    setTimeout(fetchData, 10000);
+  }
+}
+
+function updateUI() {
+  updateStats();
+  updateMarkers();
+  updateList();
+}
+
+function updateStats() {
+  const normal = allData.filter(d => d.status === 'normal').length;
+  const action = allData.filter(d => d.status === 'action').length;
+  const flood = allData.filter(d => ['minor','moderate','major'].includes(d.status)).length;
+  const discharges = allData.filter(d => d.discharge).map(d => d.discharge);
+  const avgDis = discharges.length ? (discharges.reduce((a, b) => a + b, 0) / discharges.length) : 0;
+  const gauges = allData.filter(d => d.gaugeHeight).map(d => d.gaugeHeight);
+  const maxG = gauges.length ? Math.max(...gauges) : 0;
+
+  document.getElementById('statTotal').textContent = allData.length;
+  document.getElementById('statNormal').textContent = normal;
+  document.getElementById('statAction').textContent = action;
+  document.getElementById('statFlood').textContent = flood;
+  document.getElementById('statAvgDischarge').textContent = formatNumber(avgDis) + ' cfs';
+  document.getElementById('statMaxGauge').textContent = maxG.toFixed(1) + ' ft';
+  document.getElementById('statUpdate').textContent = new Date().toLocaleTimeString();
+}
+
+function formatNumber(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return Math.round(n).toString();
+}
+
+function updateMarkers() {
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+
+  for (const d of allData) {
+    const color = statusColors[d.status];
+    const size = d.status === 'normal' ? 8 : d.status === 'action' ? 10 : 14;
+    const pulseClass = ['minor','moderate','major'].includes(d.status) ? 'marker-pulse' : '';
+
+    const icon = L.divIcon({
+      className: 'custom-marker',
+      html: `<div style="
+        width:${size}px;height:${size}px;
+        background:${color};border-radius:50%;
+        border:2px solid ${color}44;
+        box-shadow:0 0 ${size}px ${color}88;
+        ${pulseClass ? 'animation:marker-pulse 1.5s infinite;' : ''}
+      "></div>`,
+      iconSize: [size, size],
+      iconAnchor: [size/2, size/2]
+    });
+
+    const marker = L.marker([d.lat, d.lon], { icon }).addTo(map);
+    marker.bindPopup(`
+      <div style="font-family:system-ui;min-width:200px">
+        <strong style="font-size:.9rem">${d.name}</strong><br>
+        <span style="font-size:.75rem;color:#888">USGS ${d.id}</span><br><br>
+        ${d.discharge !== undefined ? `<b>Discharge:</b> ${formatNumber(d.discharge)} cfs<br>` : ''}
+        ${d.gaugeHeight !== undefined ? `<b>Gauge Height:</b> ${d.gaugeHeight.toFixed(2)} ft<br>` : ''}
+        ${d.waterTemp !== undefined ? `<b>Water Temp:</b> ${(d.waterTemp * 9/5 + 32).toFixed(1)}°F<br>` : ''}
+        <b>Flood Stage:</b> ${d.flood} ft<br>
+        <b>Status:</b> <span style="color:${color}">${statusLabels[d.status]}</span><br><br>
+        <a href="javascript:void(0)" onclick="openDetail('${d.id}')" style="color:#3b82f6">View Details →</a>
+      </div>
+    `, { className: 'dark-popup' });
+
+    markers.push(marker);
+  }
+
+  // Add CSS for marker pulse
+  if (!document.getElementById('marker-styles')) {
+    const style = document.createElement('style');
+    style.id = 'marker-styles';
+    style.textContent = `
+      @keyframes marker-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.4)}}
+      .dark-popup .leaflet-popup-content-wrapper{background:#1e293b;color:#e2e8f0;border-radius:8px}
+      .dark-popup .leaflet-popup-tip{background:#1e293b}
+      .dark-popup .leaflet-popup-close-button{color:#94a3b8}
+    `;
+    document.head.appendChild(style);
+  }
+}
+
+function updateList() {
+  const list = document.getElementById('stationList');
+  let filtered = allData;
+
+  if (activeFilter === 'flood') filtered = allData.filter(d => ['minor','moderate','major'].includes(d.status));
+  else if (activeFilter === 'action') filtered = allData.filter(d => d.status === 'action');
+  else if (activeFilter === 'high-flow') filtered = allData.filter(d => d.discharge && d.discharge > 50000);
+  else if (activeFilter === 'temp') filtered = allData.filter(d => d.waterTemp !== undefined);
+
+  // Sort: flooding first, then by discharge desc
+  filtered.sort((a, b) => {
+    const order = { major: 0, moderate: 1, minor: 2, action: 3, normal: 4 };
+    const diff = order[a.status] - order[b.status];
+    if (diff !== 0) return diff;
+    return (b.discharge || 0) - (a.discharge || 0);
+  });
+
+  document.getElementById('stationCount').textContent = `${filtered.length} stations`;
+
+  list.innerHTML = filtered.map(d => {
+    const color = statusColors[d.status];
+    const badge = d.status !== 'normal'
+      ? `<span class="flood-badge flood-${d.status}">${statusLabels[d.status]}</span>`
+      : '';
+    return `
+      <div class="station-item" onclick="openDetail('${d.id}')" data-id="${d.id}">
+        <div class="station-name" style="border-left:3px solid ${color};padding-left:8px">
+          ${d.name}${badge}
+        </div>
+        <div class="station-id">USGS ${d.id}</div>
+        <div class="station-readings">
+          ${d.discharge !== undefined ? `<div class="reading"><span class="r-label">Flow:</span><span class="r-value">${formatNumber(d.discharge)} cfs</span></div>` : ''}
+          ${d.gaugeHeight !== undefined ? `<div class="reading"><span class="r-label">Height:</span><span class="r-value">${d.gaugeHeight.toFixed(2)} ft</span></div>` : ''}
+          ${d.waterTemp !== undefined ? `<div class="reading"><span class="r-label">Temp:</span><span class="r-value">${(d.waterTemp * 9/5 + 32).toFixed(1)}°F</span></div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Filters
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    updateList();
+  });
+});
+
+// Detail panel with 7-day charts
+async function openDetail(siteId) {
+  const station = allData.find(d => d.id === siteId);
+  if (!station) return;
+
+  const panel = document.getElementById('detailPanel');
+  document.getElementById('detailName').textContent = station.name;
+  document.getElementById('detailMeta').textContent = `USGS ${station.id} • Flood Stage: ${station.flood} ft • Action Stage: ${station.action} ft`;
+
+  const stats = document.getElementById('detailStats');
+  const color = statusColors[station.status];
+  stats.innerHTML = `
+    <div class="detail-stat"><div class="ds-label">Status</div><div class="ds-value" style="color:${color}">${statusLabels[station.status]}</div></div>
+    ${station.discharge !== undefined ? `<div class="detail-stat"><div class="ds-label">Discharge</div><div class="ds-value">${formatNumber(station.discharge)} cfs</div></div>` : ''}
+    ${station.gaugeHeight !== undefined ? `<div class="detail-stat"><div class="ds-label">Gauge Height</div><div class="ds-value">${station.gaugeHeight.toFixed(2)} ft</div></div>` : ''}
+    ${station.waterTemp !== undefined ? `<div class="detail-stat"><div class="ds-label">Water Temp</div><div class="ds-value">${(station.waterTemp * 9/5 + 32).toFixed(1)}°F</div></div>` : ''}
+    <div class="detail-stat"><div class="ds-label">Flood Stage</div><div class="ds-value">${station.flood} ft</div></div>
+    <div class="detail-stat"><div class="ds-label">Action Stage</div><div class="ds-value">${station.action} ft</div></div>
+  `;
+
+  panel.classList.add('open');
+
+  // Fetch 7-day historical data
+  const end = new Date().toISOString();
+  const start = new Date(Date.now() - 7 * 86400000).toISOString();
+  const url = `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${siteId}&parameterCd=00060,00065,00010&startDT=${start}&endDT=${end}`;
+
+  try {
+    const res = await fetch(url);
+    const json = await res.json();
+    const ts = json.value.timeSeries;
+
+    let dischargeData = [], gaugeData = [], tempData = [];
+    for (const series of ts) {
+      const code = series.variable.variableCode[0].value;
+      const points = series.values[0].value.map(v => ({
+        t: new Date(v.dateTime).getTime(),
+        v: parseFloat(v.value)
+      })).filter(p => !isNaN(p.v) && p.v >= 0);
+
+      if (code === '00060') dischargeData = points;
+      if (code === '00065') gaugeData = points;
+      if (code === '00010') tempData = points;
+    }
+
+    drawChart('chartDischarge', dischargeData, '#3b82f6', station.flood ? null : null);
+    drawChart('chartGauge', gaugeData, '#22c55e', station.flood);
+
+    const tempWrap = document.getElementById('tempChartWrap');
+    if (tempData.length > 0) {
+      tempWrap.style.display = 'block';
+      // Convert C to F
+      tempData = tempData.map(p => ({ t: p.t, v: p.v * 9/5 + 32 }));
+      drawChart('chartTemp', tempData, '#f97316', null);
+    } else {
+      tempWrap.style.display = 'none';
+    }
+  } catch (e) {
+    console.error('Detail fetch error:', e);
+  }
+}
+
+function drawChart(canvasId, data, color, thresholdValue) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  const pad = { top: 20, right: 20, bottom: 30, left: 60 };
+  const cW = W - pad.left - pad.right;
+  const cH = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (!data.length) {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '13px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('No data available', W / 2, H / 2);
+    return;
+  }
+
+  // Downsample to ~500 points
+  const step = Math.max(1, Math.floor(data.length / 500));
+  const sampled = data.filter((_, i) => i % step === 0);
+
+  const minT = sampled[0].t, maxT = sampled[sampled.length - 1].t;
+  let minV = Math.min(...sampled.map(p => p.v));
+  let maxV = Math.max(...sampled.map(p => p.v));
+  if (thresholdValue) {
+    maxV = Math.max(maxV, thresholdValue * 1.15);
+  }
+  const rangeV = maxV - minV || 1;
+  minV -= rangeV * 0.05;
+  maxV += rangeV * 0.05;
+  const finalRange = maxV - minV;
+
+  const toX = t => pad.left + ((t - minT) / (maxT - minT)) * cW;
+  const toY = v => pad.top + (1 - (v - minV) / finalRange) * cH;
+
+  // Grid
+  ctx.strokeStyle = '#1e2a3a';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (i / 4) * cH;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    const val = maxV - (i / 4) * finalRange;
+    ctx.fillStyle = '#64748b';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText(val >= 1000 ? formatNumber(val) : val.toFixed(1), pad.left - 8, y + 3);
+  }
+
+  // Time labels
+  ctx.textAlign = 'center';
+  for (let i = 0; i <= 6; i++) {
+    const t = minT + (i / 6) * (maxT - minT);
+    const x = toX(t);
+    const d = new Date(t);
+    ctx.fillText(`${d.getMonth()+1}/${d.getDate()}`, x, H - 6);
+  }
+
+  // Threshold line
+  if (thresholdValue) {
+    ctx.strokeStyle = '#ef444488';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 4]);
+    const ty = toY(thresholdValue);
+    ctx.beginPath(); ctx.moveTo(pad.left, ty); ctx.lineTo(W - pad.right, ty); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#ef4444';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Flood: ${thresholdValue} ft`, pad.left + 4, ty - 6);
+  }
+
+  // Area fill
+  ctx.beginPath();
+  ctx.moveTo(toX(sampled[0].t), toY(sampled[0].v));
+  for (let i = 1; i < sampled.length; i++) {
+    ctx.lineTo(toX(sampled[i].t), toY(sampled[i].v));
+  }
+  ctx.lineTo(toX(sampled[sampled.length-1].t), pad.top + cH);
+  ctx.lineTo(toX(sampled[0].t), pad.top + cH);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + cH);
+  grad.addColorStop(0, color + '40');
+  grad.addColorStop(1, color + '05');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.moveTo(toX(sampled[0].t), toY(sampled[0].v));
+  for (let i = 1; i < sampled.length; i++) {
+    ctx.lineTo(toX(sampled[i].t), toY(sampled[i].v));
+  }
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function closeDetail() {
+  document.getElementById('detailPanel').classList.remove('open');
+}
+
+// Escape key closes detail
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+
+// Init
+initMap();
+fetchData();
+
+// Auto-refresh every 5 minutes
+setInterval(fetchData, 300000);
+</script>
+</body>
+</html>

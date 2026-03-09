@@ -221,6 +221,13 @@
     "path": "projects/boids/"
   },
   {
+    "id": "rivers",
+    "title": "River Pulse",
+    "description": "Real-time USGS stream gauge dashboard monitoring 30 major US rivers with discharge, gauge height, water temperature, flood status, 7-day charts, and interactive map.",
+    "tags": ["USGS API", "Leaflet", "Canvas", "Live Data"],
+    "path": "projects/rivers/"
+  },
+  {
     "id": "brightonhub",
     "title": "Brighton Hub",
     "description": "Live city dashboard for Brighton & Hove with real-time transport, environment, crime, housing, health, events, and schools data.",
