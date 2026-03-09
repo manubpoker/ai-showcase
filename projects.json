@@ -123,6 +123,13 @@
     "path": "projects/tides/"
   },
   {
+    "id": "reaction",
+    "title": "Reaction-Diffusion",
+    "description": "GPU-accelerated Gray-Scott reaction-diffusion simulator with 9 organic pattern presets, 8 color maps, and interactive painting via WebGL 2 shaders.",
+    "tags": ["WebGL", "GLSL", "Simulation", "Generative Art"],
+    "path": "projects/reaction/"
+  },
+  {
     "id": "lorenz",
     "title": "Lorenz Attractor",
     "description": "Interactive 3D visualization of the chaotic Lorenz system with WebGL trails, multiple particles, color schemes, parameter controls, and presets.",
