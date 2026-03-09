@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Double Pendulum — Chaos in Motion</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#050510;--card:#0d1117;--border:#1e2a3a;--text:#e2e8f0;--dim:#64748b;--accent:#8b5cf6}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100vh}
+
+canvas{display:block;position:absolute;top:0;left:0}
+#trailCanvas{z-index:1}
+#mainCanvas{z-index:2}
+
+/* Controls */
+.controls{position:fixed;top:16px;left:16px;z-index:10;display:flex;flex-direction:column;gap:8px;max-width:260px}
+.title-bar{background:rgba(13,17,23,.88);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:14px 18px}
+.title-bar h1{font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.title-bar .sub{font-size:.72rem;color:var(--dim);margin-top:4px}
+.panel{background:rgba(13,17,23,.88);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:14px 18px;transition:all .3s}
+.panel h3{font-size:.8rem;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.slider-row{margin-bottom:10px}
+.slider-row label{display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:4px}
+.slider-row label span{color:var(--accent);font-weight:600}
+input[type=range]{width:100%;height:4px;-webkit-appearance:none;background:var(--border);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--accent);border-radius:50%;cursor:pointer}
+
+.btn-row{display:flex;gap:6px;flex-wrap:wrap}
+.btn{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;font-size:.73rem;cursor:pointer;transition:all .2s;font-family:inherit}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:#7c3aed}
+
+.preset-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+
+/* Info overlay */
+.info{position:fixed;bottom:16px;left:16px;z-index:10;background:rgba(13,17,23,.88);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:12px 16px;font-size:.75rem}
+.info-grid{display:grid;grid-template-columns:auto auto;gap:4px 16px}
+.info-grid .lbl{color:var(--dim)}
+.info-grid .val{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+
+/* Phase space */
+.phase-wrap{position:fixed;bottom:16px;right:16px;z-index:10;background:rgba(13,17,23,.88);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:center}
+.phase-wrap h4{font-size:.7rem;color:var(--dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+#phaseCanvas{border-radius:6px;background:rgba(0,0,0,.3)}
+
+/* Responsive */
+@media(max-width:700px){
+  .controls{max-width:200px}
+  .panel h3{font-size:.7rem}
+  .slider-row label{font-size:.65rem}
+  .phase-wrap{display:none}
+  .info{bottom:8px;left:8px;font-size:.65rem}
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+</head>
+<body>
+<canvas id="trailCanvas"></canvas>
+<canvas id="mainCanvas"></canvas>
+
+<div class="controls">
+  <div class="title-bar">
+    <h1><span style="font-size:1.4rem">🔮</span> Double Pendulum</h1>
+    <div class="sub">Chaos theory — sensitive dependence on initial conditions</div>
+  </div>
+
+  <div class="panel">
+    <h3>Configuration</h3>
+    <div class="slider-row">
+      <label>Pendulums <span id="vCount">12</span></label>
+      <input type="range" id="sCount" min="1" max="80" value="12">
+    </div>
+    <div class="slider-row">
+      <label>Spread <span id="vSpread">0.001</span></label>
+      <input type="range" id="sSpread" min="1" max="100" value="1">
+    </div>
+    <div class="slider-row">
+      <label>Gravity <span id="vGravity">9.81</span></label>
+      <input type="range" id="sGravity" min="1" max="30" value="10">
+    </div>
+    <div class="slider-row">
+      <label>Trail Length <span id="vTrail">800</span></label>
+      <input type="range" id="sTrail" min="50" max="2000" value="800">
+    </div>
+    <div class="slider-row">
+      <label>Speed <span id="vSpeed">1.0x</span></label>
+      <input type="range" id="sSpeed" min="1" max="40" value="10">
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Presets</h3>
+    <div class="preset-row">
+      <button class="btn" onclick="loadPreset('classic')">Classic</button>
+      <button class="btn" onclick="loadPreset('butterfly')">Butterfly</button>
+      <button class="btn" onclick="loadPreset('fountain')">Fountain</button>
+      <button class="btn" onclick="loadPreset('storm')">Storm</button>
+      <button class="btn" onclick="loadPreset('minimal')">Minimal</button>
+      <button class="btn" onclick="loadPreset('swarm')">Swarm</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Display</h3>
+    <div class="btn-row">
+      <button class="btn active" id="btnTrails" onclick="toggleTrails()">Trails</button>
+      <button class="btn" id="btnGlow" onclick="toggleGlow()">Glow</button>
+      <button class="btn" id="btnRods" onclick="toggleRods()">Rods</button>
+      <button class="btn primary" onclick="resetSim()">Reset</button>
+    </div>
+  </div>
+</div>
+
+<div class="info">
+  <div class="info-grid">
+    <span class="lbl">Time:</span><span class="val" id="infoTime">0.0s</span>
+    <span class="lbl">Max divergence:</span><span class="val" id="infoDivergence">0.000</span>
+    <span class="lbl">FPS:</span><span class="val" id="infoFps">60</span>
+  </div>
+</div>
+
+<div class="phase-wrap">
+  <h4>Phase Space (θ₁ vs θ₂)</h4>
+  <canvas id="phaseCanvas" width="180" height="180"></canvas>
+</div>
+
+<script>
+const trailCanvas = document.getElementById('trailCanvas');
+const mainCanvas = document.getElementById('mainCanvas');
+const phaseCanvas = document.getElementById('phaseCanvas');
+const tCtx = trailCanvas.getContext('2d');
+const mCtx = mainCanvas.getContext('2d');
+const pCtx = phaseCanvas.getContext('2d');
+
+let W, H, cx, cy, scale;
+let pendulums = [];
+let showTrails = true, showGlow = false, showRods = true;
+let trailLen = 800, gravity = 9.81, speedMul = 1.0;
+let simTime = 0, frameCount = 0, lastFpsTime = 0, fps = 60;
+
+const COLORS = [
+  '#f43f5e','#ec4899','#d946ef','#a855f7','#8b5cf6','#6366f1',
+  '#3b82f6','#0ea5e9','#06b6d4','#14b8a6','#10b981','#22c55e',
+  '#84cc16','#eab308','#f59e0b','#f97316','#ef4444','#e11d48',
+  '#be185d','#9333ea','#7c3aed','#4f46e5','#2563eb','#0284c7',
+  '#0891b2','#0d9488','#059669','#16a34a','#65a30d','#ca8a04'
+];
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  for (const c of [trailCanvas, mainCanvas]) {
+    c.width = W * dpr;
+    c.height = H * dpr;
+    c.style.width = W + 'px';
+    c.style.height = H + 'px';
+    c.getContext('2d').scale(dpr, dpr);
+  }
+  cx = W / 2;
+  cy = H * 0.35;
+  scale = Math.min(W, H) * 0.18;
+  clearTrails();
+}
+
+class DoublePendulum {
+  constructor(theta1, theta2, omega1, omega2, L1, L2, m1, m2, color) {
+    this.theta1 = theta1;
+    this.theta2 = theta2;
+    this.omega1 = omega1;
+    this.omega2 = omega2;
+    this.L1 = L1;
+    this.L2 = L2;
+    this.m1 = m1;
+    this.m2 = m2;
+    this.color = color;
+    this.trail = [];
+  }
+
+  // RK4 integration for accuracy
+  step(dt) {
+    const derivs = (th1, th2, w1, w2) => {
+      const g = gravity;
+      const m1 = this.m1, m2 = this.m2, L1 = this.L1, L2 = this.L2;
+      const delta = th1 - th2;
+      const sinD = Math.sin(delta);
+      const cosD = Math.cos(delta);
+      const den = 2 * m1 + m2 - m2 * Math.cos(2 * delta);
+
+      const a1 = (-g * (2 * m1 + m2) * Math.sin(th1)
+                  - m2 * g * Math.sin(th1 - 2 * th2)
+                  - 2 * sinD * m2 * (w2 * w2 * L2 + w1 * w1 * L1 * cosD))
+                  / (L1 * den);
+
+      const a2 = (2 * sinD * (w1 * w1 * L1 * (m1 + m2)
+                  + g * (m1 + m2) * Math.cos(th1)
+                  + w2 * w2 * L2 * m2 * cosD))
+                  / (L2 * den);
+
+      return [w1, w2, a1, a2];
+    };
+
+    const [dth1_1, dth2_1, dw1_1, dw2_1] = derivs(this.theta1, this.theta2, this.omega1, this.omega2);
+    const [dth1_2, dth2_2, dw1_2, dw2_2] = derivs(
+      this.theta1 + dt/2*dth1_1, this.theta2 + dt/2*dth2_1,
+      this.omega1 + dt/2*dw1_1, this.omega2 + dt/2*dw2_1
+    );
+    const [dth1_3, dth2_3, dw1_3, dw2_3] = derivs(
+      this.theta1 + dt/2*dth1_2, this.theta2 + dt/2*dth2_2,
+      this.omega1 + dt/2*dw1_2, this.omega2 + dt/2*dw2_2
+    );
+    const [dth1_4, dth2_4, dw1_4, dw2_4] = derivs(
+      this.theta1 + dt*dth1_3, this.theta2 + dt*dth2_3,
+      this.omega1 + dt*dw1_3, this.omega2 + dt*dw2_3
+    );
+
+    this.theta1 += dt/6 * (dth1_1 + 2*dth1_2 + 2*dth1_3 + dth1_4);
+    this.theta2 += dt/6 * (dth2_1 + 2*dth2_2 + 2*dth2_3 + dth2_4);
+    this.omega1 += dt/6 * (dw1_1 + 2*dw1_2 + 2*dw1_3 + dw1_4);
+    this.omega2 += dt/6 * (dw2_1 + 2*dw2_2 + 2*dw2_3 + dw2_4);
+  }
+
+  getPositions() {
+    const x1 = cx + this.L1 * scale * Math.sin(this.theta1);
+    const y1 = cy + this.L1 * scale * Math.cos(this.theta1);
+    const x2 = x1 + this.L2 * scale * Math.sin(this.theta2);
+    const y2 = y1 + this.L2 * scale * Math.cos(this.theta2);
+    return { x1, y1, x2, y2 };
+  }
+
+  energy() {
+    const g = gravity;
+    const { L1, L2, m1, m2, theta1, theta2, omega1, omega2 } = this;
+    const KE = 0.5 * m1 * (L1 * omega1) ** 2
+             + 0.5 * m2 * ((L1 * omega1) ** 2 + (L2 * omega2) ** 2
+             + 2 * L1 * L2 * omega1 * omega2 * Math.cos(theta1 - theta2));
+    const PE = -(m1 + m2) * g * L1 * Math.cos(theta1)
+             - m2 * g * L2 * Math.cos(theta2);
+    return KE + PE;
+  }
+}
+
+function createPendulums(count, spread, baseTheta1 = Math.PI * 0.75, baseTheta2 = Math.PI * 0.75) {
+  pendulums = [];
+  for (let i = 0; i < count; i++) {
+    const offset = (i - (count - 1) / 2) * spread;
+    const color = COLORS[i % COLORS.length];
+    pendulums.push(new DoublePendulum(
+      baseTheta1 + offset, baseTheta2 + offset,
+      0, 0, 1, 1, 1, 1, color
+    ));
+  }
+}
+
+function clearTrails() {
+  tCtx.clearRect(0, 0, W, H);
+  pendulums.forEach(p => p.trail = []);
+  pCtx.clearRect(0, 0, 180, 180);
+}
+
+function resetSim() {
+  simTime = 0;
+  const count = parseInt(document.getElementById('sCount').value);
+  const spread = parseInt(document.getElementById('sSpread').value) * 0.001;
+  createPendulums(count, spread);
+  clearTrails();
+}
+
+// Presets
+const PRESETS = {
+  classic: { count: 12, spread: 1, gravity: 10, trail: 800, speed: 10 },
+  butterfly: { count: 40, spread: 2, gravity: 10, trail: 1200, speed: 10 },
+  fountain: { count: 24, spread: 5, gravity: 15, trail: 600, speed: 12 },
+  storm: { count: 60, spread: 10, gravity: 8, trail: 400, speed: 15 },
+  minimal: { count: 2, spread: 1, gravity: 10, trail: 2000, speed: 8 },
+  swarm: { count: 80, spread: 3, gravity: 12, trail: 300, speed: 20 }
+};
+
+function loadPreset(name) {
+  const p = PRESETS[name];
+  document.getElementById('sCount').value = p.count;
+  document.getElementById('sSpread').value = p.spread;
+  document.getElementById('sGravity').value = p.gravity;
+  document.getElementById('sTrail').value = p.trail;
+  document.getElementById('sSpeed').value = p.speed;
+  updateSliderDisplays();
+  resetSim();
+}
+
+function updateSliderDisplays() {
+  const count = parseInt(document.getElementById('sCount').value);
+  const spread = (parseInt(document.getElementById('sSpread').value) * 0.001).toFixed(3);
+  const grav = (parseInt(document.getElementById('sGravity').value) * 0.981).toFixed(2);
+  trailLen = parseInt(document.getElementById('sTrail').value);
+  gravity = parseInt(document.getElementById('sGravity').value) * 0.981;
+  speedMul = parseInt(document.getElementById('sSpeed').value) / 10;
+
+  document.getElementById('vCount').textContent = count;
+  document.getElementById('vSpread').textContent = spread;
+  document.getElementById('vGravity').textContent = grav;
+  document.getElementById('vTrail').textContent = trailLen;
+  document.getElementById('vSpeed').textContent = speedMul.toFixed(1) + 'x';
+}
+
+document.querySelectorAll('input[type=range]').forEach(el => {
+  el.addEventListener('input', updateSliderDisplays);
+});
+
+function toggleTrails() {
+  showTrails = !showTrails;
+  document.getElementById('btnTrails').classList.toggle('active', showTrails);
+  if (!showTrails) tCtx.clearRect(0, 0, W, H);
+}
+function toggleGlow() {
+  showGlow = !showGlow;
+  document.getElementById('btnGlow').classList.toggle('active', showGlow);
+}
+function toggleRods() {
+  showRods = !showRods;
+  document.getElementById('btnRods').classList.toggle('active', showRods);
+}
+
+// Phase space canvas
+function drawPhaseSpace() {
+  pCtx.fillStyle = 'rgba(0,0,0,0.03)';
+  pCtx.fillRect(0, 0, 180, 180);
+
+  // Draw axes
+  pCtx.strokeStyle = '#1e2a3a';
+  pCtx.lineWidth = 0.5;
+  pCtx.beginPath();
+  pCtx.moveTo(90, 0); pCtx.lineTo(90, 180);
+  pCtx.moveTo(0, 90); pCtx.lineTo(180, 90);
+  pCtx.stroke();
+
+  const n = Math.min(pendulums.length, 12);
+  for (let i = 0; i < n; i++) {
+    const p = pendulums[i];
+    // Normalize angles to [-PI, PI] and map to canvas
+    let t1 = ((p.theta1 % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+    let t2 = ((p.theta2 % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+    const px = 90 + (t1 / Math.PI) * 85;
+    const py = 90 + (t2 / Math.PI) * 85;
+
+    pCtx.fillStyle = p.color;
+    pCtx.beginPath();
+    pCtx.arc(px, py, 1.5, 0, Math.PI * 2);
+    pCtx.fill();
+  }
+}
+
+// Main loop
+let lastTime = 0;
+
+function animate(time) {
+  requestAnimationFrame(animate);
+
+  const rawDt = lastTime ? (time - lastTime) / 1000 : 0.016;
+  lastTime = time;
+  const dt = Math.min(rawDt, 0.033) * speedMul;
+
+  // FPS
+  frameCount++;
+  if (time - lastFpsTime > 500) {
+    fps = Math.round(frameCount / ((time - lastFpsTime) / 1000));
+    lastFpsTime = time;
+    frameCount = 0;
+  }
+
+  // Physics substeps for stability
+  const steps = Math.max(1, Math.ceil(dt / 0.002));
+  const subDt = dt / steps;
+  for (let s = 0; s < steps; s++) {
+    for (const p of pendulums) {
+      p.step(subDt);
+    }
+  }
+  simTime += dt;
+
+  // Trail accumulation on trail canvas
+  if (showTrails) {
+    // Fade trails
+    tCtx.fillStyle = 'rgba(5,5,16,0.008)';
+    tCtx.fillRect(0, 0, W, H);
+
+    for (const p of pendulums) {
+      const pos = p.getPositions();
+      p.trail.push({ x: pos.x2, y: pos.y2 });
+      if (p.trail.length > trailLen) p.trail.shift();
+
+      if (p.trail.length > 1) {
+        const last = p.trail[p.trail.length - 2];
+        const cur = p.trail[p.trail.length - 1];
+        tCtx.strokeStyle = p.color + 'cc';
+        tCtx.lineWidth = 1.5;
+        tCtx.beginPath();
+        tCtx.moveTo(last.x, last.y);
+        tCtx.lineTo(cur.x, cur.y);
+        tCtx.stroke();
+      }
+    }
+  }
+
+  // Main canvas: rods and bobs
+  mCtx.clearRect(0, 0, W, H);
+
+  if (showGlow) {
+    mCtx.shadowBlur = 20;
+  }
+
+  for (let i = 0; i < pendulums.length; i++) {
+    const p = pendulums[i];
+    const pos = p.getPositions();
+
+    if (showGlow) mCtx.shadowColor = p.color + '66';
+
+    if (showRods) {
+      mCtx.strokeStyle = p.color + '44';
+      mCtx.lineWidth = 1.5;
+      mCtx.beginPath();
+      mCtx.moveTo(cx, cy);
+      mCtx.lineTo(pos.x1, pos.y1);
+      mCtx.lineTo(pos.x2, pos.y2);
+      mCtx.stroke();
+    }
+
+    // Joint bob
+    mCtx.fillStyle = p.color + '88';
+    mCtx.beginPath();
+    mCtx.arc(pos.x1, pos.y1, 4, 0, Math.PI * 2);
+    mCtx.fill();
+
+    // End bob
+    mCtx.fillStyle = p.color;
+    mCtx.beginPath();
+    mCtx.arc(pos.x2, pos.y2, 5, 0, Math.PI * 2);
+    mCtx.fill();
+  }
+
+  // Pivot
+  mCtx.shadowBlur = 0;
+  mCtx.fillStyle = '#94a3b8';
+  mCtx.beginPath();
+  mCtx.arc(cx, cy, 6, 0, Math.PI * 2);
+  mCtx.fill();
+  mCtx.fillStyle = '#334155';
+  mCtx.beginPath();
+  mCtx.arc(cx, cy, 3, 0, Math.PI * 2);
+  mCtx.fill();
+
+  // Compute max divergence
+  let maxDiv = 0;
+  if (pendulums.length > 1) {
+    const ref = pendulums[0];
+    for (let i = 1; i < pendulums.length; i++) {
+      const d = Math.abs(pendulums[i].theta2 - ref.theta2);
+      if (d > maxDiv) maxDiv = d;
+    }
+  }
+
+  // Update info
+  document.getElementById('infoTime').textContent = simTime.toFixed(1) + 's';
+  document.getElementById('infoDivergence').textContent = maxDiv.toFixed(4) + ' rad';
+  document.getElementById('infoFps').textContent = fps;
+
+  // Phase space (every 3rd frame)
+  if (frameCount % 3 === 0) drawPhaseSpace();
+}
+
+// Init
+window.addEventListener('resize', resize);
+resize();
+updateSliderDisplays();
+createPendulums(12, 0.001);
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
