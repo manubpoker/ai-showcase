@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nation Pulse — World Country Explorer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#070b14;--card:#0f1724;--card2:#151e30;--border:#1c2940;
+  --text:#e2e8f0;--dim:#5a7494;--accent:#6366f1;--accent2:#818cf8;
+  --green:#22c55e;--yellow:#eab308;--orange:#f97316;--red:#ef4444;--cyan:#06b6d4;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+.header{background:linear-gradient(135deg,#0a1020,#141e35);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.header h1{font-size:1.25rem;font-weight:700;display:flex;align-items:center;gap:10px}
+.header .sub{color:var(--dim);font-size:.78rem;margin-left:auto}
+
+/* Search & filters */
+.toolbar{padding:14px 24px;background:var(--card);border-bottom:1px solid var(--border);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.search{flex:1;min-width:200px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px 16px;border-radius:10px;font-size:.85rem;font-family:inherit;outline:none;transition:border .2s}
+.search:focus{border-color:var(--accent)}
+.search::placeholder{color:var(--dim)}
+.filter-sel{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:10px;font-size:.75rem;font-family:inherit;outline:none}
+.pills{display:flex;gap:5px;overflow-x:auto}
+.pill{background:var(--bg);border:1px solid var(--border);color:var(--dim);padding:5px 14px;border-radius:18px;font-size:.7rem;cursor:pointer;white-space:nowrap;transition:all .2s;font-family:inherit}
+.pill:hover{border-color:var(--accent);color:var(--accent)}
+.pill.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* Stats */
+.stats{display:flex;gap:10px;padding:12px 24px;overflow-x:auto}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 16px;text-align:center;min-width:120px;flex-shrink:0}
+.stat .s-label{font-size:.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+.stat .s-val{font-size:1.1rem;font-weight:700;margin-top:2px}
+
+/* Grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;padding:16px 24px}
+.country-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:all .25s}
+.country-card:hover{transform:translateY(-3px);box-shadow:0 8px 30px rgba(0,0,0,.4);border-color:var(--accent)}
+.card-flag{width:100%;height:140px;object-fit:cover;display:block;background:var(--card2)}
+.card-body{padding:14px}
+.card-name{font-size:.95rem;font-weight:700;margin-bottom:2px;display:flex;align-items:center;gap:8px}
+.card-native{font-size:.7rem;color:var(--dim);margin-bottom:8px}
+.card-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.card-stat{font-size:.7rem}
+.card-stat .cs-label{color:var(--dim)}
+.card-stat .cs-val{font-weight:600}
+.card-region{display:inline-block;font-size:.6rem;padding:2px 10px;border-radius:12px;margin-top:8px;font-weight:600}
+
+/* Detail modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(7,11,20,.95);z-index:5000;overflow-y:auto}
+.modal-bg.open{display:block}
+.modal{max-width:800px;margin:24px auto;padding:24px;position:relative}
+.modal-close{position:fixed;top:20px;right:20px;background:rgba(0,0,0,.5);border:1px solid var(--border);color:var(--text);width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:1.3rem;z-index:5001;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:var(--card)}
+.modal-flag{width:100%;max-height:250px;object-fit:cover;border-radius:12px;margin-bottom:20px}
+.modal-name{font-size:1.8rem;font-weight:800;margin-bottom:4px}
+.modal-official{font-size:.9rem;color:var(--dim);margin-bottom:16px}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:20px}
+.d-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px}
+.d-item .di-label{font-size:.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+.d-item .di-val{font-size:.95rem;font-weight:700;margin-top:4px}
+.d-item .di-sub{font-size:.7rem;color:var(--dim);margin-top:2px}
+.neighbors{margin-top:16px}
+.neighbors h4{font-size:.8rem;color:var(--dim);margin-bottom:8px}
+.neighbor-pills{display:flex;flex-wrap:wrap;gap:6px}
+.n-pill{background:var(--card);border:1px solid var(--border);padding:4px 12px;border-radius:8px;font-size:.7rem;cursor:pointer;transition:all .2s}
+.n-pill:hover{border-color:var(--accent);color:var(--accent)}
+.map-link{display:inline-block;background:var(--accent);color:#fff;padding:8px 24px;border-radius:8px;font-size:.8rem;font-weight:600;text-decoration:none;margin-top:16px;transition:opacity .2s}
+.map-link:hover{opacity:.8}
+
+/* Compare bar */
+.compare-bar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);padding:12px 24px;display:none;align-items:center;gap:12px;z-index:4000;flex-wrap:wrap}
+.compare-bar.show{display:flex}
+.compare-chips{display:flex;gap:6px;flex:1;overflow-x:auto}
+.c-chip{background:var(--bg);border:1px solid var(--border);padding:4px 12px;border-radius:16px;font-size:.72rem;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.c-chip .remove{cursor:pointer;color:var(--red);font-weight:700}
+.compare-go{background:var(--accent);color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:inherit;font-weight:600}
+
+/* Compare modal */
+.compare-table{width:100%;border-collapse:collapse;margin-top:16px}
+.compare-table th,.compare-table td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);font-size:.78rem}
+.compare-table th{color:var(--dim);font-size:.68rem;text-transform:uppercase}
+.compare-table td:first-child{color:var(--dim);font-size:.7rem}
+.compare-flag-sm{width:32px;height:20px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:6px}
+
+/* Loading */
+.loader{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .5s}
+.loader.hidden{opacity:0;pointer-events:none}
+.loader-globe{font-size:3rem;animation:spin 3s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-text{margin-top:12px;color:var(--dim);font-size:.85rem}
+
+@media(max-width:700px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:12px}
+  .card-flag{height:100px}
+  .header{padding:10px 16px}
+  .toolbar{padding:10px 16px}
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+</head>
+<body>
+<div class="loader" id="loader">
+  <div class="loader-globe">🌍</div>
+  <div class="loader-text">Loading 250 countries…</div>
+</div>
+
+<header class="header">
+  <h1><span style="font-size:1.4rem">🌐</span> Nation Pulse</h1>
+  <span class="sub">250 Countries & Territories</span>
+</header>
+
+<div class="toolbar">
+  <input class="search" id="search" placeholder="Search countries, capitals, languages…">
+  <select class="filter-sel" id="sortSel">
+    <option value="name">Name A–Z</option>
+    <option value="pop-desc">Population ↓</option>
+    <option value="pop-asc">Population ↑</option>
+    <option value="area-desc">Area ↓</option>
+    <option value="area-asc">Area ↑</option>
+    <option value="density-desc">Density ↓</option>
+  </select>
+  <div class="pills" id="regionPills"></div>
+</div>
+
+<div class="stats" id="statsRow"></div>
+<div class="grid" id="grid"></div>
+
+<div class="compare-bar" id="compareBar">
+  <span style="font-size:.75rem;color:var(--dim)">Compare:</span>
+  <div class="compare-chips" id="compareChips"></div>
+  <button class="compare-go" onclick="showCompare()">Compare</button>
+</div>
+
+<div class="modal-bg" id="modal">
+  <button class="modal-close" onclick="closeModal()">×</button>
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<script>
+let allCountries = [], filtered = [], compareList = [];
+let currentRegion = 'All', currentSort = 'name', searchQuery = '';
+
+const REGIONS = ['All','Africa','Americas','Asia','Europe','Oceania','Antarctic'];
+const REGION_COLORS = {
+  Africa:'#f59e0b',Americas:'#3b82f6',Asia:'#ef4444',
+  Europe:'#22c55e',Oceania:'#06b6d4',Antarctic:'#94a3b8'
+};
+
+// Build region pills
+const pillsEl = document.getElementById('regionPills');
+REGIONS.forEach(r => {
+  const btn = document.createElement('button');
+  btn.className = 'pill' + (r === 'All' ? ' active' : '');
+  btn.textContent = r;
+  btn.onclick = () => {
+    currentRegion = r;
+    document.querySelectorAll('.pill').forEach(p => p.classList.toggle('active', p.textContent === r));
+    applyFilters();
+  };
+  pillsEl.appendChild(btn);
+});
+
+async function fetchCountries() {
+  try {
+    const res = await fetch('https://restcountries.com/v3.1/all?fields=name,capital,population,area,region,subregion,languages,currencies,flags,cca2,cca3,borders,latlng,timezones,continents,independent,unMember,landlocked,car,gini,maps');
+    allCountries = await res.json();
+    allCountries.sort((a, b) => a.name.common.localeCompare(b.name.common));
+    applyFilters();
+    document.getElementById('loader').classList.add('hidden');
+  } catch (e) {
+    document.querySelector('.loader-text').textContent = 'Error loading data…';
+  }
+}
+
+function applyFilters() {
+  filtered = allCountries.filter(c => {
+    if (currentRegion !== 'All' && c.region !== currentRegion) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const name = c.name.common.toLowerCase();
+      const official = (c.name.official || '').toLowerCase();
+      const capital = (c.capital || []).join(' ').toLowerCase();
+      const langs = Object.values(c.languages || {}).join(' ').toLowerCase();
+      if (!name.includes(q) && !official.includes(q) && !capital.includes(q) && !langs.includes(q)) return false;
+    }
+    return true;
+  });
+
+  switch (currentSort) {
+    case 'name': filtered.sort((a,b) => a.name.common.localeCompare(b.name.common)); break;
+    case 'pop-desc': filtered.sort((a,b) => b.population - a.population); break;
+    case 'pop-asc': filtered.sort((a,b) => a.population - b.population); break;
+    case 'area-desc': filtered.sort((a,b) => (b.area||0) - (a.area||0)); break;
+    case 'area-asc': filtered.sort((a,b) => (a.area||0) - (b.area||0)); break;
+    case 'density-desc': filtered.sort((a,b) => {
+      const da = a.area ? a.population/a.area : 0;
+      const db = b.area ? b.population/b.area : 0;
+      return db - da;
+    }); break;
+  }
+
+  updateStats();
+  renderGrid();
+}
+
+document.getElementById('search').addEventListener('input', e => {
+  searchQuery = e.target.value.trim();
+  applyFilters();
+});
+
+document.getElementById('sortSel').addEventListener('change', e => {
+  currentSort = e.target.value;
+  applyFilters();
+});
+
+function fmtNum(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return n.toString();
+}
+
+function fmtArea(n) {
+  if (!n) return '—';
+  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M km²';
+  if (n >= 1e3) return (n/1e3).toFixed(0) + 'K km²';
+  return n.toLocaleString() + ' km²';
+}
+
+function updateStats() {
+  const totalPop = filtered.reduce((s,c) => s + c.population, 0);
+  const totalArea = filtered.reduce((s,c) => s + (c.area||0), 0);
+  const independent = filtered.filter(c => c.independent).length;
+  const landlocked = filtered.filter(c => c.landlocked).length;
+  const unMembers = filtered.filter(c => c.unMember).length;
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat"><div class="s-label">Countries</div><div class="s-val">${filtered.length}</div></div>
+    <div class="stat"><div class="s-label">Population</div><div class="s-val">${fmtNum(totalPop)}</div></div>
+    <div class="stat"><div class="s-label">Total Area</div><div class="s-val">${fmtArea(totalArea)}</div></div>
+    <div class="stat"><div class="s-label">Independent</div><div class="s-val">${independent}</div></div>
+    <div class="stat"><div class="s-label">UN Members</div><div class="s-val">${unMembers}</div></div>
+    <div class="stat"><div class="s-label">Landlocked</div><div class="s-val">${landlocked}</div></div>
+    <div class="stat"><div class="s-label">Languages</div><div class="s-val">${new Set(filtered.flatMap(c => Object.values(c.languages || {}))).size}</div></div>
+  `;
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = filtered.map(c => {
+    const density = c.area ? (c.population / c.area).toFixed(1) : '—';
+    const langs = Object.values(c.languages || {}).slice(0, 2).join(', ');
+    const curr = Object.values(c.currencies || {}).map(v => v.symbol || v.name).slice(0, 1).join('');
+    const regionColor = REGION_COLORS[c.region] || '#64748b';
+    const inCompare = compareList.includes(c.cca3);
+
+    return `
+      <div class="country-card" onclick="openCountry('${c.cca3}')">
+        <img class="card-flag" src="${c.flags?.png || ''}" alt="${c.name.common} flag" loading="lazy" onerror="this.style.background='var(--card2)'">
+        <div class="card-body">
+          <div class="card-name">
+            ${c.name.common}
+            <span style="font-size:.7rem;cursor:pointer;margin-left:auto;color:${inCompare ? 'var(--accent)' : 'var(--dim)'}" onclick="event.stopPropagation();toggleCompare('${c.cca3}')" title="Compare">⚖️</span>
+          </div>
+          <div class="card-native">${c.name.official !== c.name.common ? c.name.official : ''}</div>
+          <div class="card-stats">
+            <div class="card-stat"><span class="cs-label">Pop: </span><span class="cs-val">${fmtNum(c.population)}</span></div>
+            <div class="card-stat"><span class="cs-label">Area: </span><span class="cs-val">${fmtArea(c.area)}</span></div>
+            <div class="card-stat"><span class="cs-label">Density: </span><span class="cs-val">${density}/km²</span></div>
+            <div class="card-stat"><span class="cs-label">Capital: </span><span class="cs-val">${(c.capital||['—'])[0]}</span></div>
+          </div>
+          <span class="card-region" style="background:${regionColor}22;color:${regionColor}">${c.region || '—'}${c.subregion ? ' · ' + c.subregion : ''}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Compare
+function toggleCompare(cca3) {
+  const idx = compareList.indexOf(cca3);
+  if (idx >= 0) compareList.splice(idx, 1);
+  else if (compareList.length < 5) compareList.push(cca3);
+  updateCompareBar();
+  renderGrid();
+}
+
+function updateCompareBar() {
+  const bar = document.getElementById('compareBar');
+  const chips = document.getElementById('compareChips');
+  bar.classList.toggle('show', compareList.length > 0);
+  chips.innerHTML = compareList.map(code => {
+    const c = allCountries.find(x => x.cca3 === code);
+    return c ? `<div class="c-chip"><img src="${c.flags?.png}" style="width:20px;height:14px;border-radius:2px"> ${c.name.common} <span class="remove" onclick="toggleCompare('${code}')">×</span></div>` : '';
+  }).join('');
+}
+
+function showCompare() {
+  if (compareList.length < 2) return;
+  const countries = compareList.map(code => allCountries.find(x => x.cca3 === code)).filter(Boolean);
+  const modal = document.getElementById('modal');
+  const content = document.getElementById('modalContent');
+
+  const rows = [
+    ['Flag', c => `<img class="compare-flag-sm" src="${c.flags?.png}"> ${c.name.common}`],
+    ['Capital', c => (c.capital||['—'])[0]],
+    ['Region', c => `${c.region}${c.subregion ? ' / ' + c.subregion : ''}`],
+    ['Population', c => c.population.toLocaleString()],
+    ['Area (km²)', c => c.area ? c.area.toLocaleString() : '—'],
+    ['Density', c => c.area ? (c.population/c.area).toFixed(1) + '/km²' : '—'],
+    ['Languages', c => Object.values(c.languages || {}).join(', ') || '—'],
+    ['Currencies', c => Object.values(c.currencies || {}).map(v => `${v.name} (${v.symbol||''})`).join(', ') || '—'],
+    ['Timezones', c => (c.timezones||[]).join(', ')],
+    ['Landlocked', c => c.landlocked ? 'Yes' : 'No'],
+    ['UN Member', c => c.unMember ? 'Yes' : 'No'],
+    ['Drives on', c => c.car?.side || '—'],
+    ['Borders', c => (c.borders||[]).length.toString()],
+  ];
+
+  content.innerHTML = `
+    <h2 style="font-size:1.3rem;margin-bottom:16px">Country Comparison</h2>
+    <table class="compare-table">
+      <thead><tr><th></th>${countries.map(c => `<th>${c.name.common}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(([label, fn]) => `<tr><td>${label}</td>${countries.map(c => `<td>${fn(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table>
+  `;
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+// Detail modal
+function openCountry(cca3) {
+  const c = allCountries.find(x => x.cca3 === cca3);
+  if (!c) return;
+
+  const langs = Object.values(c.languages || {}).join(', ') || '—';
+  const currs = Object.values(c.currencies || {}).map(v => `${v.name} (${v.symbol||''})`).join(', ') || '—';
+  const density = c.area ? (c.population / c.area).toFixed(1) : '—';
+  const regionColor = REGION_COLORS[c.region] || '#64748b';
+
+  // Find border countries
+  const borderCountries = (c.borders || []).map(code => allCountries.find(x => x.cca3 === code)).filter(Boolean);
+
+  const content = document.getElementById('modalContent');
+  content.innerHTML = `
+    <img class="modal-flag" src="${c.flags?.svg || c.flags?.png || ''}" alt="${c.name.common}">
+    <div class="modal-name">${c.name.common}</div>
+    <div class="modal-official">${c.name.official}</div>
+
+    <div class="detail-grid">
+      <div class="d-item"><div class="di-label">Population</div><div class="di-val">${c.population.toLocaleString()}</div></div>
+      <div class="d-item"><div class="di-label">Area</div><div class="di-val">${c.area ? c.area.toLocaleString() + ' km²' : '—'}</div></div>
+      <div class="d-item"><div class="di-label">Density</div><div class="di-val">${density} /km²</div></div>
+      <div class="d-item"><div class="di-label">Capital</div><div class="di-val">${(c.capital||['—']).join(', ')}</div></div>
+      <div class="d-item"><div class="di-label">Region</div><div class="di-val" style="color:${regionColor}">${c.region}</div><div class="di-sub">${c.subregion || ''}</div></div>
+      <div class="d-item"><div class="di-label">Languages</div><div class="di-val" style="font-size:.8rem">${langs}</div></div>
+      <div class="d-item"><div class="di-label">Currencies</div><div class="di-val" style="font-size:.75rem">${currs}</div></div>
+      <div class="d-item"><div class="di-label">Timezones</div><div class="di-val" style="font-size:.75rem">${(c.timezones||[]).join(', ')}</div></div>
+      <div class="d-item"><div class="di-label">Coordinates</div><div class="di-val">${c.latlng ? c.latlng[0].toFixed(2) + '°, ' + c.latlng[1].toFixed(2) + '°' : '—'}</div></div>
+      <div class="d-item"><div class="di-label">ISO Codes</div><div class="di-val">${c.cca2} / ${c.cca3}</div></div>
+      <div class="d-item"><div class="di-label">Independent</div><div class="di-val">${c.independent ? '✓ Yes' : '✗ No'}</div></div>
+      <div class="d-item"><div class="di-label">UN Member</div><div class="di-val">${c.unMember ? '✓ Yes' : '✗ No'}</div></div>
+      <div class="d-item"><div class="di-label">Landlocked</div><div class="di-val">${c.landlocked ? '✓ Yes' : '✗ No'}</div></div>
+      <div class="d-item"><div class="di-label">Drives On</div><div class="di-val">${c.car?.side ? c.car.side.charAt(0).toUpperCase() + c.car.side.slice(1) : '—'}</div></div>
+      ${c.gini ? `<div class="d-item"><div class="di-label">Gini Index</div><div class="di-val">${Object.values(c.gini)[0]}</div><div class="di-sub">${Object.keys(c.gini)[0]}</div></div>` : ''}
+    </div>
+
+    ${borderCountries.length ? `
+      <div class="neighbors">
+        <h4>Bordering Countries (${borderCountries.length})</h4>
+        <div class="neighbor-pills">
+          ${borderCountries.map(b => `<span class="n-pill" onclick="closeModal();setTimeout(()=>openCountry('${b.cca3}'),100)"><img src="${b.flags?.png}" style="width:18px;height:12px;border-radius:2px;vertical-align:middle;margin-right:4px">${b.name.common}</span>`).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    ${c.maps?.googleMaps ? `<a class="map-link" href="${c.maps.googleMaps}" target="_blank" rel="noopener">Open in Google Maps →</a>` : ''}
+  `;
+
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target.id === 'modal') closeModal();
+});
+
+fetchCountries();
+</script>
+</body>
+</html>

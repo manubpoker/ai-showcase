@@ -263,6 +263,13 @@
     "path": "projects/gravity/"
   },
   {
+    "id": "nations",
+    "title": "Nation Pulse",
+    "description": "Explore 250 countries with flags, population, area, languages, currencies, Gini index, border navigation, region filters, sorting, and side-by-side comparison.",
+    "tags": ["REST Countries API", "Dashboard", "Data Viz", "Search"],
+    "path": "projects/nations/"
+  },
+  {
     "id": "brightonhub",
     "title": "Brighton Hub",
     "description": "Live city dashboard for Brighton & Hove with real-time transport, environment, crime, housing, health, events, and schools data.",
