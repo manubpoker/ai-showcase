@@ -117,6 +117,7 @@ if (!gl) {
   document.body.innerHTML = '<div style="color:#fff;padding:40px;font-family:monospace">WebGL 2 not supported in this browser.</div>';
   throw new Error('No WebGL2');
 }
+gl.getExtension('EXT_color_buffer_float');
 
 // ─── Config ──────────────────────────────────────
 const SIM_RES = 256;   // simulation grid
@@ -277,8 +278,8 @@ const pressureFS = `#version 300 es
   void main() {
     float L = texture(uPressure, vUv - vec2(uTexelSize.x, 0)).x;
     float R = texture(uPressure, vUv + vec2(uTexelSize.x, 0)).x;
-    float B = texture(uPressure, vUv - vec2(0, uTexelSize.y)).y;
-    float T = texture(uPressure, vUv + vec2(0, uTexelSize.y)).y;
+    float B = texture(uPressure, vUv - vec2(0, uTexelSize.y)).x;
+    float T = texture(uPressure, vUv + vec2(0, uTexelSize.y)).x;
     float div = texture(uDivergence, vUv).x;
     fragColor = vec4((L + R + B + T - div) * 0.25, 0.0, 0.0, 1.0);
   }
@@ -294,8 +295,8 @@ const gradientSubFS = `#version 300 es
   void main() {
     float L = texture(uPressure, vUv - vec2(uTexelSize.x, 0)).x;
     float R = texture(uPressure, vUv + vec2(uTexelSize.x, 0)).x;
-    float B = texture(uPressure, vUv - vec2(0, uTexelSize.y)).y;
-    float T = texture(uPressure, vUv + vec2(0, uTexelSize.y)).y;
+    float B = texture(uPressure, vUv - vec2(0, uTexelSize.y)).x;
+    float T = texture(uPressure, vUv + vec2(0, uTexelSize.y)).x;
     vec2 v = texture(uVelocity, vUv).xy;
     v -= vec2(R - L, T - B) * 0.5;
     fragColor = vec4(v, 0.0, 1.0);

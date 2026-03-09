@@ -105,6 +105,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;heigh
 const canvas = document.getElementById('c');
 const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
 if (!gl) { document.body.innerHTML = '<p style="color:#fff;padding:40px">WebGL 2 required</p>'; throw 'no webgl2'; }
+gl.getExtension('EXT_color_buffer_float');
 
 // State
 let F = 0.055, K = 0.062, dA = 1.0, dB = 0.5, simSpeed = 16, brushSize = 20;
