@@ -203,7 +203,7 @@ html, body {
 /* ── Hover card ────────────────────────────────────────────── */
 #hover-card {
   position: fixed;
-  top: 1rem; right: 1rem;
+  top: 3rem; right: 1rem;
   z-index: 90;
   min-width: 200px; max-width: 280px;
   padding: 0.85rem 1rem;
@@ -360,14 +360,79 @@ html, body {
   margin-top: 0.4rem; font-size: 0.75rem;
 }
 
+/* ── Layer badge (top-right) ───────────────────────────────── */
+.layer-badge {
+  position: fixed;
+  top: 0.75rem; right: 0.75rem;
+  z-index: 90;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cool-accent);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 999px;
+  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), opacity 0.25s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.layer-badge.bump {
+  transform: scale(1.15);
+}
+
+/* ── Empty-state hint ─────────────────────────────────────── */
+#empty-hint {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid; place-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+#empty-hint.visible { opacity: 1; }
+#empty-hint span {
+  font-size: 1.05rem;
+  color: var(--muted-text);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 0.7rem 1.4rem;
+  border-radius: 1rem;
+}
+
+/* ── Loading spinner for layer toggle ─────────────────────── */
+.layer-row .layer-loading {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(141,228,239,0.2);
+  border-top-color: var(--cool-accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ── Error flash on layer row ─────────────────────────────── */
+.layer-row.layer-error .layer-name {
+  color: #f87171;
+  transition: color 0.3s;
+}
+.layer-row .layer-status.error-msg {
+  color: #f87171;
+  font-weight: 500;
+}
+
 /* ── Responsive ────────────────────────────────────────────── */
 @media (max-width: 768px) {
   #layer-panel { transform: translateX(-100%); }
   #layer-panel.open { transform: translateX(0); }
   #menu-btn { display: grid; place-items: center; }
-  #legend-bar { left: 1rem; width: calc(100vw - 2rem); }
+  #legend-bar { left: 1rem; bottom: 0.5rem; width: calc(100vw - 2rem); }
   #hover-card { top: auto; bottom: 5.5rem; right: 1rem; left: 1rem; max-width: none; }
   #country-sheet { top: 0; right: 0; bottom: 0; width: 100vw; border-radius: 0; }
+  .layer-badge { top: 0.75rem; right: 0.75rem; }
 }
 </style>
 </head>
@@ -410,6 +475,12 @@ html, body {
     <span id="legend-max"></span>
   </div>
 </div>
+
+<!-- Layer count badge -->
+<div class="layer-badge" id="layer-badge">0 layers</div>
+
+<!-- Empty-state hint -->
+<div id="empty-hint"><span>Enable a layer to explore</span></div>
 
 <!-- Country detail sheet -->
 <div id="country-sheet">
@@ -981,7 +1052,7 @@ html, body {
 
   function showHover(name, value, meta) {
     $hoverName.textContent = name;
-    $hoverValue.textContent = value;
+    $hoverValue.innerHTML = value;
     $hoverMeta.textContent = meta;
     $hoverCard.classList.add('visible');
   }
@@ -1090,24 +1161,114 @@ html, body {
   const $legendMin   = document.getElementById('legend-min');
   const $legendMax   = document.getElementById('legend-max');
 
+  /* ── Legend definitions for non-choropleth layers ────────── */
+  const LAYER_LEGENDS = {
+    earthquakes: {
+      title: 'Earthquake Depth', unit: 'km',
+      gradient: 'linear-gradient(90deg, #ffffb2 0%, #fd8d3c 50%, #bd0026 100%)',
+      min: '0 km', max: '400 km'
+    },
+    weather: {
+      title: 'Temperature', unit: '\u00B0C',
+      gradient: 'linear-gradient(90deg, #2166ac 0%, #67a9cf 25%, #fddbc7 50%, #ef8a62 75%, #b2182b 100%)',
+      min: '-20\u00B0C', max: '45\u00B0C'
+    },
+    airquality: {
+      title: 'Air Quality Index', unit: 'AQI',
+      gradient: 'linear-gradient(90deg, #22c55e 0%, #eab308 20%, #f97316 40%, #ef4444 60%, #7c3aed 80%, #991b1b 100%)',
+      min: '0 Good', max: '300+ Hazardous'
+    },
+    rivers: {
+      title: 'River Discharge', unit: 'cfs',
+      gradient: 'linear-gradient(90deg, #93c5fd 0%, #3b82f6 50%, #1e3a8a 100%)',
+      min: '0 cfs', max: 'High flow'
+    }
+  };
+
+  let lastToggledLayerId = null;
+
   function updateLegend(overlay) {
-    if (!overlay) {
-      $legendBar.classList.remove('visible');
+    // If overlay is explicitly passed (choropleth), use it
+    if (overlay) {
+      $legendTitle.textContent = overlay.title;
+      $legendUnit.textContent = overlay.unit;
+      const interp = getInterpolator(overlay.palette);
+      const stops = Array.from({ length: 12 }, (_, i) => {
+        const t = i / 11;
+        return `${interp(t)} ${(t * 100).toFixed(0)}%`;
+      });
+      $legendGrad.style.background = `linear-gradient(90deg, ${stops.join(', ')})`;
+      $legendMin.textContent = fmtNum(overlay.range.min, overlay.decimals) + ' ' + overlay.unit;
+      $legendMax.textContent = fmtNum(overlay.range.max, overlay.decimals) + ' ' + overlay.unit;
+      $legendBar.classList.add('visible');
       return;
     }
-    $legendTitle.textContent = overlay.title;
-    $legendUnit.textContent = overlay.unit;
+    if (overlay === null) {
+      // Check if we should show a non-choropleth legend
+      updateDynamicLegend();
+      return;
+    }
+    $legendBar.classList.remove('visible');
+  }
 
-    const interp = getInterpolator(overlay.palette);
-    const stops = Array.from({ length: 12 }, (_, i) => {
-      const t = i / 11;
-      return `${interp(t)} ${(t * 100).toFixed(0)}%`;
-    });
-    $legendGrad.style.background = `linear-gradient(90deg, ${stops.join(', ')})`;
+  function updateDynamicLegend() {
+    // Show legend for the most recently toggled-on layer
+    // Priority: lastToggledLayerId if still enabled, else first enabled non-base
+    let targetId = null;
+    if (lastToggledLayerId) {
+      const l = LAYERS.find(la => la.id === lastToggledLayerId);
+      if (l && l.enabled && LAYER_LEGENDS[l.id]) targetId = l.id;
+    }
+    if (!targetId) {
+      // Find first enabled layer with a legend definition
+      for (const l of LAYERS) {
+        if (l.enabled && LAYER_LEGENDS[l.id]) { targetId = l.id; break; }
+      }
+    }
 
-    $legendMin.textContent = fmtNum(overlay.range.min, overlay.decimals) + ' ' + overlay.unit;
-    $legendMax.textContent = fmtNum(overlay.range.max, overlay.decimals) + ' ' + overlay.unit;
-    $legendBar.classList.add('visible');
+    // If base choropleth is active, it already set the legend via applyChoropleth
+    const baseLayer = LAYERS.find(l => l.id === 'base');
+    if (baseLayer.enabled && activeOverlay) {
+      // Base choropleth legend is already shown by applyChoropleth
+      // Only override if lastToggled is a non-base layer
+      if (!targetId || lastToggledLayerId === 'base') return;
+    }
+
+    if (targetId && LAYER_LEGENDS[targetId]) {
+      const def = LAYER_LEGENDS[targetId];
+      $legendTitle.textContent = def.title;
+      $legendUnit.textContent = def.unit;
+      $legendGrad.style.background = def.gradient;
+      $legendMin.textContent = def.min;
+      $legendMax.textContent = def.max;
+      $legendBar.classList.add('visible');
+      return;
+    }
+
+    // No applicable legend and no base choropleth
+    if (!baseLayer.enabled) {
+      $legendBar.classList.remove('visible');
+    }
+  }
+
+  /* ── Layer badge ────────────────────────────────────────── */
+  const $layerBadge = document.getElementById('layer-badge');
+
+  function updateLayerBadge() {
+    const count = LAYERS.filter(l => l.enabled).length;
+    $layerBadge.textContent = count === 1 ? '1 layer' : count + ' layers';
+    // Bump animation
+    $layerBadge.classList.add('bump');
+    setTimeout(() => $layerBadge.classList.remove('bump'), 250);
+  }
+
+  /* ── Empty hint ─────────────────────────────────────────── */
+  const $emptyHint = document.getElementById('empty-hint');
+
+  function updateEmptyHint() {
+    const anyOn = LAYERS.some(l => l.enabled);
+    if (anyOn) $emptyHint.classList.remove('visible');
+    else $emptyHint.classList.add('visible');
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -1385,7 +1546,12 @@ html, body {
       onEnable: async () => {
         const layer = LAYERS.find(l => l.id === 'radio');
         if (!layer.data) {
-          layer.data = await fetchRadioStations();
+          try {
+            layer.data = await fetchRadioStations();
+          } catch (e) {
+            console.warn('Radio stations fetch failed:', e);
+            layer.data = [];
+          }
         }
         updateCombinedPoints();
       },
@@ -1478,11 +1644,18 @@ html, body {
       refreshMs: 30 * 60 * 1000,
       onEnable: async () => {
         const layer = LAYERS.find(l => l.id === 'airquality');
-        layer.data = await fetchAirQuality();
+        try {
+          layer.data = await fetchAirQuality();
+        } catch (e) {
+          console.warn('Air quality fetch failed:', e);
+          layer.data = [];
+        }
         updateCombinedPoints();
         layer.interval = setInterval(async () => {
-          layer.data = await fetchAirQuality();
-          updateCombinedPoints();
+          try {
+            layer.data = await fetchAirQuality();
+            updateCombinedPoints();
+          } catch (e) { console.warn('Air quality refresh failed:', e); }
         }, layer.refreshMs);
       },
       onDisable: () => {
@@ -1522,14 +1695,14 @@ html, body {
         const hasImpl = layer.id === 'base' || layer.id === 'earthquakes' || layer.id === 'iss' || layer.id === 'rockets' || layer.id === 'radio' || layer.id === 'rivers' || layer.id === 'weather' || layer.id === 'airquality';
         const isPlaceholder = !hasImpl && !layer.enabled;
         html += `
-          <div class="layer-row" data-layer-id="${layer.id}">
+          <div class="layer-row" data-layer-id="${layer.id}" title="Toggle ${layer.name} layer">
             <span class="layer-icon">${layer.icon}</span>
             <div class="layer-info">
               <div class="layer-name">${layer.name}</div>
-              ${isPlaceholder ? '<div class="layer-status">Coming soon</div>' : ''}
+              <div class="layer-status" id="status-${layer.id}">${isPlaceholder ? 'Coming soon' : ''}</div>
             </div>
-            <label class="toggle-switch">
-              <input type="checkbox" ${layer.enabled ? 'checked' : ''} data-layer-id="${layer.id}" />
+            <label class="toggle-switch" id="toggle-wrap-${layer.id}">
+              <input type="checkbox" ${layer.enabled ? 'checked' : ''} data-layer-id="${layer.id}" aria-label="Toggle ${layer.name}" />
               <span class="slider"></span>
             </label>
           </div>`;
@@ -1551,11 +1724,50 @@ html, body {
         const layer = LAYERS.find(l => l.id === layerId);
         if (!layer) return;
         layer.enabled = e.target.checked;
+
+        const row = $panel.querySelector(`.layer-row[data-layer-id="${layerId}"]`);
+        const statusEl = document.getElementById('status-' + layerId);
+        const toggleWrap = document.getElementById('toggle-wrap-' + layerId);
+
         if (layer.enabled) {
-          await layer.onEnable();
+          lastToggledLayerId = layerId;
+          // Show loading spinner
+          if (statusEl) { statusEl.textContent = 'Loading...'; statusEl.className = 'layer-status'; }
+          // Replace toggle with spinner
+          let spinner = null;
+          if (toggleWrap) {
+            spinner = document.createElement('div');
+            spinner.className = 'layer-loading';
+            toggleWrap.style.display = 'none';
+            toggleWrap.parentNode.insertBefore(spinner, toggleWrap.nextSibling);
+          }
+          try {
+            await layer.onEnable();
+            if (statusEl) statusEl.textContent = '';
+            if (row) row.classList.remove('layer-error');
+          } catch (err) {
+            console.error(`Layer ${layerId} failed:`, err);
+            if (statusEl) { statusEl.textContent = 'Failed to load'; statusEl.className = 'layer-status error-msg'; }
+            if (row) row.classList.add('layer-error');
+            // Auto-clear error after 3s
+            setTimeout(() => {
+              if (statusEl && statusEl.textContent === 'Failed to load') statusEl.textContent = '';
+              if (row) row.classList.remove('layer-error');
+            }, 3000);
+            layer.enabled = false;
+            e.target.checked = false;
+          } finally {
+            // Restore toggle, remove spinner
+            if (toggleWrap) toggleWrap.style.display = '';
+            if (spinner && spinner.parentNode) spinner.parentNode.removeChild(spinner);
+          }
         } else {
-          layer.onDisable();
+          try { layer.onDisable(); } catch (err) { console.warn('Disable failed:', err); }
         }
+
+        updateLayerBadge();
+        updateEmptyHint();
+        updateDynamicLegend();
       });
     });
   }
@@ -1617,8 +1829,21 @@ html, body {
   updatePanelState();
   window.addEventListener('resize', updatePanelState);
 
+  // Pause auto-rotate on any hover over the globe
+  container.addEventListener('mouseenter', () => {
+    globe.controls().autoRotate = false;
+  });
+  container.addEventListener('mouseleave', () => {
+    globe.controls().autoRotate = true;
+    hideHover();
+  });
+
   // Render panel
   renderPanel();
+
+  // Initial badge + hint state
+  updateLayerBadge();
+  updateEmptyHint();
 
   // Enable default layers
   const $loading = document.getElementById('loading-screen');
@@ -1631,6 +1856,10 @@ html, body {
   } catch (err) {
     console.error('Failed to initialise layers:', err);
   }
+
+  // Update badge/hint after initial layers loaded
+  updateLayerBadge();
+  updateEmptyHint();
 
   // Hide loading screen
   $loading.classList.add('hidden');
