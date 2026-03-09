@@ -284,6 +284,13 @@
     "path": "projects/nobel/"
   },
   {
+    "id": "waves",
+    "title": "Wave Lab",
+    "description": "GPU 2D wave interference simulator with placeable sources, drawable walls, 6 color maps, diffraction presets (two-slit, lens focus, Doppler), and real-time propagation.",
+    "tags": ["WebGL", "GLSL", "Physics", "Simulation"],
+    "path": "projects/waves/"
+  },
+  {
     "id": "brightonhub",
     "title": "Brighton Hub",
     "description": "Live city dashboard for Brighton & Hove with real-time transport, environment, crime, housing, health, events, and schools data.",

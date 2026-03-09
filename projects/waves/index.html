@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wave Lab — 2D Wave Interference Simulator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#020810;--card:rgba(6,14,28,.88);--border:rgba(255,255,255,.08);--text:#e2e8f0;--dim:#4a6a8a;--accent:#06b6d4}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100vh}
+canvas{display:block;position:absolute;top:0;left:0}
+
+.ui{position:fixed;z-index:10}
+
+.title{top:14px;left:14px;background:var(--card);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:12px 16px}
+.title h1{font-size:1.05rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.title .sub{font-size:.64rem;color:var(--dim);margin-top:3px}
+
+.panel{top:88px;left:14px;background:var(--card);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:12px 16px;width:215px}
+.panel h3{font-size:.66rem;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-top:10px}
+.panel h3:first-child{margin-top:0}
+
+.s-row{margin-bottom:6px}
+.s-row label{display:flex;justify-content:space-between;font-size:.66rem;margin-bottom:2px}
+.s-row label span{color:var(--accent);font-weight:600}
+input[type=range]{width:100%;height:3px;-webkit-appearance:none;background:rgba(255,255,255,.1);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:var(--accent);border-radius:50%;cursor:pointer}
+
+select.sel{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:.68rem;font-family:inherit;outline:none;margin-bottom:6px}
+
+.btn-row{display:flex;gap:4px;flex-wrap:wrap}
+.btn{background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--dim);padding:5px 10px;border-radius:7px;font-size:.64rem;cursor:pointer;transition:all .2s;font-family:inherit}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.active{background:rgba(6,182,212,.15);border-color:var(--accent);color:var(--accent)}
+
+.tools{top:14px;right:14px;background:var(--card);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:12px 16px;width:160px}
+.tool-btn{display:flex;align-items:center;gap:8px;width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--dim);padding:7px 10px;border-radius:7px;font-size:.66rem;cursor:pointer;margin-bottom:4px;font-family:inherit;transition:all .15s}
+.tool-btn:hover{border-color:var(--accent);color:var(--accent)}
+.tool-btn.active{background:rgba(6,182,212,.12);border-color:var(--accent);color:var(--accent)}
+.tool-icon{font-size:.9rem}
+
+.info{bottom:14px;left:14px;background:var(--card);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:8px 14px;font-size:.66rem}
+.info-row{display:flex;gap:14px}
+.info-row .lbl{color:var(--dim)}
+.info-row .val{font-weight:600;font-variant-numeric:tabular-nums}
+
+.hint{bottom:14px;right:14px;background:var(--card);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:8px 14px;font-size:.6rem;color:var(--dim);line-height:1.5;max-width:200px}
+.hint b{color:var(--text)}
+
+@media(max-width:700px){.panel,.tools,.hint{display:none}}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="ui title">
+  <h1><span style="font-size:1.2rem">〰️</span> Wave Lab</h1>
+  <div class="sub">GPU 2D Wave Interference Simulator</div>
+</div>
+
+<div class="ui panel">
+  <h3>Wave Properties</h3>
+  <div class="s-row"><label>Frequency <span id="vFreq">3.0</span></label><input type="range" id="sFreq" min="5" max="100" value="30"></div>
+  <div class="s-row"><label>Amplitude <span id="vAmp">1.0</span></label><input type="range" id="sAmp" min="1" max="100" value="50"></div>
+  <div class="s-row"><label>Damping <span id="vDamp">0.998</span></label><input type="range" id="sDamp" min="980" max="1000" value="998"></div>
+  <div class="s-row"><label>Speed <span id="vSpeed">0.45</span></label><input type="range" id="sSpeed" min="10" max="90" value="45"></div>
+
+  <h3>Color Map</h3>
+  <select class="sel" id="colorSel">
+    <option value="ocean">Ocean</option>
+    <option value="thermal">Thermal</option>
+    <option value="electric">Electric</option>
+    <option value="sunset">Sunset</option>
+    <option value="mono">Mono</option>
+    <option value="rainbow">Rainbow</option>
+  </select>
+
+  <h3>Presets</h3>
+  <div class="btn-row">
+    <button class="btn" onclick="loadPreset('two-slit')">Two Slit</button>
+    <button class="btn" onclick="loadPreset('ripple')">Ripple Tank</button>
+    <button class="btn" onclick="loadPreset('focus')">Lens Focus</button>
+    <button class="btn" onclick="loadPreset('doppler')">Doppler</button>
+  </div>
+
+  <h3 style="margin-top:10px">Controls</h3>
+  <div class="btn-row">
+    <button class="btn active" id="bPlay" onclick="togglePlay()">⏸ Pause</button>
+    <button class="btn" onclick="clearSim()">Clear</button>
+    <button class="btn active" id="bWalls" onclick="toggleWalls()">Walls</button>
+  </div>
+</div>
+
+<div class="ui tools">
+  <div style="font-size:.66rem;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Tools</div>
+  <button class="tool-btn active" data-tool="source" onclick="setTool('source')"><span class="tool-icon">◉</span> Add Source</button>
+  <button class="tool-btn" data-tool="wall" onclick="setTool('wall')"><span class="tool-icon">▬</span> Draw Wall</button>
+  <button class="tool-btn" data-tool="eraser" onclick="setTool('eraser')"><span class="tool-icon">◻</span> Erase Wall</button>
+  <button class="tool-btn" data-tool="probe" onclick="setTool('probe')"><span class="tool-icon">📍</span> Probe Point</button>
+</div>
+
+<div class="ui info">
+  <div class="info-row">
+    <span><span class="lbl">Sources: </span><span class="val" id="infoSources">0</span></span>
+    <span><span class="lbl">Grid: </span><span class="val" id="infoGrid">512²</span></span>
+    <span><span class="lbl">FPS: </span><span class="val" id="infoFps">60</span></span>
+  </div>
+</div>
+
+<div class="ui hint">
+  <b>Click</b> to place sources/walls<br>
+  <b>Drag</b> to draw walls<br>
+  <b>Right-click</b> source to remove<br>
+  <b>Scroll</b> source frequency
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl2', { antialias: false });
+
+const N = 512; // simulation grid
+let playing = true, showWalls = true;
+let frequency = 3.0, amplitude = 1.0, damping = 0.998, waveSpeed = 0.45;
+let currentTool = 'source', currentColor = 'ocean';
+
+// Sources: {x, y, freq, phase}
+let sources = [];
+// Walls: stored in texture
+let wallData = new Uint8Array(N * N);
+// Probe
+let probeX = -1, probeY = -1;
+
+// Shaders
+const VS = `#version 300 es
+in vec2 a;out vec2 vUv;
+void main(){vUv=a*.5+.5;gl_Position=vec4(a,0,1);}`;
+
+const SIM_FS = `#version 300 es
+precision highp float;
+uniform sampler2D u_prev;
+uniform sampler2D u_curr;
+uniform sampler2D u_walls;
+uniform sampler2D u_sources;
+uniform vec2 u_size;
+uniform float u_damping;
+uniform float u_c2; // speed squared
+in vec2 vUv;
+out vec4 O;
+
+void main(){
+  vec2 px = 1.0 / u_size;
+  float wall = texture(u_walls, vUv).r;
+  if(wall > 0.5){
+    O = vec4(0.0, 0.0, 0.0, 1.0);
+    return;
+  }
+
+  float prev = texture(u_prev, vUv).r;
+  float curr = texture(u_curr, vUv).r;
+
+  // Sample neighbors with wall check
+  float l = texture(u_walls, vUv - vec2(px.x, 0)).r > 0.5 ? curr : texture(u_curr, vUv - vec2(px.x, 0)).r;
+  float r = texture(u_walls, vUv + vec2(px.x, 0)).r > 0.5 ? curr : texture(u_curr, vUv + vec2(px.x, 0)).r;
+  float u = texture(u_walls, vUv + vec2(0, px.y)).r > 0.5 ? curr : texture(u_curr, vUv + vec2(0, px.y)).r;
+  float d = texture(u_walls, vUv - vec2(0, px.y)).r > 0.5 ? curr : texture(u_curr, vUv - vec2(0, px.y)).r;
+
+  float laplacian = l + r + u + d - 4.0 * curr;
+  float next = 2.0 * curr - prev + u_c2 * laplacian;
+  next *= u_damping;
+
+  // Add source contributions
+  float src = texture(u_sources, vUv).r;
+  next += src;
+
+  O = vec4(next, 0.0, 0.0, 1.0);
+}`;
+
+const RENDER_FS = `#version 300 es
+precision highp float;
+uniform sampler2D u_state;
+uniform sampler2D u_walls;
+uniform int u_colormap;
+uniform vec2 u_res;
+uniform vec2 u_size;
+in vec2 vUv;
+out vec4 O;
+
+vec3 ocean(float t){
+  t = t * 0.5 + 0.5;
+  vec3 a = vec3(0.0, 0.02, 0.08);
+  vec3 b = vec3(0.0, 0.3, 0.6);
+  vec3 c = vec3(1.0, 1.0, 1.0);
+  if(t < 0.5) return mix(a, b, t * 2.0);
+  return mix(b, c, (t - 0.5) * 2.0);
+}
+
+vec3 thermal(float t){
+  t = t * 0.5 + 0.5;
+  if(t < 0.25) return mix(vec3(0,0,0.2), vec3(0,0,1), t*4.);
+  if(t < 0.5) return mix(vec3(0,0,1), vec3(0,1,0), (t-.25)*4.);
+  if(t < 0.75) return mix(vec3(0,1,0), vec3(1,1,0), (t-.5)*4.);
+  return mix(vec3(1,1,0), vec3(1,0,0), (t-.75)*4.);
+}
+
+vec3 electric(float t){
+  t = t * 0.5 + 0.5;
+  return mix(vec3(0.0, 0.0, 0.1), vec3(0.3, 0.7, 1.0), pow(t, 0.6))
+       + vec3(1.0, 1.0, 1.0) * pow(t, 8.0) * 0.5;
+}
+
+vec3 sunset(float t){
+  t = t * 0.5 + 0.5;
+  if(t < 0.33) return mix(vec3(0.05,0,0.15), vec3(0.8,0.1,0.3), t*3.);
+  if(t < 0.66) return mix(vec3(0.8,0.1,0.3), vec3(1,0.7,0.2), (t-.33)*3.);
+  return mix(vec3(1,0.7,0.2), vec3(1,1,0.8), (t-.66)*3.);
+}
+
+vec3 mono(float t){
+  t = t * 0.5 + 0.5;
+  return vec3(t);
+}
+
+vec3 rainbow(float t){
+  return 0.5+0.5*cos(6.28318*(t*0.8+vec3(0,0.33,0.67)));
+}
+
+void main(){
+  float wall = texture(u_walls, vUv).r;
+  if(wall > 0.5){
+    O = vec4(0.15, 0.12, 0.2, 1.0);
+    return;
+  }
+
+  float v = texture(u_state, vUv).r;
+  v = clamp(v * 2.0, -1.0, 1.0);
+
+  vec3 col;
+  if(u_colormap == 0) col = ocean(v);
+  else if(u_colormap == 1) col = thermal(v);
+  else if(u_colormap == 2) col = electric(v);
+  else if(u_colormap == 3) col = sunset(v);
+  else if(u_colormap == 4) col = mono(v);
+  else col = rainbow(v);
+
+  O = vec4(col, 1.0);
+}`;
+
+function createShader(src, type) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+  return s;
+}
+
+function createProgram(vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, createShader(vs, gl.VERTEX_SHADER));
+  gl.attachShader(p, createShader(fs, gl.FRAGMENT_SHADER));
+  gl.linkProgram(p);
+  return p;
+}
+
+const simProg = createProgram(VS, SIM_FS);
+const renderProg = createProgram(VS, RENDER_FS);
+
+// Quad
+const quadBuf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+
+function bindQuad(prog) {
+  const a = gl.getAttribLocation(prog, 'a');
+  gl.enableVertexAttribArray(a);
+  gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
+}
+
+// Create textures and framebuffers
+function makeFloatTex() {
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, N, N, 0, gl.RED, gl.FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  return { tex, fb };
+}
+
+// Check float texture support
+const extFloat = gl.getExtension('EXT_color_buffer_float');
+
+let prev = makeFloatTex(), curr = makeFloatTex(), next = makeFloatTex();
+
+// Wall texture (R8)
+const wallTex = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, wallTex);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, N, N, 0, gl.RED, gl.UNSIGNED_BYTE, wallData);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+// Source texture (R32F, updated each frame)
+const srcTex = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, srcTex);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, N, N, 0, gl.RED, gl.FLOAT, null);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+function updateWallTex() {
+  gl.bindTexture(gl.TEXTURE_2D, wallTex);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, N, N, gl.RED, gl.UNSIGNED_BYTE, wallData);
+}
+
+function updateSourceTex(time) {
+  const data = new Float32Array(N * N);
+  for (const s of sources) {
+    const gx = Math.floor(s.x * N), gy = Math.floor(s.y * N);
+    const r = 2;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const px = gx + dx, py = gy + dy;
+        if (px >= 0 && px < N && py >= 0 && py < N) {
+          data[py * N + px] = amplitude * Math.sin(time * s.freq * 6.2832);
+        }
+      }
+    }
+  }
+  gl.bindTexture(gl.TEXTURE_2D, srcTex);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, N, N, gl.RED, gl.FLOAT, data);
+}
+
+// Simulation step
+function simStep(time) {
+  updateSourceTex(time);
+
+  gl.useProgram(simProg);
+  bindQuad(simProg);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, next.fb);
+  gl.viewport(0, 0, N, N);
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, prev.tex);
+  gl.uniform1i(gl.getUniformLocation(simProg, 'u_prev'), 0);
+
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, curr.tex);
+  gl.uniform1i(gl.getUniformLocation(simProg, 'u_curr'), 1);
+
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, wallTex);
+  gl.uniform1i(gl.getUniformLocation(simProg, 'u_walls'), 2);
+
+  gl.activeTexture(gl.TEXTURE3);
+  gl.bindTexture(gl.TEXTURE_2D, srcTex);
+  gl.uniform1i(gl.getUniformLocation(simProg, 'u_sources'), 3);
+
+  gl.uniform2f(gl.getUniformLocation(simProg, 'u_size'), N, N);
+  gl.uniform1f(gl.getUniformLocation(simProg, 'u_damping'), damping);
+  gl.uniform1f(gl.getUniformLocation(simProg, 'u_c2'), waveSpeed * waveSpeed);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  // Rotate buffers: prev <- curr, curr <- next
+  const tmp = prev;
+  prev = curr;
+  curr = next;
+  next = tmp;
+}
+
+// Render
+const colorNames = ['ocean','thermal','electric','sunset','mono','rainbow'];
+
+function render() {
+  gl.useProgram(renderProg);
+  bindQuad(renderProg);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, curr.tex);
+  gl.uniform1i(gl.getUniformLocation(renderProg, 'u_state'), 0);
+
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, wallTex);
+  gl.uniform1i(gl.getUniformLocation(renderProg, 'u_walls'), 1);
+
+  gl.uniform1i(gl.getUniformLocation(renderProg, 'u_colormap'), colorNames.indexOf(currentColor));
+  gl.uniform2f(gl.getUniformLocation(renderProg, 'u_res'), canvas.width, canvas.height);
+  gl.uniform2f(gl.getUniformLocation(renderProg, 'u_size'), N, N);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  // Draw source markers and probe on 2D overlay
+  drawOverlay();
+}
+
+// 2D overlay canvas for markers
+let overlayCanvas, octx;
+function initOverlay() {
+  overlayCanvas = document.createElement('canvas');
+  overlayCanvas.style.cssText = 'position:absolute;top:0;left:0;z-index:1;pointer-events:none';
+  document.body.appendChild(overlayCanvas);
+}
+
+function resizeOverlay() {
+  overlayCanvas.width = innerWidth;
+  overlayCanvas.height = innerHeight;
+  overlayCanvas.style.width = innerWidth + 'px';
+  overlayCanvas.style.height = innerHeight + 'px';
+  octx = overlayCanvas.getContext('2d');
+}
+
+function drawOverlay() {
+  if (!octx) return;
+  octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  const W = overlayCanvas.width, H = overlayCanvas.height;
+
+  for (const s of sources) {
+    const sx = s.x * W, sy = (1 - s.y) * H;
+    octx.strokeStyle = '#06b6d4';
+    octx.lineWidth = 2;
+    octx.beginPath();
+    octx.arc(sx, sy, 8, 0, Math.PI * 2);
+    octx.stroke();
+    octx.fillStyle = '#06b6d488';
+    octx.beginPath();
+    octx.arc(sx, sy, 4, 0, Math.PI * 2);
+    octx.fill();
+    // Freq label
+    octx.fillStyle = '#06b6d4';
+    octx.font = '10px system-ui';
+    octx.textAlign = 'center';
+    octx.fillText(s.freq.toFixed(1) + 'Hz', sx, sy - 14);
+  }
+
+  if (probeX >= 0) {
+    const px = probeX * W, py = (1 - probeY) * H;
+    octx.strokeStyle = '#f59e0b';
+    octx.lineWidth = 1.5;
+    octx.setLineDash([3, 3]);
+    octx.beginPath();
+    octx.moveTo(px - 10, py); octx.lineTo(px + 10, py);
+    octx.moveTo(px, py - 10); octx.lineTo(px, py + 10);
+    octx.stroke();
+    octx.setLineDash([]);
+  }
+}
+
+// Resize
+function resize() {
+  const dpr = Math.min(devicePixelRatio, 2);
+  canvas.width = innerWidth * dpr;
+  canvas.height = innerHeight * dpr;
+  canvas.style.width = innerWidth + 'px';
+  canvas.style.height = innerHeight + 'px';
+  if (overlayCanvas) resizeOverlay();
+}
+window.addEventListener('resize', resize);
+initOverlay();
+resize();
+
+// Mouse interaction
+function screenToSim(sx, sy) {
+  return [sx / innerWidth, 1 - sy / innerHeight];
+}
+
+let drawing = false;
+
+canvas.addEventListener('pointerdown', e => {
+  if (e.button === 2) {
+    // Right-click remove nearest source
+    e.preventDefault();
+    const [mx, my] = screenToSim(e.clientX, e.clientY);
+    let minD = 0.03, minI = -1;
+    sources.forEach((s, i) => {
+      const d = Math.hypot(s.x - mx, s.y - my);
+      if (d < minD) { minD = d; minI = i; }
+    });
+    if (minI >= 0) sources.splice(minI, 1);
+    return;
+  }
+
+  const [mx, my] = screenToSim(e.clientX, e.clientY);
+
+  if (currentTool === 'source') {
+    sources.push({ x: mx, y: my, freq: frequency });
+  } else if (currentTool === 'wall' || currentTool === 'eraser') {
+    drawing = true;
+    paintWall(mx, my, currentTool === 'wall');
+  } else if (currentTool === 'probe') {
+    probeX = mx; probeY = my;
+  }
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (!drawing) return;
+  const [mx, my] = screenToSim(e.clientX, e.clientY);
+  paintWall(mx, my, currentTool === 'wall');
+});
+
+canvas.addEventListener('pointerup', () => { drawing = false; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+function paintWall(nx, ny, isWall) {
+  const gx = Math.floor(nx * N), gy = Math.floor(ny * N);
+  const r = 3;
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      const px = gx + dx, py = gy + dy;
+      if (px >= 0 && px < N && py >= 0 && py < N) {
+        wallData[py * N + px] = isWall ? 255 : 0;
+      }
+    }
+  }
+  updateWallTex();
+}
+
+function setTool(tool) {
+  currentTool = tool;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
+  canvas.style.cursor = tool === 'source' ? 'crosshair' : tool === 'probe' ? 'crosshair' : 'default';
+}
+
+// Settings
+document.getElementById('sFreq').addEventListener('input', e => {
+  frequency = e.target.value / 10;
+  document.getElementById('vFreq').textContent = frequency.toFixed(1);
+});
+document.getElementById('sAmp').addEventListener('input', e => {
+  amplitude = e.target.value / 50;
+  document.getElementById('vAmp').textContent = amplitude.toFixed(2);
+});
+document.getElementById('sDamp').addEventListener('input', e => {
+  damping = e.target.value / 1000;
+  document.getElementById('vDamp').textContent = damping.toFixed(3);
+});
+document.getElementById('sSpeed').addEventListener('input', e => {
+  waveSpeed = e.target.value / 100;
+  document.getElementById('vSpeed').textContent = waveSpeed.toFixed(2);
+});
+document.getElementById('colorSel').addEventListener('change', e => { currentColor = e.target.value; });
+
+function togglePlay() {
+  playing = !playing;
+  document.getElementById('bPlay').textContent = playing ? '⏸ Pause' : '▶ Play';
+  document.getElementById('bPlay').classList.toggle('active', playing);
+}
+
+function toggleWalls() {
+  showWalls = !showWalls;
+  document.getElementById('bWalls').classList.toggle('active', showWalls);
+}
+
+function clearSim() {
+  // Clear wave state
+  const zeros = new Float32Array(N * N);
+  for (const t of [prev, curr, next]) {
+    gl.bindTexture(gl.TEXTURE_2D, t.tex);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, N, N, gl.RED, gl.FLOAT, zeros);
+  }
+  wallData.fill(0);
+  updateWallTex();
+  sources = [];
+}
+
+// Presets
+function loadPreset(name) {
+  clearSim();
+
+  if (name === 'two-slit') {
+    // Wall with two slits
+    for (let y = 0; y < N; y++) {
+      const gx = Math.floor(N * 0.4);
+      for (let dx = -1; dx <= 1; dx++) {
+        const x = gx + dx;
+        if (x >= 0 && x < N) {
+          // Leave two gaps
+          const slitCenter1 = Math.floor(N * 0.4);
+          const slitCenter2 = Math.floor(N * 0.6);
+          const slitWidth = 8;
+          const inSlit = (Math.abs(y - slitCenter1) < slitWidth) || (Math.abs(y - slitCenter2) < slitWidth);
+          if (!inSlit) wallData[y * N + x] = 255;
+        }
+      }
+    }
+    updateWallTex();
+    sources.push({ x: 0.15, y: 0.5, freq: 5.0 });
+    document.getElementById('sFreq').value = 50;
+    frequency = 5.0;
+    document.getElementById('vFreq').textContent = '5.0';
+  }
+
+  if (name === 'ripple') {
+    sources.push({ x: 0.3, y: 0.5, freq: 3.0 });
+    sources.push({ x: 0.7, y: 0.5, freq: 3.0 });
+    sources.push({ x: 0.5, y: 0.3, freq: 4.0 });
+  }
+
+  if (name === 'focus') {
+    // Curved wall (parabolic reflector)
+    for (let y = 0; y < N; y++) {
+      const ny = (y / N - 0.5) * 2;
+      const x = Math.floor(N * (0.7 + ny * ny * 0.15));
+      for (let dx = -1; dx <= 1; dx++) {
+        if (x + dx >= 0 && x + dx < N) wallData[y * N + x + dx] = 255;
+      }
+    }
+    updateWallTex();
+    sources.push({ x: 0.9, y: 0.5, freq: 4.0 });
+  }
+
+  if (name === 'doppler') {
+    sources.push({ x: 0.5, y: 0.5, freq: 4.0 });
+    // The source will need to be moved manually for true Doppler
+    // Add some walls for reflection
+    for (let x = 0; x < N; x++) {
+      wallData[x] = 255; // top
+      wallData[(N-1) * N + x] = 255; // bottom
+    }
+    for (let y = 0; y < N; y++) {
+      wallData[y * N] = 255; // left
+      wallData[y * N + N - 1] = 255; // right
+    }
+    updateWallTex();
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+});
+
+// Main loop
+let frames = 0, lastFpsT = 0, fps = 60, simTime = 0;
+
+function animate(t) {
+  requestAnimationFrame(animate);
+
+  if (playing) {
+    simTime += 0.016;
+    simStep(simTime);
+  }
+
+  render();
+
+  frames++;
+  if (t - lastFpsT > 500) {
+    fps = Math.round(frames / ((t - lastFpsT) / 1000));
+    lastFpsT = t; frames = 0;
+  }
+
+  document.getElementById('infoSources').textContent = sources.length;
+  document.getElementById('infoFps').textContent = fps;
+  document.getElementById('infoGrid').textContent = N + '²';
+}
+
+// Start with two-slit preset
+loadPreset('two-slit');
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
