@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Earth</title>
+
+  <!-- d3 (scales + chromatic palettes) -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <!-- globe.gl (bundles three.js internally) -->
+  <script src="https://cdn.jsdelivr.net/npm/globe.gl@2.41.3/dist/globe.gl.min.js"></script>
+
+<style>
+/* ── Design tokens ─────────────────────────────────────────── */
+:root {
+  --bg: #05131c;
+  --primary-text: #f2efe5;
+  --muted-text: rgba(222,236,240,0.74);
+  --cool-accent: #8de4ef;
+  --warm-accent: #f4ab51;
+  --glass-bg: #05151eb8;
+  --glass-border: rgba(153,213,223,0.18);
+  --panel-width: 280px;
+}
+
+/* ── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--primary-text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Loading screen ────────────────────────────────────────── */
+#loading-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  display: grid; place-items: center;
+  background: var(--bg);
+  color: var(--primary-text);
+  text-align: center;
+  transition: opacity 0.5s ease;
+}
+#loading-screen.hidden { opacity: 0; pointer-events: none; }
+#loading-screen h1 { font-size: 1.6rem; font-weight: 600; }
+#loading-screen p { color: var(--muted-text); margin-top: 0.4rem; }
+.loading-spinner {
+  font-size: 2.8rem;
+  display: inline-block;
+  animation: spin 2.5s linear infinite;
+  margin-bottom: 1rem;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Globe container ───────────────────────────────────────── */
+#globe-container {
+  position: fixed; inset: 0;
+  width: 100%; height: 100%;
+}
+#globe-container canvas { cursor: grab; }
+#globe-container canvas:active { cursor: grabbing; }
+
+/* ── Layer panel ───────────────────────────────────────────── */
+#layer-panel {
+  position: fixed; top: 0; left: 0; bottom: 0;
+  width: var(--panel-width);
+  z-index: 100;
+  display: flex; flex-direction: column;
+  background: linear-gradient(180deg, #071c27f0, #041119f8);
+  border-right: 1px solid var(--glass-border);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  transform: translateX(0);
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(141,228,239,0.18) transparent;
+}
+#layer-panel.collapsed { transform: translateX(-100%); }
+
+.panel-header {
+  padding: 1.1rem 1rem 0.7rem;
+  border-bottom: 1px solid rgba(153,213,223,0.1);
+  flex-shrink: 0;
+}
+.panel-header h1 {
+  font-size: 1.35rem; font-weight: 700;
+  display: flex; align-items: center; gap: 0.45rem;
+}
+.panel-header h1 span { font-size: 1.2rem; }
+
+.panel-section {
+  padding: 0.7rem 0.85rem 0.2rem;
+  flex-shrink: 0;
+}
+.group-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cool-accent);
+  margin-bottom: 0.4rem;
+  padding: 0.4rem 0 0;
+}
+
+/* ── Layer row ─────────────────────────────────────────────── */
+.layer-row {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid rgba(153,213,223,0.06);
+  transition: background 0.15s;
+}
+.layer-row:hover { background: rgba(141,228,239,0.04); }
+.layer-row .layer-icon { font-size: 1.15rem; flex-shrink: 0; width: 1.6rem; text-align: center; }
+.layer-row .layer-info { flex: 1; min-width: 0; }
+.layer-row .layer-name { font-size: 0.85rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.layer-row .layer-status { font-size: 0.68rem; color: var(--muted-text); }
+
+/* ── Toggle switch ─────────────────────────────────────────── */
+.toggle-switch {
+  position: relative;
+  width: 38px; height: 20px;
+  flex-shrink: 0;
+}
+.toggle-switch input {
+  opacity: 0; width: 0; height: 0; position: absolute;
+}
+.toggle-switch .slider {
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.1);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.toggle-switch .slider::before {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  background: #c0c0c0;
+  border-radius: 50%;
+  transition: transform 0.2s, background 0.2s;
+}
+.toggle-switch input:checked + .slider {
+  background: var(--cool-accent);
+}
+.toggle-switch input:checked + .slider::before {
+  transform: translateX(18px);
+  background: #fff;
+}
+
+/* ── Overlay dropdown (inside layer row) ───────────────────── */
+.overlay-dropdown-wrap {
+  padding: 0.3rem 0.85rem 0.55rem 3rem;
+  border-bottom: 1px solid rgba(153,213,223,0.06);
+}
+.overlay-dropdown {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.78rem;
+  font-family: inherit;
+  background: rgba(13,48,66,0.7);
+  color: var(--primary-text);
+  border: 1px solid var(--glass-border);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  outline: none;
+}
+.overlay-dropdown:focus {
+  border-color: var(--cool-accent);
+}
+.overlay-dropdown option {
+  background: #0a1e2c;
+  color: var(--primary-text);
+}
+
+/* ── Hamburger button ──────────────────────────────────────── */
+#menu-btn {
+  display: none;
+  position: fixed; top: 0.75rem; left: 0.75rem;
+  z-index: 200;
+  width: 40px; height: 40px;
+  border: 1px solid var(--glass-border);
+  border-radius: 0.6rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: var(--primary-text);
+  font-size: 1.3rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.15s;
+}
+#menu-btn:hover { background: rgba(13,48,66,0.85); }
+
+/* ── Hover card ────────────────────────────────────────────── */
+#hover-card {
+  position: fixed;
+  top: 1rem; right: 1rem;
+  z-index: 90;
+  min-width: 200px; max-width: 280px;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-radius: 1rem;
+  box-shadow: 0 18px 52px #00000044;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.18s, transform 0.18s;
+}
+#hover-card.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+#hover-card h3 {
+  font-size: 1.05rem; font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+#hover-card .hover-value {
+  font-size: 1.25rem; font-weight: 700;
+  color: var(--warm-accent);
+}
+#hover-card .hover-meta {
+  font-size: 0.78rem;
+  color: var(--muted-text);
+  margin-top: 0.15rem;
+}
+
+/* ── Country detail sheet ──────────────────────────────────── */
+#country-sheet {
+  position: fixed;
+  top: 1rem; right: 1rem; bottom: 1rem;
+  width: min(340px, calc(100vw - 2rem));
+  z-index: 110;
+  display: none;
+  flex-direction: column;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-radius: 1.25rem;
+  box-shadow: 0 22px 64px #00000050;
+  animation: sheet-slide 0.25s ease;
+  overflow: hidden;
+}
+#country-sheet.open { display: flex; }
+
+@keyframes sheet-slide {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.sheet-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 1rem 1rem 0.7rem;
+  border-bottom: 1px solid rgba(153,213,223,0.1);
+  flex-shrink: 0;
+}
+.sheet-header h2 {
+  font-size: 1.4rem; font-weight: 700; line-height: 1.1;
+}
+.sheet-header .sheet-flag {
+  width: 2.6rem; height: 1.9rem;
+  object-fit: cover; border-radius: 0.35rem;
+  border: 1px solid var(--glass-border);
+  margin-right: 0.55rem; flex-shrink: 0;
+}
+.sheet-title-row {
+  display: flex; align-items: center;
+}
+.sheet-region {
+  font-size: 0.8rem; color: var(--muted-text); margin-top: 0.2rem;
+}
+.sheet-close {
+  width: 30px; height: 30px;
+  border: 1px solid rgba(244,171,81,0.35);
+  border-radius: 0.5rem;
+  background: rgba(244,171,81,0.1);
+  color: var(--primary-text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: grid; place-items: center;
+  transition: background 0.15s;
+}
+.sheet-close:hover { background: rgba(244,171,81,0.25); }
+
+.sheet-body {
+  flex: 1; overflow-y: auto;
+  padding: 0.7rem 1rem 1rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(141,228,239,0.18) transparent;
+}
+
+.sheet-section-title {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cool-accent);
+  margin-top: 0.7rem;
+  padding: 0.4rem 0 0.2rem;
+  border-top: 1px solid rgba(141,228,239,0.15);
+}
+.sheet-section-title:first-child { margin-top: 0; border-top: none; }
+
+.sheet-detail-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.4rem 0;
+  border-top: 1px solid rgba(153,213,223,0.08);
+}
+.sheet-detail-row:first-child { border-top: none; }
+.sheet-detail-label {
+  font-size: 0.78rem; color: var(--muted-text);
+  white-space: nowrap; flex-shrink: 0;
+}
+.sheet-detail-value {
+  text-align: right; font-weight: 500; font-size: 0.85rem;
+  word-break: break-word;
+}
+
+/* ── Legend bar ─────────────────────────────────────────────── */
+#legend-bar {
+  position: fixed;
+  left: calc(var(--panel-width) + 1rem);
+  bottom: 1rem;
+  z-index: 80;
+  width: min(320px, calc(100vw - var(--panel-width) - 2rem));
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-radius: 1rem;
+  box-shadow: 0 14px 40px #0003;
+  display: none;
+}
+#legend-bar.visible { display: block; }
+.legend-header {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 0.74rem; color: rgba(226,240,244,0.76);
+}
+.legend-gradient {
+  height: 0.7rem; margin-top: 0.5rem;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.legend-range {
+  display: flex; justify-content: space-between;
+  margin-top: 0.4rem; font-size: 0.75rem;
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  #layer-panel { transform: translateX(-100%); }
+  #layer-panel.open { transform: translateX(0); }
+  #menu-btn { display: grid; place-items: center; }
+  #legend-bar { left: 1rem; width: calc(100vw - 2rem); }
+  #hover-card { top: auto; bottom: 5.5rem; right: 1rem; left: 1rem; max-width: none; }
+  #country-sheet { top: 0; right: 0; bottom: 0; width: 100vw; border-radius: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading screen -->
+<div id="loading-screen">
+  <div>
+    <div class="loading-spinner">🌍</div>
+    <h1>Loading Live Earth...</h1>
+    <p>Preparing globe and data layers</p>
+  </div>
+</div>
+
+<!-- Hamburger menu button (mobile) -->
+<button id="menu-btn" aria-label="Toggle menu">☰</button>
+
+<!-- Layer panel -->
+<div id="layer-panel"></div>
+
+<!-- Globe container -->
+<div id="globe-container"></div>
+
+<!-- Hover card -->
+<div id="hover-card">
+  <h3 id="hover-name"></h3>
+  <div class="hover-value" id="hover-value"></div>
+  <div class="hover-meta" id="hover-meta"></div>
+</div>
+
+<!-- Legend bar -->
+<div id="legend-bar">
+  <div class="legend-header">
+    <span id="legend-title"></span>
+    <span id="legend-unit"></span>
+  </div>
+  <div class="legend-gradient" id="legend-gradient"></div>
+  <div class="legend-range">
+    <span id="legend-min"></span>
+    <span id="legend-max"></span>
+  </div>
+</div>
+
+<!-- Country detail sheet -->
+<div id="country-sheet">
+  <div class="sheet-header">
+    <div>
+      <div class="sheet-title-row">
+        <img class="sheet-flag" id="sheet-flag" alt="" />
+        <h2 id="sheet-name"></h2>
+      </div>
+      <div class="sheet-region" id="sheet-region"></div>
+    </div>
+    <button class="sheet-close" id="sheet-close">✕</button>
+  </div>
+  <div class="sheet-body" id="sheet-body"></div>
+</div>
+
+<script>
+(async function () {
+  'use strict';
+
+  /* ══════════════════════════════════════════════════════════════
+     Palette helpers (shared across all layers)
+     ══════════════════════════════════════════════════════════════ */
+  const PALETTES = {
+    viridis:  d3.interpolateViridis,
+    plasma:   d3.interpolatePlasma,
+    inferno:  d3.interpolateInferno,
+    magma:    d3.interpolateMagma,
+    cividis:  d3.interpolateCividis,
+    turbo:    d3.interpolateTurbo,
+    ylgnbu:   d3.interpolateYlGnBu,
+    bugn:     d3.interpolateBuGn,
+    ylorrd:   d3.interpolateYlOrRd,
+  };
+
+  function getInterpolator(name) {
+    return PALETTES[name] || d3.interpolateViridis;
+  }
+
+  function buildScale(overlay) {
+    const { min, max } = overlay.range;
+    if (overlay.scaleTransform === 'log')
+      return d3.scaleLog().domain([Math.max(min, 1), max]).range([0, 1]).clamp(true);
+    if (overlay.scaleTransform === 'sqrt')
+      return d3.scalePow().exponent(0.5).domain([min, max]).range([0, 1]).clamp(true);
+    return d3.scaleLinear().domain([min, max]).range([0, 1]).clamp(true);
+  }
+
+  function colorFor(overlay, value) {
+    if (value == null) return 'rgba(40,60,70,0.35)';
+    return getInterpolator(overlay.palette)(buildScale(overlay)(value));
+  }
+
+  function elevationFor(overlay, value) {
+    if (value == null) return 0.005;
+    return 0.005 + buildScale(overlay)(value) * 0.06;
+  }
+
+  /* ── Number formatting ───────────────────────────────────── */
+  function fmtNum(n, decimals) {
+    if (n == null) return '\u2014';
+    if (decimals === 0) return Math.round(n).toLocaleString();
+    return n.toLocaleString(undefined, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+  }
+
+  function fmtPopulation(n) {
+    if (n == null) return '\u2014';
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+    return n.toLocaleString();
+  }
+
+  function fmtArea(n) {
+    if (n == null) return '\u2014';
+    return Math.round(n).toLocaleString() + ' km\u00B2';
+  }
+
+  function capitalize(s) {
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     Globe initialisation
+     ══════════════════════════════════════════════════════════════ */
+  const container = document.getElementById('globe-container');
+
+  const globe = Globe()(container)
+    .globeImageUrl('./textures/earth-dark.jpg')
+    .bumpImageUrl('./textures/earth-topology.png')
+    .backgroundImageUrl('./textures/night-sky.png')
+    .showAtmosphere(true)
+    .atmosphereColor('rgba(63,201,255,0.18)')
+    .atmosphereAltitude(0.22)
+    .showGraticules(true)
+    .polygonStrokeColor(() => 'rgba(180,230,240,0.22)')
+    .polygonSideColor(() => 'rgba(20,50,60,0.4)')
+    .polygonLabel(() => '')
+    .width(container.clientWidth)
+    .height(container.clientHeight);
+
+  // Auto-rotate
+  globe.controls().autoRotate = true;
+  globe.controls().autoRotateSpeed = 0.4;
+  globe.controls().enableDamping = true;
+  globe.controls().dampingFactor = 0.15;
+
+  window.addEventListener('resize', () => {
+    globe.width(container.clientWidth).height(container.clientHeight);
+  });
+
+  /* ══════════════════════════════════════════════════════════════
+     Data cache
+     ══════════════════════════════════════════════════════════════ */
+  let geojson = null;
+  let overlayData = null;
+  let countryDetails = {};
+  let activeOverlay = null;
+
+  /* ══════════════════════════════════════════════════════════════
+     Hover card
+     ══════════════════════════════════════════════════════════════ */
+  const $hoverCard  = document.getElementById('hover-card');
+  const $hoverName  = document.getElementById('hover-name');
+  const $hoverValue = document.getElementById('hover-value');
+  const $hoverMeta  = document.getElementById('hover-meta');
+
+  function showHover(name, value, meta) {
+    $hoverName.textContent = name;
+    $hoverValue.textContent = value;
+    $hoverMeta.textContent = meta;
+    $hoverCard.classList.add('visible');
+  }
+
+  function hideHover() {
+    $hoverCard.classList.remove('visible');
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     Country detail sheet
+     ══════════════════════════════════════════════════════════════ */
+  const $sheet     = document.getElementById('country-sheet');
+  const $sheetFlag = document.getElementById('sheet-flag');
+  const $sheetName = document.getElementById('sheet-name');
+  const $sheetReg  = document.getElementById('sheet-region');
+  const $sheetBody = document.getElementById('sheet-body');
+  const $sheetClose = document.getElementById('sheet-close');
+
+  $sheetClose.addEventListener('click', () => {
+    $sheet.classList.remove('open');
+  });
+
+  function showCountrySheet(iso3, countryName) {
+    const details = countryDetails[iso3] || {};
+
+    // Flag
+    if (details.flagUrl) {
+      $sheetFlag.src = details.flagUrl;
+      $sheetFlag.style.display = '';
+    } else {
+      $sheetFlag.style.display = 'none';
+    }
+
+    $sheetName.textContent = countryName;
+
+    const regionParts = [details.continent, details.subregion].filter(Boolean);
+    $sheetReg.textContent = regionParts.join(' \u00B7 ') || '\u2014';
+
+    // Languages
+    const langs = details.languages ? Object.values(details.languages).join(', ') : '\u2014';
+
+    // Currencies
+    let currStr = '\u2014';
+    if (details.currencies) {
+      const vals = Object.values(details.currencies);
+      if (vals.length > 0) {
+        currStr = vals.map(c => c.name + (c.symbol ? ` (${c.symbol})` : '')).join(', ');
+      }
+    }
+
+    // Timezones
+    let tzStr = '\u2014';
+    if (details.timezones && details.timezones.length > 0) {
+      if (details.timezones.length <= 3) {
+        tzStr = details.timezones.join(', ');
+      } else {
+        tzStr = details.timezones.slice(0, 2).join(', ') + ` +${details.timezones.length - 2} more`;
+      }
+    }
+
+    // Current overlay value
+    let overlayHtml = '';
+    if (activeOverlay && activeOverlay.data && activeOverlay.data[iso3]) {
+      const entry = activeOverlay.data[iso3];
+      overlayHtml = `
+        <div class="sheet-section-title">Current overlay</div>
+        ${detailRow(activeOverlay.title, fmtNum(entry.value, activeOverlay.decimals) + ' ' + activeOverlay.unit)}`;
+    }
+
+    $sheetBody.innerHTML = `
+      <div class="sheet-section-title">General</div>
+      ${detailRow('Capital', details.capital || '\u2014')}
+      ${detailRow('Population', fmtPopulation(details.population))}
+      ${detailRow('Area', fmtArea(details.area))}
+      ${detailRow('Demonym', details.demonym || '\u2014')}
+
+      <div class="sheet-section-title">Economy &amp; Society</div>
+      ${detailRow('Languages', langs)}
+      ${detailRow('Currency', currStr)}
+      ${detailRow('Gini index', details.gini != null ? details.gini.toFixed(1) : '\u2014')}
+
+      <div class="sheet-section-title">Practical</div>
+      ${detailRow('Calling code', details.callingCode || '\u2014')}
+      ${detailRow('Timezones', tzStr)}
+      ${detailRow('Driving side', details.drivingSide ? capitalize(details.drivingSide) : '\u2014')}
+      ${detailRow('UN member', details.unMember ? 'Yes' : 'No')}
+      ${overlayHtml}`;
+
+    $sheet.classList.add('open');
+  }
+
+  function detailRow(label, value) {
+    return `<div class="sheet-detail-row">
+      <span class="sheet-detail-label">${label}</span>
+      <span class="sheet-detail-value">${value}</span>
+    </div>`;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     Legend bar
+     ══════════════════════════════════════════════════════════════ */
+  const $legendBar   = document.getElementById('legend-bar');
+  const $legendTitle = document.getElementById('legend-title');
+  const $legendUnit  = document.getElementById('legend-unit');
+  const $legendGrad  = document.getElementById('legend-gradient');
+  const $legendMin   = document.getElementById('legend-min');
+  const $legendMax   = document.getElementById('legend-max');
+
+  function updateLegend(overlay) {
+    if (!overlay) {
+      $legendBar.classList.remove('visible');
+      return;
+    }
+    $legendTitle.textContent = overlay.title;
+    $legendUnit.textContent = overlay.unit;
+
+    const interp = getInterpolator(overlay.palette);
+    const stops = Array.from({ length: 12 }, (_, i) => {
+      const t = i / 11;
+      return `${interp(t)} ${(t * 100).toFixed(0)}%`;
+    });
+    $legendGrad.style.background = `linear-gradient(90deg, ${stops.join(', ')})`;
+
+    $legendMin.textContent = fmtNum(overlay.range.min, overlay.decimals) + ' ' + overlay.unit;
+    $legendMax.textContent = fmtNum(overlay.range.max, overlay.decimals) + ' ' + overlay.unit;
+    $legendBar.classList.add('visible');
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     Apply base choropleth to globe
+     ══════════════════════════════════════════════════════════════ */
+  function applyChoropleth(overlay) {
+    activeOverlay = overlay;
+
+    globe
+      .polygonsData(geojson.features)
+      .polygonAltitude((feat) => {
+        const iso = feat.properties.iso3;
+        const entry = overlay.data ? overlay.data[iso] : null;
+        return elevationFor(overlay, entry ? entry.value : null);
+      })
+      .polygonCapColor((feat) => {
+        const iso = feat.properties.iso3;
+        const entry = overlay.data ? overlay.data[iso] : null;
+        return colorFor(overlay, entry ? entry.value : null);
+      })
+      .onPolygonHover((feat) => {
+        if (!feat) {
+          hideHover();
+          globe.controls().autoRotate = true;
+          return;
+        }
+        globe.controls().autoRotate = false;
+        const iso = feat.properties.iso3;
+        const name = feat.properties.name;
+        const entry = activeOverlay && activeOverlay.data ? activeOverlay.data[iso] : null;
+        if (entry) {
+          showHover(
+            name,
+            fmtNum(entry.value, activeOverlay.decimals) + ' ' + activeOverlay.unit,
+            activeOverlay.title + ' \u00B7 ' + (entry.year || activeOverlay.latestLabel || '')
+          );
+        } else {
+          showHover(name, 'No data', activeOverlay ? activeOverlay.title : '');
+        }
+      })
+      .onPolygonClick((feat) => {
+        if (!feat) return;
+        showCountrySheet(feat.properties.iso3, feat.properties.name);
+      });
+
+    updateLegend(overlay);
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     LAYERS system
+     ══════════════════════════════════════════════════════════════ */
+  const LAYERS = [
+    {
+      id: 'base',
+      name: 'Countries',
+      icon: '\uD83C\uDF0D',
+      group: 'Base',
+      enabled: true,
+      data: null,
+      interval: null,
+      refreshMs: 0,
+      onEnable: async () => {
+        // Fetch data if not cached
+        const baseLayer = LAYERS.find(l => l.id === 'base');
+        if (!geojson || !overlayData) {
+          [geojson, overlayData, countryDetails] = await Promise.all([
+            fetch('./data/countries.geojson').then(r => r.json()),
+            fetch('./data/overlays.json').then(r => r.json()),
+            fetch('./data/country-details.json')
+              .then(r => { if (!r.ok) throw new Error('no details'); return r.json(); })
+              .catch(() => ({})),
+          ]);
+          baseLayer.data = { geojson, overlayData, countryDetails };
+        }
+
+        // Default to first country overlay
+        const countryOverlays = overlayData.overlays.filter(o => o.layerType === 'country');
+        const defaultOverlay = countryOverlays[0];
+        applyChoropleth(defaultOverlay);
+
+        // Build overlay dropdown
+        renderOverlayDropdown(countryOverlays, defaultOverlay);
+      },
+      onDisable: () => {
+        globe.polygonsData([]);
+        activeOverlay = null;
+        updateLegend(null);
+        hideHover();
+        // Remove dropdown
+        const dd = document.getElementById('overlay-dropdown-wrap');
+        if (dd) dd.style.display = 'none';
+      },
+    },
+    {
+      id: 'earthquakes',
+      name: 'Earthquakes',
+      icon: '\uD83D\uDD34',
+      group: 'Live Data',
+      enabled: false,
+      data: null,
+      interval: null,
+      refreshMs: 0,
+      onEnable: async () => {},
+      onDisable: () => {},
+    },
+    {
+      id: 'iss',
+      name: 'ISS Tracker',
+      icon: '\uD83D\uDEF0\uFE0F',
+      group: 'Live Data',
+      enabled: false,
+      data: null,
+      interval: null,
+      refreshMs: 0,
+      onEnable: async () => {},
+      onDisable: () => {},
+    },
+    {
+      id: 'rockets',
+      name: 'Rocket Launches',
+      icon: '\uD83D\uDE80',
+      group: 'Live Data',
+      enabled: false,
+      data: null,
+      interval: null,
+      refreshMs: 0,
+      onEnable: async () => {},
+      onDisable: () => {},
+    },
+    {
+      id: 'radio',
+      name: 'Radio Stations',
+      icon: '\uD83D\uDCFB',
+      group: 'Live Data',
+      enabled: false,
+      data: null,
+      interval: null,
+      refreshMs: 0,
+      onEnable: async () => {},
+      onDisable: () => {},
+    },
+    {
+      id: 'rivers',
+      name: 'River Gauges',
+      icon: '\uD83C\uDF0A',
+      group: 'Live Data',
+      enabled: false,
+      data: null,
+      interval: null,
+      refreshMs: 0,
+      onEnable: async () => {},
+      onDisable: () => {},
+    },
+    {
+      id: 'weather',
+      name: 'Weather',
+      icon: '\uD83C\uDF24\uFE0F',
+      group: 'Live Data',
+      enabled: false,
+      data: null,
+      interval: null,
+      refreshMs: 0,
+      onEnable: async () => {},
+      onDisable: () => {},
+    },
+    {
+      id: 'airquality',
+      name: 'Air Quality',
+      icon: '\uD83D\uDCA8',
+      group: 'Live Data',
+      enabled: false,
+      data: null,
+      interval: null,
+      refreshMs: 0,
+      onEnable: async () => {},
+      onDisable: () => {},
+    },
+  ];
+
+  /* ══════════════════════════════════════════════════════════════
+     Build layer panel UI
+     ══════════════════════════════════════════════════════════════ */
+  const $panel = document.getElementById('layer-panel');
+
+  function renderPanel() {
+    const groups = [];
+    const groupMap = {};
+    for (const layer of LAYERS) {
+      if (!groupMap[layer.group]) {
+        groupMap[layer.group] = [];
+        groups.push(layer.group);
+      }
+      groupMap[layer.group].push(layer);
+    }
+
+    let html = `
+      <div class="panel-header">
+        <h1><span>🌐</span> Live Earth</h1>
+      </div>`;
+
+    for (const group of groups) {
+      html += `<div class="panel-section"><div class="group-label">${group}</div></div>`;
+      for (const layer of groupMap[group]) {
+        const isPlaceholder = layer.id !== 'base' && !layer.enabled;
+        html += `
+          <div class="layer-row" data-layer-id="${layer.id}">
+            <span class="layer-icon">${layer.icon}</span>
+            <div class="layer-info">
+              <div class="layer-name">${layer.name}</div>
+              ${isPlaceholder ? '<div class="layer-status">Coming soon</div>' : ''}
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" ${layer.enabled ? 'checked' : ''} data-layer-id="${layer.id}" />
+              <span class="slider"></span>
+            </label>
+          </div>`;
+        // Overlay dropdown placeholder for base layer
+        if (layer.id === 'base') {
+          html += `<div class="overlay-dropdown-wrap" id="overlay-dropdown-wrap" style="display:none;">
+            <select class="overlay-dropdown" id="overlay-select"></select>
+          </div>`;
+        }
+      }
+    }
+
+    $panel.innerHTML = html;
+
+    // Bind toggle events
+    $panel.querySelectorAll('input[type="checkbox"]').forEach(input => {
+      input.addEventListener('change', async (e) => {
+        const layerId = e.target.dataset.layerId;
+        const layer = LAYERS.find(l => l.id === layerId);
+        if (!layer) return;
+        layer.enabled = e.target.checked;
+        if (layer.enabled) {
+          await layer.onEnable();
+        } else {
+          layer.onDisable();
+        }
+      });
+    });
+  }
+
+  /* ── Overlay dropdown ────────────────────────────────────── */
+  function renderOverlayDropdown(countryOverlays, currentOverlay) {
+    const wrap = document.getElementById('overlay-dropdown-wrap');
+    const select = document.getElementById('overlay-select');
+    if (!wrap || !select) return;
+
+    select.innerHTML = countryOverlays.map(o =>
+      `<option value="${o.id}" ${o.id === currentOverlay.id ? 'selected' : ''}>${o.title}</option>`
+    ).join('');
+
+    wrap.style.display = '';
+
+    // Remove old listener by replacing element
+    const newSelect = select.cloneNode(true);
+    select.parentNode.replaceChild(newSelect, select);
+    newSelect.id = 'overlay-select';
+
+    newSelect.addEventListener('change', (e) => {
+      const ov = overlayData.overlays.find(o => o.id === e.target.value);
+      if (ov) applyChoropleth(ov);
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     Mobile menu toggle
+     ══════════════════════════════════════════════════════════════ */
+  const $menuBtn = document.getElementById('menu-btn');
+
+  $menuBtn.addEventListener('click', () => {
+    $panel.classList.toggle('open');
+    $panel.classList.toggle('collapsed');
+  });
+
+  // Close panel on mobile when clicking globe
+  container.addEventListener('click', () => {
+    if (window.innerWidth <= 768 && $panel.classList.contains('open')) {
+      $panel.classList.remove('open');
+      $panel.classList.add('collapsed');
+    }
+  });
+
+  /* ══════════════════════════════════════════════════════════════
+     Init
+     ══════════════════════════════════════════════════════════════ */
+  // Handle responsive panel state
+  function updatePanelState() {
+    if (window.innerWidth <= 768) {
+      $panel.classList.add('collapsed');
+      $panel.classList.remove('open');
+    } else {
+      $panel.classList.remove('collapsed');
+      $panel.classList.remove('open');
+    }
+  }
+  updatePanelState();
+  window.addEventListener('resize', updatePanelState);
+
+  // Render panel
+  renderPanel();
+
+  // Enable default layers
+  const $loading = document.getElementById('loading-screen');
+  try {
+    for (const layer of LAYERS) {
+      if (layer.enabled) {
+        await layer.onEnable();
+      }
+    }
+  } catch (err) {
+    console.error('Failed to initialise layers:', err);
+  }
+
+  // Hide loading screen
+  $loading.classList.add('hidden');
+  setTimeout(() => $loading.remove(), 600);
+
+})();
+</script>
+</body>
+</html>
