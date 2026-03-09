@@ -563,6 +563,30 @@ html, body {
   const issTrail = [];   // accumulates up to 150 [lat, lng] pairs
   let issMarkerData = []; // single-element array for the ISS marker
 
+  /* ── Radio stations fetcher & audio state ──────────────────── */
+  let radioAudio = null;
+  let currentStation = null;
+
+  async function fetchRadioStations() {
+    const res = await fetch('https://de1.api.radio-browser.info/json/stations/search?limit=500&order=clickcount&reverse=true&has_geo_info=true&hidebroken=true');
+    const stations = await res.json();
+    return stations
+      .filter(s => (s.url_resolved || s.url || '').startsWith('https://'))
+      .filter(s => s.geo_lat && s.geo_long)
+      .slice(0, 500)
+      .map(s => ({
+        name: s.name,
+        url: s.url_resolved || s.url,
+        country: s.country,
+        tags: s.tags,
+        codec: s.codec,
+        bitrate: s.bitrate,
+        lat: s.geo_lat,
+        lng: s.geo_long,
+        _layer: 'radio'
+      }));
+  }
+
   /* ══════════════════════════════════════════════════════════════
      Globe initialisation
      ══════════════════════════════════════════════════════════════ */
@@ -1038,8 +1062,50 @@ html, body {
       data: null,
       interval: null,
       refreshMs: 0,
-      onEnable: async () => {},
-      onDisable: () => {},
+      onEnable: async () => {
+        const layer = LAYERS.find(l => l.id === 'radio');
+        if (!layer.data) {
+          layer.data = await fetchRadioStations();
+        }
+
+        globe
+          .pointsData(layer.data)
+          .pointLat(d => d.lat)
+          .pointLng(d => d.lng)
+          .pointRadius(0.15)
+          .pointAltitude(0.005)
+          .pointColor(() => '#06b6d4')
+          .onPointClick(pt => {
+            if (!pt || pt._layer !== 'radio') return;
+            if (currentStation === pt.name) {
+              if (radioAudio.paused) radioAudio.play();
+              else radioAudio.pause();
+            } else {
+              if (radioAudio) radioAudio.pause();
+              radioAudio = new Audio(pt.url);
+              radioAudio.play();
+              currentStation = pt.name;
+            }
+          })
+          .onPointHover(pt => {
+            if (!pt || pt._layer !== 'radio') {
+              hideHover();
+              globe.controls().autoRotate = true;
+              return;
+            }
+            globe.controls().autoRotate = false;
+            const tags = pt.tags ? (pt.tags.length > 60 ? pt.tags.slice(0, 57) + '...' : pt.tags) : '';
+            const meta = [tags, pt.bitrate ? pt.bitrate + ' kbps' : '', 'Click to play'].filter(Boolean).join(' \u00B7 ');
+            showHover(pt.name, pt.country, meta);
+          });
+      },
+      onDisable: () => {
+        if (radioAudio) radioAudio.pause();
+        radioAudio = null;
+        currentStation = null;
+        globe.pointsData([]).onPointClick(null).onPointHover(null);
+        hideHover();
+      },
     },
     {
       id: 'rivers',
@@ -1103,7 +1169,7 @@ html, body {
     for (const group of groups) {
       html += `<div class="panel-section"><div class="group-label">${group}</div></div>`;
       for (const layer of groupMap[group]) {
-        const hasImpl = layer.id === 'base' || layer.id === 'earthquakes' || layer.id === 'iss' || layer.id === 'rockets';
+        const hasImpl = layer.id === 'base' || layer.id === 'earthquakes' || layer.id === 'iss' || layer.id === 'rockets' || layer.id === 'radio';
         const isPlaceholder = !hasImpl && !layer.enabled;
         html += `
           <div class="layer-row" data-layer-id="${layer.id}">
