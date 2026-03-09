@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ray Marcher — GPU SDF Worlds</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;color:#e2e8f0}
+canvas{display:block;width:100vw;height:100vh}
+
+.ui{position:fixed;z-index:10}
+
+.title{top:16px;left:16px;background:rgba(0,0,0,.6);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 20px}
+.title h1{font-size:1.15rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.title .sub{font-size:.7rem;color:#64748b;margin-top:4px}
+
+.controls{bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center}
+.scene-btn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#94a3b8;padding:7px 16px;border-radius:10px;font-size:.75rem;cursor:pointer;transition:all .2s;font-family:inherit;font-weight:500}
+.scene-btn:hover{border-color:rgba(255,255,255,.3);color:#e2e8f0}
+.scene-btn.active{background:rgba(139,92,246,.3);border-color:rgba(139,92,246,.5);color:#c4b5fd}
+.divider{width:1px;height:24px;background:rgba(255,255,255,.1)}
+
+.settings{top:16px;right:16px;background:rgba(0,0,0,.6);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 18px;width:220px}
+.settings h3{font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.s-row{margin-bottom:8px}
+.s-row label{display:flex;justify-content:space-between;font-size:.7rem;margin-bottom:3px}
+.s-row label span{color:#8b5cf6;font-weight:600}
+input[type=range]{width:100%;height:3px;-webkit-appearance:none;background:rgba(255,255,255,.1);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:#8b5cf6;border-radius:50%;cursor:pointer}
+.toggle-row{display:flex;justify-content:space-between;align-items:center;font-size:.72rem;margin-bottom:6px}
+.toggle{width:36px;height:20px;background:rgba(255,255,255,.1);border-radius:10px;cursor:pointer;position:relative;transition:background .2s;border:none}
+.toggle.on{background:rgba(139,92,246,.5)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#e2e8f0;border-radius:50%;transition:transform .2s}
+.toggle.on::after{transform:translateX(16px)}
+
+.fps{position:fixed;top:16px;right:250px;background:rgba(0,0,0,.4);border-radius:6px;padding:4px 10px;font-size:.7rem;color:#64748b;z-index:10}
+
+@media(max-width:700px){
+  .settings{display:none}
+  .fps{right:16px}
+  .controls{bottom:8px;padding:8px 12px;gap:6px}
+  .scene-btn{padding:5px 10px;font-size:.65rem}
+}
+</style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="ui title">
+  <h1><span style="font-size:1.3rem">💎</span> Ray Marcher</h1>
+  <div class="sub">GPU SDF rendering • Click & drag to orbit</div>
+</div>
+
+<div class="ui controls" id="sceneBar">
+  <button class="scene-btn active" data-scene="0">Crystals</button>
+  <button class="scene-btn" data-scene="1">Organics</button>
+  <button class="scene-btn" data-scene="2">Architecture</button>
+  <button class="scene-btn" data-scene="3">Alien</button>
+  <button class="scene-btn" data-scene="4">Infinity</button>
+  <div class="divider"></div>
+  <button class="scene-btn" data-scene="5">Mandelbulb</button>
+</div>
+
+<div class="ui settings">
+  <h3>Settings</h3>
+  <div class="s-row"><label>Exposure <span id="vExposure">1.0</span></label><input type="range" id="sExposure" min="0" max="100" value="50"></div>
+  <div class="s-row"><label>Glow <span id="vGlow">0.5</span></label><input type="range" id="sGlow" min="0" max="100" value="50"></div>
+  <div class="s-row"><label>Speed <span id="vSpeed">1.0</span></label><input type="range" id="sSpeed" min="0" max="100" value="50"></div>
+  <div class="s-row"><label>AO Strength <span id="vAO">0.5</span></label><input type="range" id="sAO" min="0" max="100" value="50"></div>
+  <div class="toggle-row">Shadows <button class="toggle on" id="tShadows" onclick="this.classList.toggle('on')"></button></div>
+  <div class="toggle-row">Reflections <button class="toggle on" id="tReflect" onclick="this.classList.toggle('on')"></button></div>
+  <div class="toggle-row">Auto Rotate <button class="toggle on" id="tRotate" onclick="this.classList.toggle('on')"></button></div>
+</div>
+
+<div class="fps" id="fpsEl">60 FPS</div>
+
+<script>
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: false });
+if (!gl) document.body.innerHTML = '<h2 style="color:#fff;text-align:center;padding:40px">WebGL 2 required</h2>';
+
+// --- Shader ---
+const VS = `#version 300 es
+in vec2 a;
+void main(){gl_Position=vec4(a,0,1);}`;
+
+const FS = `#version 300 es
+precision highp float;
+uniform vec2 u_res;
+uniform float u_time;
+uniform float u_scene;
+uniform vec2 u_mouse;
+uniform float u_exposure;
+uniform float u_glow;
+uniform float u_ao_str;
+uniform float u_speed;
+uniform float u_shadows;
+uniform float u_reflect;
+out vec4 O;
+
+#define MAX_STEPS 120
+#define MAX_DIST 80.0
+#define SURF_DIST 0.001
+#define PI 3.14159265
+
+mat2 rot(float a){float s=sin(a),c=cos(a);return mat2(c,-s,s,c);}
+
+// SDF primitives
+float sdSphere(vec3 p,float r){return length(p)-r;}
+float sdBox(vec3 p,vec3 b){vec3 q=abs(p)-b;return length(max(q,0.))+min(max(q.x,max(q.y,q.z)),0.);}
+float sdTorus(vec3 p,vec2 t){vec2 q=vec2(length(p.xz)-t.x,p.y);return length(q)-t.y;}
+float sdOctahedron(vec3 p,float s){p=abs(p);return(p.x+p.y+p.z-s)*0.57735;}
+float sdCross(vec3 p,float s){float a=max(abs(p.x),abs(p.y));float b=max(abs(p.y),abs(p.z));float c=max(abs(p.z),abs(p.x));return min(a,min(b,c))-s;}
+float smin(float a,float b,float k){float h=clamp(.5+.5*(b-a)/k,0.,1.);return mix(b,a,h)-k*h*(1.-h);}
+float smax(float a,float b,float k){return -smin(-a,-b,k);}
+
+// Scene 0: Crystals
+float sceneCrystals(vec3 p){
+  float t=u_time*u_speed;
+  float d=1e10;
+  for(int i=0;i<5;i++){
+    float fi=float(i);
+    vec3 q=p-vec3(sin(t*.3+fi*1.2)*2.,cos(t*.2+fi*.9)*1.5,sin(t*.25+fi*2.)*2.);
+    q.xz*=rot(t*.3+fi);
+    q.xy*=rot(t*.2+fi*.7);
+    float oct=sdOctahedron(q,.6+sin(t+fi)*.2);
+    d=smin(d,oct,.4);
+  }
+  // Floor
+  d=smin(d,p.y+2.,.5);
+  return d;
+}
+
+// Scene 1: Organics
+float sceneOrganics(vec3 p){
+  float t=u_time*u_speed;
+  vec3 q=p;
+  q.xz*=rot(t*.15);
+  float blob=sdSphere(q,1.5);
+  blob+=sin(q.x*3.+t)*sin(q.y*3.+t*.7)*sin(q.z*3.+t*.5)*.3;
+  float tor=sdTorus(q-vec3(0,sin(t*.5)*.5,0),vec2(2.,.3+sin(t)*.1));
+  float d=smin(blob,tor,.6);
+  // Tendrils
+  for(int i=0;i<3;i++){
+    float fi=float(i)*2.094;
+    vec3 tp=p-vec3(cos(fi+t*.3)*3.,sin(t*.4+fi)*.8,sin(fi+t*.3)*3.);
+    d=smin(d,sdSphere(tp,.4+sin(t+fi)*.15),.8);
+  }
+  d=smin(d,p.y+2.5,.5);
+  return d;
+}
+
+// Scene 2: Architecture
+float sceneArch(vec3 p){
+  float t=u_time*u_speed*.3;
+  vec3 q=p;
+  // Infinite pillars via repetition
+  vec3 rep=vec3(4.,0.,4.);
+  vec3 id=round(q/rep);
+  vec3 r=q-rep*clamp(id,-2.,2.);
+  float pillar=sdBox(r,vec3(.3,3.,.3))-.05;
+  // Cross beams
+  vec3 r2=q;
+  r2.x=mod(r2.x+2.,4.)-2.;
+  float beam=sdBox(r2-vec3(0,2.8,0),vec3(2.,.12,.12));
+  r2=q;
+  r2.z=mod(r2.z+2.,4.)-2.;
+  beam=min(beam,sdBox(r2-vec3(0,2.8,0),vec3(.12,.12,2.)));
+  float d=min(pillar,beam);
+  // Central rotating form
+  vec3 cp=p;
+  cp.xz*=rot(t);
+  cp.xy*=rot(t*.7);
+  float form=sdBox(cp,vec3(1.))-0.1;
+  form=smax(form,-sdSphere(cp,1.2),.1);
+  d=min(d,form);
+  // Floor
+  d=min(d,p.y+3.);
+  return d;
+}
+
+// Scene 3: Alien
+float sceneAlien(vec3 p){
+  float t=u_time*u_speed;
+  vec3 q=p;
+  q.xz*=rot(t*.2);
+  // Twisted column
+  vec3 tw=q;
+  tw.xy*=rot(tw.z*.5+t*.3);
+  float col=length(tw.xy)-.5-sin(tw.z*2.+t)*.2;
+  // Floating orbs
+  float d=col;
+  for(int i=0;i<8;i++){
+    float fi=float(i);
+    float a=fi*PI*.25+t*.3;
+    vec3 op=p-vec3(cos(a)*3.,sin(a*1.3+t*.5)*1.5,sin(a)*3.);
+    float orb=sdSphere(op,.3+sin(t*2.+fi)*.1);
+    d=smin(d,orb,.3);
+  }
+  // Membrane
+  float mem=abs(sdSphere(p,3.5+sin(p.y*2.+t)*.3))-.02;
+  d=smin(d,mem,.2);
+  d=smin(d,p.y+3.,.3);
+  return d;
+}
+
+// Scene 4: Infinity room
+float sceneInfinity(vec3 p){
+  float t=u_time*u_speed*.5;
+  vec3 q=p;
+  // Repeated spheres
+  vec3 rep=mod(q+1.5,3.)-1.5;
+  float spheres=sdSphere(rep,.4+sin(q.x+q.y+q.z+t)*.15);
+  // Cut with box room
+  float room=-sdBox(p,vec3(4.5));
+  float d=max(spheres,room);
+  // Central form
+  vec3 cp=p;
+  cp.xz*=rot(t);
+  cp.yz*=rot(t*.6);
+  float cross=sdCross(cp,.15);
+  cross=max(cross,sdSphere(cp,2.));
+  d=min(d,cross);
+  return d;
+}
+
+// Scene 5: Mandelbulb
+float sceneMandelbulb(vec3 p){
+  float t=u_time*u_speed*.2;
+  vec3 z=p;
+  float dr=1.,r=0.,power=8.+sin(t)*.5;
+  for(int i=0;i<8;i++){
+    r=length(z);
+    if(r>2.) break;
+    float theta=acos(z.z/r)*power;
+    float phi=atan(z.y,z.x)*power;
+    float zr=pow(r,power);
+    dr=pow(r,power-1.)*power*dr+1.;
+    z=zr*vec3(sin(theta)*cos(phi),sin(theta)*sin(phi),cos(theta))+p;
+  }
+  float mb=.5*log(r)*r/dr;
+  return min(mb,p.y+1.5);
+}
+
+float scene(vec3 p){
+  int s=int(u_scene+.5);
+  if(s==0) return sceneCrystals(p);
+  if(s==1) return sceneOrganics(p);
+  if(s==2) return sceneArch(p);
+  if(s==3) return sceneAlien(p);
+  if(s==4) return sceneInfinity(p);
+  return sceneMandelbulb(p);
+}
+
+vec3 getNormal(vec3 p){
+  vec2 e=vec2(.001,0);
+  return normalize(vec3(
+    scene(p+e.xyy)-scene(p-e.xyy),
+    scene(p+e.yxy)-scene(p-e.yxy),
+    scene(p+e.yyx)-scene(p-e.yyx)
+  ));
+}
+
+float marchShadow(vec3 ro,vec3 rd,float mint,float maxt){
+  float res=1.;
+  float t=mint;
+  for(int i=0;i<32;i++){
+    float h=scene(ro+rd*t);
+    res=min(res,8.*h/t);
+    t+=clamp(h,.02,.2);
+    if(h<.001||t>maxt) break;
+  }
+  return clamp(res,0.,1.);
+}
+
+float calcAO(vec3 p,vec3 n){
+  float occ=0.,sca=1.;
+  for(int i=1;i<=5;i++){
+    float h=.02+.12*float(i);
+    float d=scene(p+h*n);
+    occ+=(h-d)*sca;
+    sca*=.8;
+  }
+  return clamp(1.-3.*occ*u_ao_str,0.,1.);
+}
+
+// Color palettes per scene
+vec3 sceneColor(int s,vec3 p,vec3 n,float t){
+  if(s==0){
+    vec3 base=mix(vec3(.2,.1,.6),vec3(.1,.8,.9),n.y*.5+.5);
+    base+=sin(p*3.+t)*.15;
+    return base;
+  }
+  if(s==1){
+    vec3 base=mix(vec3(.7,.1,.3),vec3(.2,.6,.1),n.y*.5+.5);
+    base+=cos(p.xz*2.+t).xyx*.1;
+    return base;
+  }
+  if(s==2){
+    return mix(vec3(.8,.75,.65),vec3(.4,.35,.3),n.y*.5+.5);
+  }
+  if(s==3){
+    vec3 base=mix(vec3(.05,.3,.2),vec3(.1,.1,.4),sin(p.y*2.+t)*.5+.5);
+    base+=vec3(0,.2,.1)*sin(length(p.xz)*3.-t);
+    return base;
+  }
+  if(s==4){
+    return mix(vec3(.9,.3,.1),vec3(.1,.3,.9),sin(p.x+p.y+p.z+t)*.5+.5);
+  }
+  // Mandelbulb
+  return mix(vec3(.8,.4,.1),vec3(.2,.1,.5),(sin(p*5.).x+1.)*.5);
+}
+
+vec3 render(vec3 ro,vec3 rd){
+  float t=0.,glow=0.;
+  int s=int(u_scene+.5);
+  float time=u_time*u_speed;
+
+  // March
+  float d;
+  int i;
+  for(i=0;i<MAX_STEPS;i++){
+    vec3 p=ro+rd*t;
+    d=scene(p);
+    glow+=.02/(1.+d*d*10.);
+    if(d<SURF_DIST||t>MAX_DIST) break;
+    t+=d*.8;
+  }
+
+  vec3 col=vec3(0);
+
+  if(d<SURF_DIST){
+    vec3 p=ro+rd*t;
+    vec3 n=getNormal(p);
+    vec3 lightDir=normalize(vec3(.6,.8,-.5));
+    vec3 lightDir2=normalize(vec3(-.5,.3,.8));
+
+    // Material color
+    vec3 mat=sceneColor(s,p,n,time);
+
+    // Diffuse
+    float diff=max(dot(n,lightDir),0.);
+    float diff2=max(dot(n,lightDir2),0.)*.3;
+
+    // Specular
+    vec3 ref=reflect(rd,n);
+    float spec=pow(max(dot(ref,lightDir),0.),32.)*.5;
+    float spec2=pow(max(dot(ref,lightDir2),0.),16.)*.2;
+
+    // Shadow
+    float shadow=1.;
+    if(u_shadows>.5){
+      shadow=marchShadow(p+n*.02,lightDir,.02,10.);
+      shadow=shadow*.7+.3;
+    }
+
+    // AO
+    float ao=calcAO(p,n);
+
+    // Combine
+    col=mat*(diff*shadow+diff2)+vec3(1)*(spec+spec2)*shadow;
+    col*=ao;
+
+    // Fresnel rim
+    float fresnel=pow(1.-max(dot(-rd,n),0.),3.);
+    col+=fresnel*vec3(.3,.4,.8)*.3;
+
+    // Reflection
+    if(u_reflect>.5){
+      float t2=0.;
+      vec3 ro2=p+n*.02;
+      vec3 rd2=ref;
+      for(int j=0;j<40;j++){
+        float d2=scene(ro2+rd2*t2);
+        if(d2<SURF_DIST||t2>20.) break;
+        t2+=d2;
+      }
+      if(t2<20.){
+        vec3 p2=ro2+rd2*t2;
+        vec3 n2=getNormal(p2);
+        vec3 mat2=sceneColor(s,p2,n2,time);
+        float diff3=max(dot(n2,lightDir),0.);
+        col+=mat2*diff3*fresnel*.4;
+      }
+    }
+
+    // Distance fog
+    col=mix(col,vec3(.02,.02,.06),1.-exp(-.015*t*t));
+  } else {
+    // Background gradient
+    col=mix(vec3(.02,.02,.06),vec3(.05,.03,.1),rd.y*.5+.5);
+  }
+
+  // Glow
+  col+=vec3(.3,.2,.6)*glow*u_glow*.3;
+
+  // Exposure
+  col*=u_exposure;
+
+  // Tonemap
+  col=col/(1.+col);
+  col=pow(col,vec3(.4545));
+
+  return col;
+}
+
+void main(){
+  vec2 uv=(gl_FragCoord.xy-u_res*.5)/u_res.y;
+
+  // Camera
+  float mx=u_mouse.x*PI*2.;
+  float my=u_mouse.y*PI*.5;
+  float camDist=6.;
+  int s=int(u_scene+.5);
+  if(s==5) camDist=3.5;
+  if(s==4) camDist=4.;
+
+  vec3 ro=vec3(cos(mx)*cos(my),sin(my)+.5,sin(mx)*cos(my))*camDist;
+  vec3 ta=vec3(0,.3,0);
+  vec3 fwd=normalize(ta-ro);
+  vec3 right=normalize(cross(vec3(0,1,0),fwd));
+  vec3 up=cross(fwd,right);
+  vec3 rd=normalize(fwd+uv.x*right+uv.y*up);
+
+  vec3 col=render(ro,rd);
+  O=vec4(col,1);
+}`;
+
+// Compile shader
+function createShader(src, type) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    console.error(gl.getShaderInfoLog(s));
+    return null;
+  }
+  return s;
+}
+
+const vs = createShader(VS, gl.VERTEX_SHADER);
+const fs = createShader(FS, gl.FRAGMENT_SHADER);
+const prog = gl.createProgram();
+gl.attachShader(prog, vs);
+gl.attachShader(prog, fs);
+gl.linkProgram(prog);
+gl.useProgram(prog);
+
+// Full-screen quad
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+const aLoc = gl.getAttribLocation(prog, 'a');
+gl.enableVertexAttribArray(aLoc);
+gl.vertexAttribPointer(aLoc, 2, gl.FLOAT, false, 0, 0);
+
+// Uniforms
+const uRes = gl.getUniformLocation(prog, 'u_res');
+const uTime = gl.getUniformLocation(prog, 'u_time');
+const uScene = gl.getUniformLocation(prog, 'u_scene');
+const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+const uExposure = gl.getUniformLocation(prog, 'u_exposure');
+const uGlow = gl.getUniformLocation(prog, 'u_glow');
+const uAO = gl.getUniformLocation(prog, 'u_ao_str');
+const uSpeed = gl.getUniformLocation(prog, 'u_speed');
+const uShadows = gl.getUniformLocation(prog, 'u_shadows');
+const uReflect = gl.getUniformLocation(prog, 'u_reflect');
+
+let currentScene = 0;
+let mouseX = 0.25, mouseY = 0.15;
+let dragging = false, dragStartX, dragStartY, startMX, startMY;
+let autoRotate = true;
+let exposure = 1.0, glowAmt = 0.5, speedMul = 1.0, aoStr = 0.5;
+
+// Resize
+function resize() {
+  const dpr = Math.min(devicePixelRatio, 1.5);
+  canvas.width = innerWidth * dpr;
+  canvas.height = innerHeight * dpr;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Mouse drag for camera orbit
+canvas.addEventListener('pointerdown', e => {
+  dragging = true;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  startMX = mouseX;
+  startMY = mouseY;
+  canvas.setPointerCapture(e.pointerId);
+});
+window.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  mouseX = startMX + (e.clientX - dragStartX) * 0.003;
+  mouseY = Math.max(-0.4, Math.min(0.4, startMY + (e.clientY - dragStartY) * 0.003));
+});
+window.addEventListener('pointerup', () => { dragging = false; });
+
+// Scene buttons
+document.querySelectorAll('.scene-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.scene-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentScene = parseInt(btn.dataset.scene);
+  });
+});
+
+// Settings sliders
+const sExposure = document.getElementById('sExposure');
+const sGlow = document.getElementById('sGlow');
+const sSpeed = document.getElementById('sSpeed');
+const sAO = document.getElementById('sAO');
+
+function updateSettings() {
+  exposure = 0.3 + (sExposure.value / 100) * 2.7;
+  glowAmt = sGlow.value / 100;
+  speedMul = 0.1 + (sSpeed.value / 100) * 2.9;
+  aoStr = sAO.value / 100;
+  document.getElementById('vExposure').textContent = exposure.toFixed(1);
+  document.getElementById('vGlow').textContent = glowAmt.toFixed(2);
+  document.getElementById('vSpeed').textContent = speedMul.toFixed(1);
+  document.getElementById('vAO').textContent = aoStr.toFixed(2);
+}
+[sExposure, sGlow, sSpeed, sAO].forEach(s => s.addEventListener('input', updateSettings));
+updateSettings();
+
+// FPS
+let frames = 0, lastFpsT = 0;
+
+function animate(t) {
+  requestAnimationFrame(animate);
+  const time = t / 1000;
+
+  // FPS
+  frames++;
+  if (t - lastFpsT > 500) {
+    document.getElementById('fpsEl').textContent = Math.round(frames / ((t - lastFpsT) / 1000)) + ' FPS';
+    frames = 0; lastFpsT = t;
+  }
+
+  // Auto rotate
+  autoRotate = document.getElementById('tRotate').classList.contains('on');
+  if (autoRotate && !dragging) {
+    mouseX += 0.002;
+  }
+
+  const shadows = document.getElementById('tShadows').classList.contains('on') ? 1 : 0;
+  const reflect = document.getElementById('tReflect').classList.contains('on') ? 1 : 0;
+
+  gl.uniform2f(uRes, canvas.width, canvas.height);
+  gl.uniform1f(uTime, time);
+  gl.uniform1f(uScene, currentScene);
+  gl.uniform2f(uMouse, mouseX, mouseY);
+  gl.uniform1f(uExposure, exposure);
+  gl.uniform1f(uGlow, glowAmt);
+  gl.uniform1f(uAO, aoStr);
+  gl.uniform1f(uSpeed, speedMul);
+  gl.uniform1f(uShadows, shadows);
+  gl.uniform1f(uReflect, reflect);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
