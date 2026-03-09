@@ -137,6 +137,13 @@
     "path": "projects/radio/"
   },
   {
+    "id": "audiovis",
+    "title": "Audio Visualizer",
+    "description": "Real-time audio spectrum visualizer with 6 modes (bars, circular, waveform, particles, terrain, mirror), mic/demo/file input, and 5 color themes.",
+    "tags": ["Web Audio", "Canvas", "Visualization", "Interactive"],
+    "path": "projects/audiovis/"
+  },
+  {
     "id": "launches",
     "title": "Launch Countdown",
     "description": "Live rocket launch tracker with countdown timers, mission details, launch site map, and upcoming/recent feeds from The Space Devs API.",
