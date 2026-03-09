@@ -137,6 +137,13 @@
     "path": "projects/radio/"
   },
   {
+    "id": "launches",
+    "title": "Launch Countdown",
+    "description": "Live rocket launch tracker with countdown timers, mission details, launch site map, and upcoming/recent feeds from The Space Devs API.",
+    "tags": ["Space Devs API", "Leaflet", "Space", "Live Data"],
+    "path": "projects/launches/"
+  },
+  {
     "id": "terrain",
     "title": "Terrain Generator",
     "description": "Procedural 3D landscape generator with GPU fractal noise, 6 biomes, flyover camera, water reflections, dynamic lighting, and distance fog via WebGL 2.",
