@@ -116,6 +116,13 @@
     "path": "projects/asteroids/"
   },
   {
+    "id": "tides",
+    "title": "Tides & Currents",
+    "description": "Real-time NOAA coastal water level monitoring with tide predictions, hi/lo forecasts, water temperature, and interactive charts for 30 US stations.",
+    "tags": ["NOAA API", "Leaflet", "Canvas", "Live Data"],
+    "path": "projects/tides/"
+  },
+  {
     "id": "lorenz",
     "title": "Lorenz Attractor",
     "description": "Interactive 3D visualization of the chaotic Lorenz system with WebGL trails, multiple particles, color schemes, parameter controls, and presets.",
