@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forex Pulse</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5HPMN4CHL3"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-5HPMN4CHL3');</script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#080b12;--card:#0e1219;--border:#1a2030;--text:#e2e8f0;--muted:#64748b;--accent:#10b981;--red:#ef4444;--blue:#3b82f6;--gold:#f59e0b}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:rgba(14,18,25,0.95);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100}
+.header h1{font-size:1.1rem;font-weight:700}
+.header h1 span{background:linear-gradient(135deg,#10b981,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header .sub{font-size:0.62rem;color:var(--muted);margin-top:1px}
+.header-right{display:flex;align-items:center;gap:12px}
+.ecb-badge{font-size:0.6rem;color:var(--muted);padding:3px 10px;border:1px solid var(--border);border-radius:10px}
+.update-time{font-size:0.65rem;color:var(--muted)}
+
+/* Converter */
+.converter{max-width:900px;margin:20px auto;padding:0 20px}
+.converter-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 24px}
+.converter-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.conv-field{flex:1;min-width:160px}
+.conv-field label{font-size:0.65rem;color:var(--muted);margin-bottom:4px;display:block;text-transform:uppercase;letter-spacing:0.04em}
+.conv-input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.03);color:var(--text);font-size:1.1rem;font-weight:600;font-variant-numeric:tabular-nums;outline:none;font-family:inherit}
+.conv-input:focus{border-color:var(--accent)}
+.conv-select{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:0.85rem;outline:none;cursor:pointer;font-family:inherit;-webkit-appearance:none}
+.conv-swap{width:40px;height:40px;border-radius:50%;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--muted);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;flex-shrink:0;margin-top:18px}
+.conv-swap:hover{background:rgba(16,185,129,0.1);color:var(--accent);border-color:var(--accent)}
+.conv-result{font-size:1.4rem;font-weight:800;margin-top:12px;font-variant-numeric:tabular-nums}
+.conv-rate{font-size:0.72rem;color:var(--muted);margin-top:2px}
+
+/* Rate grid */
+.section-title{font-size:0.85rem;font-weight:600;padding:16px 24px 8px;max-width:1200px;margin:0 auto}
+.rate-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;max-width:1200px;margin:0 auto;padding:0 20px 16px}
+.rate-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;transition:all 0.15s}
+.rate-card:hover{border-color:#333;transform:translateY(-1px)}
+.rate-card.active{border-color:var(--accent);background:rgba(16,185,129,0.04)}
+.rate-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.rate-pair{font-size:0.82rem;font-weight:700}
+.rate-flag{font-size:1rem}
+.rate-value{font-size:1.1rem;font-weight:800;font-variant-numeric:tabular-nums}
+.rate-change{font-size:0.7rem;font-weight:600;margin-top:2px}
+.rate-change.up{color:var(--accent)}
+.rate-change.down{color:var(--red)}
+.rate-change.flat{color:var(--muted)}
+.rate-sparkline{height:28px;margin-top:6px}
+.rate-sparkline canvas{width:100%;height:100%}
+
+/* Chart section */
+.chart-section{max-width:1200px;margin:0 auto;padding:0 20px 20px}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.chart-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
+.chart-pair{font-size:1rem;font-weight:700}
+.chart-tabs{display:flex;gap:4px}
+.chart-tab{padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);font-size:0.65rem;cursor:pointer;transition:all 0.2s;font-family:inherit}
+.chart-tab.active{background:rgba(16,185,129,0.12);border-color:var(--accent);color:var(--accent)}
+.chart-wrap{height:280px;padding:14px}
+canvas#mainChart{width:100%;height:100%}
+
+@media(max-width:600px){
+  .converter-row{flex-direction:column;gap:8px}
+  .conv-swap{margin-top:0;align-self:center;transform:rotate(90deg)}
+  .rate-grid{grid-template-columns:1fr 1fr}
+  .chart-wrap{height:200px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1><span>Forex Pulse</span></h1>
+    <div class="sub">Live currency exchange rates · European Central Bank</div>
+  </div>
+  <div class="header-right">
+    <div class="ecb-badge">ECB Reference Rates</div>
+    <div class="update-time" id="updateTime">Loading...</div>
+  </div>
+</div>
+
+<!-- Converter -->
+<div class="converter">
+  <div class="converter-card">
+    <div class="converter-row">
+      <div class="conv-field">
+        <label>Amount</label>
+        <input type="number" class="conv-input" id="convAmount" value="1000" min="0" step="any">
+      </div>
+      <div class="conv-field">
+        <label>From</label>
+        <select class="conv-select" id="convFrom"></select>
+      </div>
+      <button class="conv-swap" id="convSwap" title="Swap currencies">⇄</button>
+      <div class="conv-field">
+        <label>To</label>
+        <select class="conv-select" id="convTo"></select>
+      </div>
+    </div>
+    <div class="conv-result" id="convResult">—</div>
+    <div class="conv-rate" id="convRate">—</div>
+  </div>
+</div>
+
+<!-- Rate grid -->
+<div class="section-title">Major Currency Pairs</div>
+<div class="rate-grid" id="rateGrid"></div>
+
+<!-- Historical chart -->
+<div class="chart-section">
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-pair" id="chartPair">EUR/USD</div>
+      <div class="chart-tabs" id="chartTabs">
+        <button class="chart-tab" data-d="7">1W</button>
+        <button class="chart-tab" data-d="30">1M</button>
+        <button class="chart-tab active" data-d="90">3M</button>
+        <button class="chart-tab" data-d="180">6M</button>
+        <button class="chart-tab" data-d="365">1Y</button>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="mainChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://api.frankfurter.dev';
+
+const CURRENCIES = {
+  USD:{name:'US Dollar',flag:'🇺🇸'},EUR:{name:'Euro',flag:'🇪🇺'},GBP:{name:'British Pound',flag:'🇬🇧'},
+  JPY:{name:'Japanese Yen',flag:'🇯🇵'},CHF:{name:'Swiss Franc',flag:'🇨🇭'},CAD:{name:'Canadian Dollar',flag:'🇨🇦'},
+  AUD:{name:'Australian Dollar',flag:'🇦🇺'},NZD:{name:'New Zealand Dollar',flag:'🇳🇿'},
+  SEK:{name:'Swedish Krona',flag:'🇸🇪'},NOK:{name:'Norwegian Krone',flag:'🇳🇴'},
+  DKK:{name:'Danish Krone',flag:'🇩🇰'},PLN:{name:'Polish Zloty',flag:'🇵🇱'},
+  CZK:{name:'Czech Koruna',flag:'🇨🇿'},HUF:{name:'Hungarian Forint',flag:'🇭🇺'},
+  TRY:{name:'Turkish Lira',flag:'🇹🇷'},ZAR:{name:'South African Rand',flag:'🇿🇦'},
+  MXN:{name:'Mexican Peso',flag:'🇲🇽'},BRL:{name:'Brazilian Real',flag:'🇧🇷'},
+  SGD:{name:'Singapore Dollar',flag:'🇸🇬'},HKD:{name:'Hong Kong Dollar',flag:'🇭🇰'},
+  KRW:{name:'South Korean Won',flag:'🇰🇷'},INR:{name:'Indian Rupee',flag:'🇮🇳'},
+  CNY:{name:'Chinese Yuan',flag:'🇨🇳'},THB:{name:'Thai Baht',flag:'🇹🇭'},
+  IDR:{name:'Indonesian Rupiah',flag:'🇮🇩'},MYR:{name:'Malaysian Ringgit',flag:'🇲🇾'},
+  PHP:{name:'Philippine Peso',flag:'🇵🇭'},ISK:{name:'Icelandic Krona',flag:'🇮🇸'},
+  BGN:{name:'Bulgarian Lev',flag:'🇧🇬'},RON:{name:'Romanian Leu',flag:'🇷🇴'},
+  ILS:{name:'Israeli Shekel',flag:'🇮🇱'}
+};
+
+const PAIRS = ['USD','GBP','JPY','CHF','CAD','AUD','CNY','KRW','BRL','MXN','INR','SEK','NZD','SGD','TRY','ZAR','PLN','NOK'];
+
+let latestRates = {};
+let historicalCache = {};
+let activePair = 'USD';
+let chartDays = 90;
+let fromCur = 'EUR', toCur = 'USD';
+
+function fmt(d) { return d.toISOString().split('T')[0]; }
+function daysAgo(n) { const d=new Date(); d.setDate(d.getDate()-n); return d; }
+
+// Fetch latest rates
+async function fetchLatest() {
+  const res = await fetch(`${API}/latest?base=EUR`);
+  return res.json();
+}
+
+// Fetch historical
+async function fetchHistory(base, target, days) {
+  const key = `${base}_${target}_${days}`;
+  if (historicalCache[key]) return historicalCache[key];
+  const start = fmt(daysAgo(days));
+  const end = fmt(new Date());
+  const res = await fetch(`${API}/${start}..${end}?base=${base}&symbols=${target}`);
+  const data = await res.json();
+  historicalCache[key] = data;
+  return data;
+}
+
+// Populate selects
+function populateSelects() {
+  const fromSel = document.getElementById('convFrom');
+  const toSel = document.getElementById('convTo');
+  const codes = ['EUR', ...Object.keys(latestRates.rates || {})].sort();
+
+  [fromSel, toSel].forEach(sel => {
+    sel.innerHTML = codes.map(c => {
+      const info = CURRENCIES[c] || { name: c, flag: '' };
+      return `<option value="${c}">${info.flag} ${c} — ${info.name}</option>`;
+    }).join('');
+  });
+
+  fromSel.value = fromCur;
+  toSel.value = toCur;
+}
+
+// Convert
+function updateConversion() {
+  const amount = parseFloat(document.getElementById('convAmount').value) || 0;
+  const from = document.getElementById('convFrom').value;
+  const to = document.getElementById('convTo').value;
+  fromCur = from; toCur = to;
+
+  let rate;
+  if (from === 'EUR') {
+    rate = latestRates.rates?.[to] || 0;
+  } else if (to === 'EUR') {
+    rate = 1 / (latestRates.rates?.[from] || 1);
+  } else {
+    const fromRate = latestRates.rates?.[from] || 1;
+    const toRate = latestRates.rates?.[to] || 1;
+    rate = toRate / fromRate;
+  }
+
+  const result = amount * rate;
+  const fromInfo = CURRENCIES[from] || { flag: '' };
+  const toInfo = CURRENCIES[to] || { flag: '' };
+
+  document.getElementById('convResult').textContent =
+    `${toInfo.flag} ${result.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ${to}`;
+  document.getElementById('convRate').textContent =
+    `1 ${from} = ${rate.toFixed(6)} ${to} · 1 ${to} = ${(1/rate).toFixed(6)} ${from}`;
+}
+
+document.getElementById('convAmount').addEventListener('input', updateConversion);
+document.getElementById('convFrom').addEventListener('change', updateConversion);
+document.getElementById('convTo').addEventListener('change', updateConversion);
+document.getElementById('convSwap').addEventListener('click', () => {
+  const from = document.getElementById('convFrom');
+  const to = document.getElementById('convTo');
+  const tmp = from.value;
+  from.value = to.value;
+  to.value = tmp;
+  updateConversion();
+});
+
+// Rate grid
+async function renderRateGrid() {
+  const grid = document.getElementById('rateGrid');
+
+  // Fetch yesterday's rates for change calculation
+  let yesterdayRates = {};
+  try {
+    const yRes = await fetch(`${API}/${fmt(daysAgo(1))}?base=EUR`);
+    const yData = await yRes.json();
+    yesterdayRates = yData.rates || {};
+  } catch(e) {}
+
+  grid.innerHTML = PAIRS.map(code => {
+    const rate = latestRates.rates?.[code];
+    if (!rate) return '';
+    const info = CURRENCIES[code] || { name: code, flag: '' };
+    const yRate = yesterdayRates[code];
+    let changeStr = '', changeClass = 'flat';
+    if (yRate) {
+      const change = ((rate - yRate) / yRate) * 100;
+      changeClass = change > 0.001 ? 'up' : change < -0.001 ? 'down' : 'flat';
+      changeStr = `${change > 0 ? '+' : ''}${change.toFixed(3)}%`;
+    }
+
+    return `<div class="rate-card${code === activePair ? ' active' : ''}" data-pair="${code}">
+      <div class="rate-top">
+        <div class="rate-pair">EUR/${code}</div>
+        <div class="rate-flag">${info.flag}</div>
+      </div>
+      <div class="rate-value">${rate.toFixed(code === 'JPY' || code === 'KRW' || code === 'HUF' || code === 'IDR' ? 2 : 4)}</div>
+      <div class="rate-change ${changeClass}">${changeStr || '—'}</div>
+      <div class="rate-sparkline"><canvas data-spark="${code}"></canvas></div>
+    </div>`;
+  }).join('');
+
+  grid.querySelectorAll('.rate-card').forEach(card => {
+    card.onclick = () => {
+      activePair = card.dataset.pair;
+      grid.querySelectorAll('.rate-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      loadChart();
+    };
+  });
+
+  // Load sparklines
+  PAIRS.forEach(async code => {
+    try {
+      const data = await fetchHistory('EUR', code, 14);
+      const dates = Object.keys(data.rates || {}).sort();
+      const values = dates.map(d => data.rates[d][code]);
+      drawSparkline(code, values);
+    } catch(e) {}
+  });
+}
+
+function drawSparkline(code, values) {
+  const el = document.querySelector(`[data-spark="${code}"]`);
+  if (!el || values.length < 2) return;
+  const rect = el.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  el.width = rect.width * dpr;
+  el.height = rect.height * dpr;
+  el.style.width = rect.width + 'px';
+  el.style.height = rect.height + 'px';
+  const ctx = el.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+
+  const isUp = values[values.length - 1] >= values[0];
+  ctx.strokeStyle = isUp ? '#10b981' : '#ef4444';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  values.forEach((v, i) => {
+    const x = (i / (values.length - 1)) * W;
+    const y = H - ((v - min) / range) * H * 0.8 - H * 0.1;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Fill
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, isUp ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)');
+  grad.addColorStop(1, 'transparent');
+  ctx.lineTo(W, H);
+  ctx.lineTo(0, H);
+  ctx.fillStyle = grad;
+  ctx.fill();
+}
+
+// Main chart
+async function loadChart() {
+  document.getElementById('chartPair').textContent = `EUR / ${activePair}`;
+  try {
+    const data = await fetchHistory('EUR', activePair, chartDays);
+    drawMainChart(data);
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+function drawMainChart(data) {
+  const canvas = document.getElementById('mainChart');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  const pad = { top: 16, right: 60, bottom: 28, left: 10 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const dates = Object.keys(data.rates || {}).sort();
+  const values = dates.map(d => data.rates[d][activePair]);
+  if (values.length < 2) return;
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const x = i => pad.left + (i / (values.length - 1)) * cw;
+  const y = v => pad.top + ch - ((v - min) / range) * ch;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 0.5;
+  ctx.fillStyle = '#555';
+  ctx.font = '9px Inter, system-ui';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 5; i++) {
+    const yy = pad.top + (ch / 5) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
+    const val = max - (i / 5) * range;
+    ctx.fillText(val.toFixed(values[0] > 100 ? 1 : 4), W - pad.right + 48, yy + 3);
+  }
+
+  // Time labels
+  ctx.textAlign = 'center';
+  const labelStep = Math.max(1, Math.floor(dates.length / 6));
+  for (let i = 0; i < dates.length; i += labelStep) {
+    const d = new Date(dates[i]);
+    ctx.fillText(d.toLocaleDateString([], { month: 'short', day: 'numeric' }), x(i), H - 4);
+  }
+
+  // Gradient fill
+  const isUp = values[values.length - 1] >= values[0];
+  const lineColor = isUp ? '#10b981' : '#ef4444';
+  const fillGrad = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
+  fillGrad.addColorStop(0, isUp ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)');
+  fillGrad.addColorStop(1, 'transparent');
+
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(values[0]));
+  for (let i = 1; i < values.length; i++) ctx.lineTo(x(i), y(values[i]));
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Fill under
+  ctx.lineTo(x(values.length - 1), H - pad.bottom);
+  ctx.lineTo(x(0), H - pad.bottom);
+  ctx.closePath();
+  ctx.fillStyle = fillGrad;
+  ctx.fill();
+
+  // Current value dot
+  const lastX = x(values.length - 1);
+  const lastY = y(values[values.length - 1]);
+  ctx.fillStyle = lineColor;
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#0e1219';
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Period stats
+  const first = values[0], last = values[values.length - 1];
+  const change = ((last - first) / first * 100);
+  const high = max, low = min;
+  ctx.fillStyle = '#888';
+  ctx.font = '10px Inter, system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText(`Open: ${first.toFixed(4)}  Close: ${last.toFixed(4)}  High: ${high.toFixed(4)}  Low: ${low.toFixed(4)}  Change: ${change > 0 ? '+' : ''}${change.toFixed(2)}%`, pad.left + 4, pad.top + 10);
+}
+
+// Chart tabs
+document.querySelectorAll('.chart-tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    chartDays = parseInt(tab.dataset.d);
+    historicalCache = {}; // Clear cache for new range
+    loadChart();
+  };
+});
+
+// Init
+async function init() {
+  try {
+    latestRates = await fetchLatest();
+    document.getElementById('updateTime').textContent = `Rates: ${latestRates.date || 'today'}`;
+    populateSelects();
+    updateConversion();
+    await renderRateGrid();
+    loadChart();
+  } catch(e) {
+    console.error(e);
+    document.getElementById('updateTime').textContent = 'Error loading rates';
+  }
+}
+
+init();
+
+// Resize
+window.addEventListener('resize', () => {
+  loadChart();
+  // Redraw sparklines
+  PAIRS.forEach(async code => {
+    const key = `EUR_${code}_14`;
+    if (historicalCache[key]) {
+      const data = historicalCache[key];
+      const dates = Object.keys(data.rates || {}).sort();
+      const values = dates.map(d => data.rates[d][code]);
+      drawSparkline(code, values);
+    }
+  });
+});
+</script>
+</body>
+</html>

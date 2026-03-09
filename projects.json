@@ -137,6 +137,13 @@
     "path": "projects/radio/"
   },
   {
+    "id": "forex",
+    "title": "Forex Pulse",
+    "description": "Live currency exchange dashboard with 30+ currencies, real-time converter, sparkline charts, historical trends, and daily change tracking via ECB data.",
+    "tags": ["Frankfurter API", "Canvas", "Finance", "Live Data"],
+    "path": "projects/forex/"
+  },
+  {
     "id": "fractal",
     "title": "Fractal Explorer",
     "description": "GPU-accelerated fractal renderer with Mandelbrot, Julia, Burning Ship, Tricorn, and Multibrot sets. Infinite zoom, 6 palettes, smooth coloring.",
