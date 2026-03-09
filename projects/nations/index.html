@@ -167,8 +167,14 @@ REGIONS.forEach(r => {
 
 async function fetchCountries() {
   try {
-    const res = await fetch('https://restcountries.com/v3.1/all?fields=name,capital,population,area,region,subregion,languages,currencies,flags,cca2,cca3,borders,latlng,timezones,continents,independent,unMember,landlocked,car,gini,maps');
-    allCountries = await res.json();
+    const [res1, res2] = await Promise.all([
+      fetch('https://restcountries.com/v3.1/all?fields=name,capital,population,area,region,subregion,languages,currencies,flags,cca3'),
+      fetch('https://restcountries.com/v3.1/all?fields=cca3,cca2,borders,latlng,timezones,independent,unMember,landlocked,car,maps')
+    ]);
+    const data1 = await res1.json();
+    const data2 = await res2.json();
+    const lookup = Object.fromEntries(data2.map(c => [c.cca3, c]));
+    allCountries = data1.map(c => ({ ...c, ...lookup[c.cca3] }));
     allCountries.sort((a, b) => a.name.common.localeCompare(b.name.common));
     applyFilters();
     document.getElementById('loader').classList.add('hidden');
@@ -368,7 +374,6 @@ function openCountry(cca3) {
       <div class="d-item"><div class="di-label">UN Member</div><div class="di-val">${c.unMember ? '✓ Yes' : '✗ No'}</div></div>
       <div class="d-item"><div class="di-label">Landlocked</div><div class="di-val">${c.landlocked ? '✓ Yes' : '✗ No'}</div></div>
       <div class="d-item"><div class="di-label">Drives On</div><div class="di-val">${c.car?.side ? c.car.side.charAt(0).toUpperCase() + c.car.side.slice(1) : '—'}</div></div>
-      ${c.gini ? `<div class="d-item"><div class="di-label">Gini Index</div><div class="di-val">${Object.values(c.gini)[0]}</div><div class="di-sub">${Object.keys(c.gini)[0]}</div></div>` : ''}
     </div>
 
     ${borderCountries.length ? `
