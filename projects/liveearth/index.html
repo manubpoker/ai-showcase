@@ -495,6 +495,30 @@ html, body {
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
   }
 
+  function timeAgo(ts) {
+    const sec = Math.floor((Date.now() - ts) / 1000);
+    if (sec < 60)   return sec + 's ago';
+    if (sec < 3600)  return Math.floor(sec / 60) + 'm ago';
+    if (sec < 86400) return Math.floor(sec / 3600) + 'h ago';
+    return Math.floor(sec / 86400) + 'd ago';
+  }
+
+  /* ── Earthquake fetcher ────────────────────────────────────── */
+  async function fetchEarthquakes() {
+    const res = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson');
+    const json = await res.json();
+    return json.features.map(f => ({
+      lat: f.geometry.coordinates[1],
+      lng: f.geometry.coordinates[0],
+      depth: f.geometry.coordinates[2],
+      mag: f.properties.mag || 0,
+      place: f.properties.place,
+      time: f.properties.time
+    }));
+  }
+
+  const quakeColorScale = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, 400]);
+
   /* ══════════════════════════════════════════════════════════════
      Globe initialisation
      ══════════════════════════════════════════════════════════════ */
@@ -770,9 +794,49 @@ html, body {
       enabled: false,
       data: null,
       interval: null,
-      refreshMs: 0,
-      onEnable: async () => {},
-      onDisable: () => {},
+      refreshMs: 300000,
+      onEnable: async () => {
+        const layer = LAYERS.find(l => l.id === 'earthquakes');
+        layer.data = await fetchEarthquakes();
+
+        globe
+          .ringsData(layer.data)
+          .ringLat(d => d.lat)
+          .ringLng(d => d.lng)
+          .ringMaxRadius(d => d.mag * 1.5)
+          .ringPropagationSpeed(2)
+          .ringRepeatPeriod(800)
+          .ringColor(d => {
+            const c = quakeColorScale(Math.max(0, d.depth));
+            return [c, 'transparent'];
+          })
+          .onRingHover(d => {
+            if (!d) {
+              hideHover();
+              globe.controls().autoRotate = true;
+              return;
+            }
+            globe.controls().autoRotate = false;
+            showHover(
+              d.place || 'Unknown location',
+              'M ' + d.mag.toFixed(1),
+              d.depth.toFixed(0) + 'km deep \u00B7 ' + timeAgo(d.time)
+            );
+          });
+
+        layer.interval = setInterval(async () => {
+          try {
+            layer.data = await fetchEarthquakes();
+            globe.ringsData(layer.data);
+          } catch (e) { console.warn('Earthquake refresh failed:', e); }
+        }, layer.refreshMs);
+      },
+      onDisable: () => {
+        const layer = LAYERS.find(l => l.id === 'earthquakes');
+        globe.ringsData([]).onRingHover(null);
+        if (layer.interval) { clearInterval(layer.interval); layer.interval = null; }
+        hideHover();
+      },
     },
     {
       id: 'iss',
@@ -872,7 +936,8 @@ html, body {
     for (const group of groups) {
       html += `<div class="panel-section"><div class="group-label">${group}</div></div>`;
       for (const layer of groupMap[group]) {
-        const isPlaceholder = layer.id !== 'base' && !layer.enabled;
+        const hasImpl = layer.id === 'base' || layer.id === 'earthquakes';
+        const isPlaceholder = !hasImpl && !layer.enabled;
         html += `
           <div class="layer-row" data-layer-id="${layer.id}">
             <span class="layer-icon">${layer.icon}</span>
