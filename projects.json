@@ -3,105 +3,193 @@
     "id": "fluid",
     "title": "Fluid Canvas",
     "description": "GPU-accelerated real-time fluid simulation using WebGL 2 shaders. Navier-Stokes solver with vorticity confinement, interactive dye injection, and bloom effects.",
-    "tags": ["WebGL", "GLSL", "Physics", "Simulation"],
-    "path": "projects/fluid/"
+    "tags": [
+      "WebGL",
+      "GLSL",
+      "Physics",
+      "Simulation"
+    ],
+    "path": "projects/fluid/",
+    "thumbnail": "thumbnails/fluid.png"
   },
   {
     "id": "raymarch",
     "title": "Ray Marcher",
     "description": "GPU ray-marched SDF worlds with 6 scenes (Crystals, Organics, Architecture, Alien, Infinity, Mandelbulb), soft shadows, reflections, AO, and orbit camera.",
-    "tags": ["WebGL", "GLSL", "Ray Marching", "3D"],
-    "path": "projects/raymarch/"
+    "tags": [
+      "WebGL",
+      "GLSL",
+      "Ray Marching",
+      "3D"
+    ],
+    "path": "projects/raymarch/",
+    "thumbnail": "thumbnails/raymarch.png"
   },
   {
     "id": "fractal",
     "title": "Fractal Explorer",
     "description": "GPU-accelerated fractal renderer with Mandelbrot, Julia, Burning Ship, Tricorn, and Multibrot sets. Infinite zoom, 6 palettes, smooth coloring.",
-    "tags": ["WebGL", "GLSL", "Math", "Generative Art"],
-    "path": "projects/fractal/"
+    "tags": [
+      "WebGL",
+      "GLSL",
+      "Math",
+      "Generative Art"
+    ],
+    "path": "projects/fractal/",
+    "thumbnail": "thumbnails/fractal.png"
   },
   {
     "id": "terrain",
     "title": "Terrain Generator",
     "description": "Procedural 3D landscape generator with GPU fractal noise, 6 biomes, flyover camera, water reflections, dynamic lighting, and distance fog via WebGL 2.",
-    "tags": ["WebGL", "GLSL", "Procedural", "3D"],
-    "path": "projects/terrain/"
+    "tags": [
+      "WebGL",
+      "GLSL",
+      "Procedural",
+      "3D"
+    ],
+    "path": "projects/terrain/",
+    "thumbnail": "thumbnails/terrain.png"
   },
   {
     "id": "metaballs",
     "title": "Metaball Lava Lamp",
     "description": "GPU ray-marched metaball simulation with smooth organic blending, 7 color themes, mouse attraction physics, and glow effects via WebGL 2.",
-    "tags": ["WebGL", "GLSL", "Physics", "Generative Art"],
-    "path": "projects/metaballs/"
+    "tags": [
+      "WebGL",
+      "GLSL",
+      "Physics",
+      "Generative Art"
+    ],
+    "path": "projects/metaballs/",
+    "thumbnail": "thumbnails/metaballs.png"
   },
   {
     "id": "reaction",
     "title": "Reaction-Diffusion",
     "description": "GPU-accelerated Gray-Scott reaction-diffusion simulator with 9 organic pattern presets, 8 color maps, and interactive painting via WebGL 2 shaders.",
-    "tags": ["WebGL", "GLSL", "Simulation", "Generative Art"],
-    "path": "projects/reaction/"
+    "tags": [
+      "WebGL",
+      "GLSL",
+      "Simulation",
+      "Generative Art"
+    ],
+    "path": "projects/reaction/",
+    "thumbnail": "thumbnails/reaction.png"
   },
   {
     "id": "life",
     "title": "Life Engine",
     "description": "GPU-accelerated cellular automata with 8 rulesets (Life, HighLife, Seeds, etc.), age-based coloring, 6 palettes, pattern library, draw mode, and up to 2048×2048 grids.",
-    "tags": ["WebGL", "GLSL", "Cellular Automata", "Simulation"],
-    "path": "projects/life/"
+    "tags": [
+      "WebGL",
+      "GLSL",
+      "Cellular Automata",
+      "Simulation"
+    ],
+    "path": "projects/life/",
+    "thumbnail": "thumbnails/life.png"
   },
   {
     "id": "waves",
     "title": "Wave Lab",
     "description": "GPU 2D wave interference simulator with placeable sources, drawable walls, 6 color maps, diffraction presets (two-slit, lens focus, Doppler), and real-time propagation.",
-    "tags": ["WebGL", "GLSL", "Physics", "Simulation"],
-    "path": "projects/waves/"
+    "tags": [
+      "WebGL",
+      "GLSL",
+      "Physics",
+      "Simulation"
+    ],
+    "path": "projects/waves/",
+    "thumbnail": "thumbnails/waves.png"
   },
   {
     "id": "cloth",
     "title": "Cloth Simulation",
     "description": "Real-time Verlet integration cloth physics with wind, tearing, pinning, and lit triangle rendering. 4 presets and 6 fabric colors.",
-    "tags": ["Canvas", "Physics", "Simulation", "Verlet"],
-    "path": "projects/cloth/"
+    "tags": [
+      "Canvas",
+      "Physics",
+      "Simulation",
+      "Verlet"
+    ],
+    "path": "projects/cloth/",
+    "thumbnail": "thumbnails/cloth.png"
   },
   {
     "id": "pendulum",
     "title": "Double Pendulum",
     "description": "Chaos theory visualizer with up to 80 simultaneous double pendulums, RK4 integration, color trails, phase space plot, 6 presets, and divergence tracking.",
-    "tags": ["Canvas", "Physics", "Chaos Theory", "Simulation"],
-    "path": "projects/pendulum/"
+    "tags": [
+      "Canvas",
+      "Physics",
+      "Chaos Theory",
+      "Simulation"
+    ],
+    "path": "projects/pendulum/",
+    "thumbnail": "thumbnails/pendulum.png"
   },
   {
     "id": "gravity",
     "title": "Gravity Lab",
     "description": "Interactive N-body gravitational simulator with click-to-spawn bodies, orbital trails, collision merging, 6 presets, velocity vectors, and zoom/pan controls.",
-    "tags": ["Canvas", "Physics", "Simulation", "N-Body"],
-    "path": "projects/gravity/"
+    "tags": [
+      "Canvas",
+      "Physics",
+      "Simulation",
+      "N-Body"
+    ],
+    "path": "projects/gravity/",
+    "thumbnail": "thumbnails/gravity.png"
   },
   {
     "id": "particlelife",
     "title": "Particle Life",
     "description": "Emergent behavior simulation where colored particles follow attraction/repulsion rules to self-organize into complex lifelike patterns.",
-    "tags": ["Canvas", "Simulation", "Physics", "Emergent Behavior"],
-    "path": "projects/particlelife/"
+    "tags": [
+      "Canvas",
+      "Simulation",
+      "Physics",
+      "Emergent Behavior"
+    ],
+    "path": "projects/particlelife/",
+    "thumbnail": "thumbnails/particlelife.png"
   },
   {
     "id": "boids",
     "title": "Boids Flocking",
     "description": "Reynolds flocking simulation with spatial hash grid optimization, 5 behavior presets, predator mode, wind gusts, obstacles, depth-sorted pseudo-3D rendering, and trails.",
-    "tags": ["Canvas", "Simulation", "Physics", "Emergent Behavior"],
-    "path": "projects/boids/"
+    "tags": [
+      "Canvas",
+      "Simulation",
+      "Physics",
+      "Emergent Behavior"
+    ],
+    "path": "projects/boids/",
+    "thumbnail": "thumbnails/boids.png"
   },
   {
     "id": "lorenz",
     "title": "Lorenz Attractor",
     "description": "Interactive 3D visualization of the chaotic Lorenz system with WebGL trails, multiple particles, color schemes, parameter controls, and presets.",
-    "tags": ["WebGL", "Math", "Chaos Theory", "3D"],
-    "path": "projects/lorenz/"
+    "tags": [
+      "WebGL",
+      "Math",
+      "Chaos Theory",
+      "3D"
+    ],
+    "path": "projects/lorenz/",
+    "thumbnail": "thumbnails/lorenz.png"
   },
   {
     "id": "earth",
     "title": "Earth Atlas",
     "description": "Interactive 3D globe with country-level data overlays including life expectancy, CO2 emissions, renewable energy, and more.",
-    "tags": ["Three.js", "Data Viz", "WebGL"],
+    "tags": [
+      "Three.js",
+      "Data Viz",
+      "WebGL"
+    ],
     "path": "projects/earth/",
     "thumbnail": "thumbnails/earth.png"
   },
@@ -109,7 +197,12 @@
     "id": "abalone",
     "title": "Abalone",
     "description": "A polished 3D rendition of the classic marble-pushing board game with multiple camera angles, move previews, and complete rule enforcement.",
-    "tags": ["Three.js", "Game", "3D", "WebGL"],
+    "tags": [
+      "Three.js",
+      "Game",
+      "3D",
+      "WebGL"
+    ],
     "path": "projects/abalone/",
     "thumbnail": "thumbnails/abalone.png"
   },
@@ -117,7 +210,12 @@
     "id": "shoothemup",
     "title": "Star Reaper '86",
     "description": "Retro side-scrolling shoot'em up with neon visuals, wave-based combat, boss encounters, and Xbox gamepad support.",
-    "tags": ["Canvas", "Game", "Retro", "Gamepad API"],
+    "tags": [
+      "Canvas",
+      "Game",
+      "Retro",
+      "Gamepad API"
+    ],
     "path": "projects/shoothemup/",
     "thumbnail": "thumbnails/shoothemup.png"
   },
@@ -125,7 +223,12 @@
     "id": "piano",
     "title": "Piano Studio",
     "description": "3D piano studio with MIDI playback, waterfall note visualisation, multiple camera angles, and tempo controls.",
-    "tags": ["Three.js", "Web Audio", "MIDI", "3D"],
+    "tags": [
+      "Three.js",
+      "Web Audio",
+      "MIDI",
+      "3D"
+    ],
     "path": "projects/piano/",
     "thumbnail": "thumbnails/piano.png"
   },
@@ -133,168 +236,311 @@
     "id": "violin",
     "title": "Violin Ensemble",
     "description": "3D string ensemble visualiser that distributes MIDI notes across violins, violas, cellos, and contrabasses with bow animation.",
-    "tags": ["Three.js", "Web Audio", "MIDI", "3D"],
-    "path": "projects/violin/"
+    "tags": [
+      "Three.js",
+      "Web Audio",
+      "MIDI",
+      "3D"
+    ],
+    "path": "projects/violin/",
+    "thumbnail": "thumbnails/violin.png"
   },
   {
     "id": "audiovis",
     "title": "Audio Visualizer",
     "description": "Real-time audio spectrum visualizer with 6 modes (bars, circular, waveform, particles, terrain, mirror), mic/demo/file input, and 5 color themes.",
-    "tags": ["Web Audio", "Canvas", "Visualization", "Interactive"],
-    "path": "projects/audiovis/"
+    "tags": [
+      "Web Audio",
+      "Canvas",
+      "Visualization",
+      "Interactive"
+    ],
+    "path": "projects/audiovis/",
+    "thumbnail": "thumbnails/audiovis.png"
   },
   {
     "id": "iss",
     "title": "ISS Live Tracker",
     "description": "Real-time International Space Station tracking with orbital data, ground track trail, crew roster, and day/night terminator.",
-    "tags": ["Leaflet", "Space", "Live Data", "Canvas"],
-    "path": "projects/iss/"
+    "tags": [
+      "Leaflet",
+      "Space",
+      "Live Data",
+      "Canvas"
+    ],
+    "path": "projects/iss/",
+    "thumbnail": "thumbnails/iss.png"
   },
   {
     "id": "aurora",
     "title": "Aurora Watch",
     "description": "Space weather and aurora forecast dashboard with Kp index, solar wind, Bz component, flare alerts, and city-level aurora visibility.",
-    "tags": ["NOAA SWPC", "Space Weather", "Live Data", "Canvas"],
-    "path": "projects/aurora/"
+    "tags": [
+      "NOAA SWPC",
+      "Space Weather",
+      "Live Data",
+      "Canvas"
+    ],
+    "path": "projects/aurora/",
+    "thumbnail": "thumbnails/aurora.png"
   },
   {
     "id": "solar",
     "title": "Solar Pulse",
     "description": "Real-time solar activity dashboard with NASA DONKI flares, CMEs, geomagnetic storms, Kp index chart, inner solar system orrery, and 30-day timeline.",
-    "tags": ["NASA API", "NOAA", "Space", "Live Data"],
-    "path": "projects/solar/"
+    "tags": [
+      "NASA API",
+      "NOAA",
+      "Space",
+      "Live Data"
+    ],
+    "path": "projects/solar/",
+    "thumbnail": "thumbnails/solar.png"
   },
   {
     "id": "asteroids",
     "title": "Asteroid Watch",
     "description": "Near-Earth object tracker using NASA NeoWs API with size comparison charts, close approach timelines, and 7-day asteroid feeds.",
-    "tags": ["NASA API", "Canvas", "Space", "Live Data"],
-    "path": "projects/asteroids/"
+    "tags": [
+      "NASA API",
+      "Canvas",
+      "Space",
+      "Live Data"
+    ],
+    "path": "projects/asteroids/",
+    "thumbnail": "thumbnails/asteroids.png"
   },
   {
     "id": "launches",
     "title": "Launch Countdown",
     "description": "Live rocket launch tracker with countdown timers, mission details, launch site map, and upcoming/recent feeds from The Space Devs API.",
-    "tags": ["Space Devs API", "Leaflet", "Space", "Live Data"],
-    "path": "projects/launches/"
+    "tags": [
+      "Space Devs API",
+      "Leaflet",
+      "Space",
+      "Live Data"
+    ],
+    "path": "projects/launches/",
+    "thumbnail": "thumbnails/launches.png"
   },
   {
     "id": "earthquake",
     "title": "Seismic Live",
     "description": "Real-time earthquake monitor with interactive map, tectonic plates overlay, seismograph waveform, and live USGS data feed.",
-    "tags": ["Leaflet", "Canvas", "USGS API", "Live Data"],
-    "path": "projects/earthquake/"
+    "tags": [
+      "Leaflet",
+      "Canvas",
+      "USGS API",
+      "Live Data"
+    ],
+    "path": "projects/earthquake/",
+    "thumbnail": "thumbnails/earthquake.png"
   },
   {
     "id": "weather",
     "title": "Weather Pulse",
     "description": "Global weather dashboard with city search, hourly and 7-day forecasts, UV index, wind, humidity, and auto-location detection.",
-    "tags": ["Open-Meteo API", "Geocoding", "Live Data", "Weather"],
-    "path": "projects/weather/"
+    "tags": [
+      "Open-Meteo API",
+      "Geocoding",
+      "Live Data",
+      "Weather"
+    ],
+    "path": "projects/weather/",
+    "thumbnail": "thumbnails/weather.png"
   },
   {
     "id": "airquality",
     "title": "Air Quality Live",
     "description": "Global air quality dashboard monitoring 40 cities with US AQI, PM2.5, ozone, NO₂ levels, hourly forecasts, and interactive map via Open-Meteo.",
-    "tags": ["Open-Meteo API", "Leaflet", "Canvas", "Live Data"],
-    "path": "projects/airquality/"
+    "tags": [
+      "Open-Meteo API",
+      "Leaflet",
+      "Canvas",
+      "Live Data"
+    ],
+    "path": "projects/airquality/",
+    "thumbnail": "thumbnails/airquality.png"
   },
   {
     "id": "ocean",
     "title": "Ocean Pulse",
     "description": "Global marine & surf conditions dashboard with 28 famous surf spots, real-time wave height, swell, period, direction, 48h forecasts, compass, and animated wave display.",
-    "tags": ["Open-Meteo API", "Leaflet", "Canvas", "Live Data"],
-    "path": "projects/ocean/"
+    "tags": [
+      "Open-Meteo API",
+      "Leaflet",
+      "Canvas",
+      "Live Data"
+    ],
+    "path": "projects/ocean/",
+    "thumbnail": "thumbnails/ocean.png"
   },
   {
     "id": "tides",
     "title": "Tides & Currents",
     "description": "Real-time NOAA coastal water level monitoring with tide predictions, hi/lo forecasts, water temperature, and interactive charts for 30 US stations.",
-    "tags": ["NOAA API", "Leaflet", "Canvas", "Live Data"],
-    "path": "projects/tides/"
+    "tags": [
+      "NOAA API",
+      "Leaflet",
+      "Canvas",
+      "Live Data"
+    ],
+    "path": "projects/tides/",
+    "thumbnail": "thumbnails/tides.png"
   },
   {
     "id": "rivers",
     "title": "River Pulse",
     "description": "Real-time USGS stream gauge dashboard monitoring 30 major US rivers with discharge, gauge height, water temperature, flood status, 7-day charts, and interactive map.",
-    "tags": ["USGS API", "Leaflet", "Canvas", "Live Data"],
-    "path": "projects/rivers/"
+    "tags": [
+      "USGS API",
+      "Leaflet",
+      "Canvas",
+      "Live Data"
+    ],
+    "path": "projects/rivers/",
+    "thumbnail": "thumbnails/rivers.png"
   },
   {
     "id": "crypto",
     "title": "Crypto Pulse",
     "description": "Live cryptocurrency dashboard with top 50 coins, sparkline charts, price flash animations, and multi-currency support via CoinGecko.",
-    "tags": ["SVG", "CoinGecko API", "Live Data", "Finance"],
-    "path": "projects/crypto/"
+    "tags": [
+      "SVG",
+      "CoinGecko API",
+      "Live Data",
+      "Finance"
+    ],
+    "path": "projects/crypto/",
+    "thumbnail": "thumbnails/crypto.png"
   },
   {
     "id": "forex",
     "title": "Forex Pulse",
     "description": "Live currency exchange dashboard with 30+ currencies, real-time converter, sparkline charts, historical trends, and daily change tracking via ECB data.",
-    "tags": ["Frankfurter API", "Canvas", "Finance", "Live Data"],
-    "path": "projects/forex/"
+    "tags": [
+      "Frankfurter API",
+      "Canvas",
+      "Finance",
+      "Live Data"
+    ],
+    "path": "projects/forex/",
+    "thumbnail": "thumbnails/forex.png"
   },
   {
     "id": "hackernews",
     "title": "HN Live",
     "description": "Real-time Hacker News dashboard with top/best/new/ask/show feeds, domain analysis, activity graph, and streaming new stories.",
-    "tags": ["Firebase API", "Live Data", "News", "Dashboard"],
-    "path": "projects/hackernews/"
+    "tags": [
+      "Firebase API",
+      "Live Data",
+      "News",
+      "Dashboard"
+    ],
+    "path": "projects/hackernews/",
+    "thumbnail": "thumbnails/hackernews.png"
   },
   {
     "id": "github",
     "title": "GitHub Pulse",
     "description": "Live visualization of public GitHub activity — pushes, stars, PRs, forks streaming in real-time with trending repos and language stats.",
-    "tags": ["GitHub API", "Live Data", "Visualization", "Developer"],
-    "path": "projects/github/"
+    "tags": [
+      "GitHub API",
+      "Live Data",
+      "Visualization",
+      "Developer"
+    ],
+    "path": "projects/github/",
+    "thumbnail": "thumbnails/github.png"
   },
   {
     "id": "wikipedia",
     "title": "Wiki Live",
     "description": "Real-time Wikipedia edit stream via Server-Sent Events. Watch every edit across all language Wikipedias as it happens.",
-    "tags": ["SSE", "Wikimedia API", "Live Data", "Stream"],
-    "path": "projects/wikipedia/"
+    "tags": [
+      "SSE",
+      "Wikimedia API",
+      "Live Data",
+      "Stream"
+    ],
+    "path": "projects/wikipedia/",
+    "thumbnail": "thumbnails/wikipedia.png"
   },
   {
     "id": "radio",
     "title": "Radio Globe",
     "description": "Explore and stream live internet radio from around the world. Browse 30,000+ stations by country, genre, or search with an interactive map.",
-    "tags": ["RadioBrowser API", "Leaflet", "Web Audio", "Live Data"],
-    "path": "projects/radio/"
+    "tags": [
+      "RadioBrowser API",
+      "Leaflet",
+      "Web Audio",
+      "Live Data"
+    ],
+    "path": "projects/radio/",
+    "thumbnail": "thumbnails/radio.png"
   },
   {
     "id": "books",
     "title": "Open Library Explorer",
     "description": "Search millions of books with cover art, author info, ratings, and descriptions. Browse 14 subjects with detail modals via Open Library API.",
-    "tags": ["Open Library API", "Books", "Search", "Live Data"],
-    "path": "projects/books/"
+    "tags": [
+      "Open Library API",
+      "Books",
+      "Search",
+      "Live Data"
+    ],
+    "path": "projects/books/",
+    "thumbnail": "thumbnails/books.png"
   },
   {
     "id": "art",
     "title": "Art Atlas",
     "description": "Explore 300,000+ artworks from the Art Institute of Chicago with high-res IIIF images, 12 curated categories, search, and detailed artwork modals.",
-    "tags": ["AIC API", "IIIF", "Art", "Search"],
-    "path": "projects/art/"
+    "tags": [
+      "AIC API",
+      "IIIF",
+      "Art",
+      "Search"
+    ],
+    "path": "projects/art/",
+    "thumbnail": "thumbnails/art.png"
   },
   {
     "id": "nations",
     "title": "Nation Pulse",
     "description": "Explore 250 countries with flags, population, area, languages, currencies, Gini index, border navigation, region filters, sorting, and side-by-side comparison.",
-    "tags": ["REST Countries API", "Dashboard", "Data Viz", "Search"],
-    "path": "projects/nations/"
+    "tags": [
+      "REST Countries API",
+      "Dashboard",
+      "Data Viz",
+      "Search"
+    ],
+    "path": "projects/nations/",
+    "thumbnail": "thumbnails/nations.png"
   },
   {
     "id": "nobel",
     "title": "Nobel Pulse",
     "description": "Nobel Prize explorer with 900+ laureates from 1901–present, category filters, interactive timeline, country analytics, motivation search, and detailed laureate profiles.",
-    "tags": ["Nobel Prize API", "Data Viz", "Dashboard", "Search"],
-    "path": "projects/nobel/"
+    "tags": [
+      "Nobel Prize API",
+      "Data Viz",
+      "Dashboard",
+      "Search"
+    ],
+    "path": "projects/nobel/",
+    "thumbnail": "thumbnails/nobel.png"
   },
   {
     "id": "brightonhub",
     "title": "Brighton Hub",
     "description": "Live city dashboard for Brighton & Hove with real-time transport, environment, crime, housing, health, events, and schools data.",
-    "tags": ["Next.js", "Dashboard", "Data Viz", "Live Data"],
+    "tags": [
+      "Next.js",
+      "Dashboard",
+      "Data Viz",
+      "Live Data"
+    ],
     "path": "https://brightonhub.ai",
     "thumbnail": "thumbnails/brightonhub.png"
   }

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" preserveAspectRatio="none">
+  <defs>
+    <filter id="cloud-noise">
+      <feTurbulence type="fractalNoise" baseFrequency="0.014 0.04" numOctaves="4" seed="17" />
+      <feColorMatrix type="matrix" values="
+        1 0 0 0 0
+        0 1 0 0 0
+        0 0 1 0 0
+        0 0 0 1.45 -0.3" />
+      <feGaussianBlur stdDeviation="0.9" />
+    </filter>
+    <linearGradient id="band" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0)" />
+      <stop offset="18%" stop-color="rgba(255,255,255,0.2)" />
+      <stop offset="52%" stop-color="rgba(255,255,255,0.72)" />
+      <stop offset="84%" stop-color="rgba(255,255,255,0.22)" />
+      <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="600" fill="rgba(255,255,255,0.04)" />
+  <rect width="1200" height="600" filter="url(#cloud-noise)" opacity="0.9" fill="url(#band)" />
+  <g fill="rgba(255,255,255,0.22)">
+    <ellipse cx="180" cy="160" rx="120" ry="38" />
+    <ellipse cx="408" cy="242" rx="170" ry="48" />
+    <ellipse cx="670" cy="152" rx="146" ry="44" />
+    <ellipse cx="930" cy="264" rx="192" ry="56" />
+    <ellipse cx="1068" cy="134" rx="90" ry="28" />
+    <ellipse cx="250" cy="434" rx="174" ry="52" />
+    <ellipse cx="590" cy="404" rx="214" ry="60" />
+    <ellipse cx="948" cy="438" rx="184" ry="58" />
+  </g>
+</svg>

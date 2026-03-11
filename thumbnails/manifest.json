@@ -1,0 +1,215 @@
+{
+  "version": 1,
+  "projects": [
+    {
+      "id": "fluid",
+      "motif": "field",
+      "theme": "generative"
+    },
+    {
+      "id": "raymarch",
+      "motif": "mesh",
+      "theme": "generative"
+    },
+    {
+      "id": "fractal",
+      "motif": "mesh",
+      "theme": "generative"
+    },
+    {
+      "id": "terrain",
+      "motif": "field",
+      "theme": "generative"
+    },
+    {
+      "id": "metaballs",
+      "motif": "field",
+      "theme": "generative"
+    },
+    {
+      "id": "reaction",
+      "motif": "field",
+      "theme": "generative"
+    },
+    {
+      "id": "life",
+      "motif": "field",
+      "theme": "generative"
+    },
+    {
+      "id": "waves",
+      "motif": "field",
+      "theme": "generative"
+    },
+    {
+      "id": "cloth",
+      "motif": "panels",
+      "theme": "web"
+    },
+    {
+      "id": "pendulum",
+      "motif": "panels",
+      "theme": "web"
+    },
+    {
+      "id": "gravity",
+      "motif": "panels",
+      "theme": "web"
+    },
+    {
+      "id": "particlelife",
+      "motif": "panels",
+      "theme": "web"
+    },
+    {
+      "id": "boids",
+      "motif": "panels",
+      "theme": "web"
+    },
+    {
+      "id": "lorenz",
+      "motif": "field",
+      "theme": "generative"
+    },
+    {
+      "id": "earth",
+      "motif": "globe",
+      "theme": "geo"
+    },
+    {
+      "id": "abalone",
+      "motif": "hex",
+      "theme": "game"
+    },
+    {
+      "id": "shoothemup",
+      "motif": "arcade",
+      "theme": "game"
+    },
+    {
+      "id": "piano",
+      "motif": "waveform",
+      "theme": "music"
+    },
+    {
+      "id": "violin",
+      "motif": "waveform",
+      "theme": "music"
+    },
+    {
+      "id": "audiovis",
+      "motif": "waveform",
+      "theme": "music"
+    },
+    {
+      "id": "iss",
+      "motif": "orbit",
+      "theme": "space"
+    },
+    {
+      "id": "aurora",
+      "motif": "orbit",
+      "theme": "space"
+    },
+    {
+      "id": "solar",
+      "motif": "orbit",
+      "theme": "space"
+    },
+    {
+      "id": "asteroids",
+      "motif": "orbit",
+      "theme": "space"
+    },
+    {
+      "id": "launches",
+      "motif": "launch",
+      "theme": "space"
+    },
+    {
+      "id": "earthquake",
+      "motif": "globe",
+      "theme": "geo"
+    },
+    {
+      "id": "weather",
+      "motif": "contours",
+      "theme": "geo"
+    },
+    {
+      "id": "airquality",
+      "motif": "contours",
+      "theme": "geo"
+    },
+    {
+      "id": "ocean",
+      "motif": "contours",
+      "theme": "geo"
+    },
+    {
+      "id": "tides",
+      "motif": "orbit",
+      "theme": "space"
+    },
+    {
+      "id": "rivers",
+      "motif": "contours",
+      "theme": "geo"
+    },
+    {
+      "id": "crypto",
+      "motif": "candles",
+      "theme": "finance"
+    },
+    {
+      "id": "forex",
+      "motif": "candles",
+      "theme": "finance"
+    },
+    {
+      "id": "hackernews",
+      "motif": "hex",
+      "theme": "game"
+    },
+    {
+      "id": "github",
+      "motif": "cards",
+      "theme": "dashboard"
+    },
+    {
+      "id": "wikipedia",
+      "motif": "cards",
+      "theme": "dashboard"
+    },
+    {
+      "id": "radio",
+      "motif": "globe",
+      "theme": "geo"
+    },
+    {
+      "id": "books",
+      "motif": "grid",
+      "theme": "dashboard"
+    },
+    {
+      "id": "art",
+      "motif": "panels",
+      "theme": "web"
+    },
+    {
+      "id": "nations",
+      "motif": "hex",
+      "theme": "game"
+    },
+    {
+      "id": "nobel",
+      "motif": "hex",
+      "theme": "game"
+    },
+    {
+      "id": "brightonhub",
+      "motif": "hex",
+      "theme": "game"
+    }
+  ]
+}
