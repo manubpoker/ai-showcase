@@ -1,4 +1,4 @@
-import { WORLD_CITIES } from "../../projects/liveearth/constants.js";
+import { WORLD_CITIES } from "../../../projects/liveearth/constants.js";
 
 const CITY_COORDS = {
   latitudes: WORLD_CITIES.map((city) => city.lat).join(","),

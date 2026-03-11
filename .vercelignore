@@ -1,0 +1,7 @@
+AI/
+.playwright-mcp/
+test-results/
+.git/
+*.zip
+*.mov
+*.pth

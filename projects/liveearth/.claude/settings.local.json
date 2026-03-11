@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Read(//c/Users/manue/Desktop/Work/AI/showcase/projects/**)"
+      "Read(//c/Users/manue/Desktop/Work/AI/showcase/projects/**)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npx vercel:*)",
+      "Bash(cd ../../ && ls -d */ | while read d; do du -sh \"$d\" 2>/dev/null; done)",
+      "Bash(cd ../../ && powershell -Command \"Get-ChildItem -Directory | ForEach-Object { $size = \\(Get-ChildItem $_.FullName -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum\\).Sum; '{0:N0} MB  {1}' -f \\($size/1MB\\), $_.Name }\")",
+      "Bash(ls -la ../../.playwright-mcp/ 2>/dev/null | wc -l; wc -c ../../.playwright-mcp/* 2>/dev/null | tail -1)",
+      "Bash(find ../../api -name '*.js' 2>/dev/null | sort)",
+      "Bash(git add:*)"
     ]
   }
 }
