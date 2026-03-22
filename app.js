@@ -12,8 +12,11 @@
   }
 
   function render(items) {
-    grid.innerHTML = items.map((p, i) => `
-      <div class="tile${p.thumbnail ? '' : ' no-thumb'}" data-id="${p.id}">
+    grid.innerHTML = items.map((p, i) => {
+      const num = String(i + 1).padStart(2, '0');
+      const accent = p.accent || '#4d9fff';
+      return `
+      <div class="tile${p.thumbnail ? '' : ' no-thumb'}" data-id="${p.id}" style="--accent: ${accent}">
         <div class="tile-inner">
           <div class="tile-front">
             ${p.thumbnail
@@ -22,18 +25,24 @@
             <div class="tile-label"><span>${p.title}</span></div>
           </div>
           <div class="tile-back">
+            ${p.thumbnail ? `<img class="tile-back-bg" src="${p.thumbnail}" alt="" aria-hidden="true">` : ''}
+            <div class="tile-back-overlay"></div>
+            <div class="tile-back-number">${num}</div>
             <button class="tile-back-close" aria-label="Flip back">&times;</button>
-            <h3 class="tile-back-title">${p.title}</h3>
-            <p class="tile-back-desc">${p.description}</p>
-            <div class="tile-back-tags">
-              ${p.tags.map(t => `<span class="tile-back-tag">${t}</span>`).join('')}
+            <div class="tile-back-content">
+              <div class="tile-back-line"></div>
+              <h3 class="tile-back-title">${p.title}</h3>
+              <p class="tile-back-desc">${p.description}</p>
+              <div class="tile-back-tags">
+                ${p.tags.map(t => `<span class="tile-back-tag">${t}</span>`).join('')}
+              </div>
+              <a class="tile-back-launch" href="${p.path}" target="_blank" rel="noopener"
+                 onclick="event.stopPropagation()">Launch Project &rarr;</a>
             </div>
-            <a class="tile-back-launch" href="${p.path}" target="_blank" rel="noopener"
-               onclick="event.stopPropagation()">Launch Project &rarr;</a>
           </div>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   }
 
   // Scroll animations
@@ -66,7 +75,6 @@
       return;
     }
 
-    // Don't flip if clicking the launch link
     if (e.target.closest('.tile-back-launch')) return;
 
     tile.classList.toggle('flipped');

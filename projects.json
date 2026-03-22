@@ -10,7 +10,8 @@
       "WebGL"
     ],
     "path": "projects/abalone/",
-    "thumbnail": "thumbnails/abalone.png"
+    "thumbnail": "thumbnails/abalone.png",
+    "accent": "#b068e0"
   },
   {
     "id": "piano",
@@ -23,7 +24,8 @@
       "3D"
     ],
     "path": "projects/piano/",
-    "thumbnail": "thumbnails/piano.png"
+    "thumbnail": "thumbnails/piano.png",
+    "accent": "#00d4aa"
   },
   {
     "id": "liveearth",
@@ -36,7 +38,8 @@
       "Real-time"
     ],
     "path": "https://showcase-seven-drab.vercel.app/projects/liveearth/",
-    "thumbnail": "thumbnails/liveearth.png"
+    "thumbnail": "thumbnails/liveearth.png",
+    "accent": "#4d9fff"
   },
   {
     "id": "brightonhub",
@@ -49,6 +52,7 @@
       "Live Data"
     ],
     "path": "https://brightonhub.ai",
-    "thumbnail": "thumbnails/brightonhub.png"
+    "thumbnail": "thumbnails/brightonhub.png",
+    "accent": "#ff6b6b"
   }
 ]
