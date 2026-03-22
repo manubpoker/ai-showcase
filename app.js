@@ -1,12 +1,6 @@
 (() => {
   const grid = document.getElementById('grid');
   const btt = document.getElementById('btt');
-  const modal = document.getElementById('modal');
-  const modalImg = document.getElementById('modal-img');
-  const modalTitle = document.getElementById('modal-title');
-  const modalDesc = document.getElementById('modal-desc');
-  const modalTags = document.getElementById('modal-tags');
-  const modalLaunch = document.getElementById('modal-launch');
 
   let projects = [];
 
@@ -20,10 +14,24 @@
   function render(items) {
     grid.innerHTML = items.map((p, i) => `
       <div class="tile${p.thumbnail ? '' : ' no-thumb'}" data-id="${p.id}">
-        ${p.thumbnail
-          ? `<img src="${p.thumbnail}" alt="${p.title}" loading="lazy">`
-          : `<div class="tile-fallback" data-color="${i % 9}"></div>`}
-        <div class="tile-label"><span>${p.title}</span></div>
+        <div class="tile-inner">
+          <div class="tile-front">
+            ${p.thumbnail
+              ? `<img src="${p.thumbnail}" alt="${p.title}" loading="lazy">`
+              : `<div class="tile-fallback" data-color="${i % 9}"></div>`}
+            <div class="tile-label"><span>${p.title}</span></div>
+          </div>
+          <div class="tile-back">
+            <button class="tile-back-close" aria-label="Flip back">&times;</button>
+            <h3 class="tile-back-title">${p.title}</h3>
+            <p class="tile-back-desc">${p.description}</p>
+            <div class="tile-back-tags">
+              ${p.tags.map(t => `<span class="tile-back-tag">${t}</span>`).join('')}
+            </div>
+            <a class="tile-back-launch" href="${p.path}" target="_blank" rel="noopener"
+               onclick="event.stopPropagation()">Launch Project &rarr;</a>
+          </div>
+        </div>
       </div>
     `).join('');
   }
@@ -46,41 +54,22 @@
     });
   }
 
-  // Modal
-  function openModal(project) {
-    modalImg.src = project.thumbnail || '';
-    modalImg.alt = project.title;
-    modalImg.style.display = project.thumbnail ? '' : 'none';
-    modalTitle.textContent = project.title;
-    modalDesc.textContent = project.description;
-    modalTags.innerHTML = project.tags
-      .map(t => `<span class="modal-tag">${t}</span>`)
-      .join('');
-    modalLaunch.href = project.path;
-    modal.classList.add('open');
-    document.body.style.overflow = 'hidden';
-  }
-
-  function closeModal() {
-    modal.classList.remove('open');
-    document.body.style.overflow = '';
-  }
-
+  // Card flip
   grid.addEventListener('click', (e) => {
+    const closeBtn = e.target.closest('.tile-back-close');
     const tile = e.target.closest('.tile');
     if (!tile) return;
-    const project = projects.find(p => p.id === tile.dataset.id);
-    if (project) openModal(project);
-  });
 
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal || e.target.closest('.modal-close')) {
-      closeModal();
+    if (closeBtn) {
+      e.stopPropagation();
+      tile.classList.remove('flipped');
+      return;
     }
-  });
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
+    // Don't flip if clicking the launch link
+    if (e.target.closest('.tile-back-launch')) return;
+
+    tile.classList.toggle('flipped');
   });
 
   // Back to top
