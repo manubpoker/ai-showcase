@@ -57,18 +57,30 @@ async function parseBody(req) {
 
 async function handleApiRequest(req, res, url) {
   const relative = url.pathname.replace(/^\/api\//, "");
-  const modulePath = path.join(rootDir, "api", `${relative}.js`);
+  let modulePath = path.join(rootDir, "api", `${relative}.js`);
+  let routeParam = null;
 
   try {
     await stat(modulePath);
   } catch {
-    res.statusCode = 404;
-    res.end(JSON.stringify({ error: "API route not found" }));
-    return;
+    const parts = relative.split("/").filter(Boolean);
+    const route = parts.pop();
+    const dynamicModulePath = path.join(rootDir, "api", ...parts, "[route].js");
+
+    try {
+      await stat(dynamicModulePath);
+      modulePath = dynamicModulePath;
+      routeParam = route;
+    } catch {
+      res.statusCode = 404;
+      res.end(JSON.stringify({ error: "API route not found" }));
+      return;
+    }
   }
 
   const handlerModule = await import(pathToFileURL(modulePath).href);
   const query = Object.fromEntries(url.searchParams.entries());
+  if (routeParam && query.route == null) query.route = routeParam;
   const body = req.method === "POST" ? await parseBody(req) : null;
   const request = { method: req.method, query, body, headers: req.headers, url: req.url };
   const response = createResponseBridge(res);
