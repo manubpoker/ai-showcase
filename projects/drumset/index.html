@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='26' fill='%23101618' stroke='%23e4bd52' stroke-width='8'/%3E%3Cpath d='M32 8v48' stroke='%2342d2b7' stroke-width='6'/%3E%3C/svg%3E" />
+    <title>Drumset Studio</title>
+    <script type="module" crossorigin src="./assets/index-Bz1EO1b1.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CYFN-F_V.css">
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="stage" aria-label="Interactive 3D drumset"></canvas>
+
+      <div class="ui-shell">
+        <header class="topbar panel">
+          <div class="brand-lockup">
+            <span class="brand-mark"></span>
+            <div>
+              <h1>Drumset Studio</h1>
+              <p id="soundStatus">Loading studio kit</p>
+            </div>
+          </div>
+
+          <div class="transport" aria-label="Transport controls">
+            <button id="playToggle" class="icon-button primary" type="button" aria-label="Play" title="Play">
+              <i data-lucide="play"></i>
+            </button>
+            <button id="stopButton" class="icon-button" type="button" aria-label="Stop" title="Stop">
+              <i data-lucide="square"></i>
+            </button>
+            <button id="clearButton" class="icon-button" type="button" aria-label="Clear pattern" title="Clear pattern">
+              <i data-lucide="eraser"></i>
+            </button>
+            <button id="fillButton" class="icon-button" type="button" aria-label="Generate fill" title="Generate fill">
+              <i data-lucide="sparkles"></i>
+            </button>
+          </div>
+
+          <label class="bpm-control">
+            <span>BPM</span>
+            <input id="bpmSlider" type="range" min="72" max="188" value="116" />
+            <output id="bpmValue">116</output>
+          </label>
+        </header>
+
+        <aside class="library panel" aria-label="Libraries">
+          <section>
+            <div class="section-heading">
+              <h2>Full Songs</h2>
+              <span id="activeSongName">Loading</span>
+            </div>
+            <div id="fullSongLibrary" class="library-list song-list"></div>
+          </section>
+
+          <section>
+            <div class="section-heading">
+              <h2>Patterns</h2>
+              <span id="activePatternName">Arena Rock</span>
+            </div>
+            <div id="patternLibrary" class="library-list"></div>
+          </section>
+
+          <section>
+            <div class="section-heading">
+              <h2>Performances</h2>
+              <span id="activePerformanceName">Ready</span>
+            </div>
+            <div id="performanceLibrary" class="library-list"></div>
+          </section>
+        </aside>
+
+        <aside class="right-rail" aria-label="Studio tools">
+          <section class="mixer panel" aria-label="Mixer">
+            <div class="section-heading">
+              <h2>Mixer</h2>
+              <span>Studio Bus</span>
+            </div>
+            <label class="fader">
+              <span>Master</span>
+              <input id="masterSlider" type="range" min="0" max="100" value="82" />
+            </label>
+            <label class="fader">
+              <span>Room</span>
+              <input id="roomSlider" type="range" min="0" max="100" value="34" />
+            </label>
+            <label class="fader">
+              <span>Punch</span>
+              <input id="punchSlider" type="range" min="0" max="100" value="55" />
+            </label>
+            <label class="fader">
+              <span>Swing</span>
+              <input id="swingSlider" type="range" min="0" max="55" value="8" />
+            </label>
+            <label class="fader">
+              <span>Human</span>
+              <input id="humanSlider" type="range" min="0" max="35" value="9" />
+            </label>
+            <p class="credit">
+              Samples: Pearl Master Studio Pack 1, CC BY 3.0. Songs: Groove MIDI Dataset, CC BY 4.0.
+            </p>
+          </section>
+
+          <section class="motion-panel panel" aria-label="Motion config">
+            <div class="motion-head">
+              <div class="section-heading">
+                <h2>Motion</h2>
+                <span>Hands & Sticks</span>
+              </div>
+              <button id="motionReset" class="icon-button" type="button" aria-label="Reset motion" title="Reset motion">
+                <i data-lucide="rotate-ccw"></i>
+              </button>
+            </div>
+            <label class="fader motion-fader">
+              <span>Hand Amp</span>
+              <input id="handAmplitudeSlider" type="range" min="25" max="200" value="100" />
+              <output id="handAmplitudeValue">100%</output>
+            </label>
+            <label class="fader motion-fader">
+              <span>Hand Range</span>
+              <input id="handRangeSlider" type="range" min="25" max="200" value="100" />
+              <output id="handRangeValue">100%</output>
+            </label>
+            <label class="fader motion-fader">
+              <span>Stick Amp</span>
+              <input id="stickAmplitudeSlider" type="range" min="25" max="200" value="100" />
+              <output id="stickAmplitudeValue">100%</output>
+            </label>
+            <label class="fader motion-fader">
+              <span>Stick Range</span>
+              <input id="stickRangeSlider" type="range" min="25" max="200" value="100" />
+              <output id="stickRangeValue">100%</output>
+            </label>
+          </section>
+
+        </aside>
+
+        <section class="sequencer panel" aria-label="Step sequencer">
+          <div class="sequencer-head">
+            <div>
+              <h2>Step Grid</h2>
+              <span id="modeLabel">Pattern loop</span>
+            </div>
+            <div class="step-count" aria-hidden="true">
+              <span>1</span><span>5</span><span>9</span><span>13</span>
+            </div>
+          </div>
+          <div id="stepGrid" class="step-grid"></div>
+        </section>
+      </div>
+    </div>
+
+  </body>
+</html>

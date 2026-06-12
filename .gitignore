@@ -8,3 +8,5 @@ Thumbs.db
 .env*.local
 test-results/
 projects/nul
+output/
+/showcase-*.png

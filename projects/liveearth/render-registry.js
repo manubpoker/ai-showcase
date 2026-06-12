@@ -1,3 +1,5 @@
+let markerStaggerCounter = 0;
+
 export function createRenderRegistry(globe) {
   const buckets = {
     html: new Map(),
@@ -39,6 +41,10 @@ export function createRenderRegistry(globe) {
         element.dataset.markerAltitude = String(marker.htmlAltitude ?? 0.07);
         element.dataset.markerLat = String(marker.lat);
         element.dataset.markerLng = String(marker.lng);
+        if (!element.classList.contains("le-marker")) {
+          element.classList.add("le-marker");
+          element.style.setProperty("--le-stagger", String(markerStaggerCounter++ % 9));
+        }
       }
       return element;
     });

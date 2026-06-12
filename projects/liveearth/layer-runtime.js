@@ -5,6 +5,7 @@ function createDefaultState(meta) {
   return {
     enabled: false,
     error: null,
+    generation: 0,
     initialized: false,
     lastFetchedAt: 0,
     lastGoodData: null,
@@ -37,6 +38,27 @@ export function createLayerRuntime({ layers, context, onStatusChange }) {
     emit(layerId);
   }
 
+  function bumpGeneration(state) {
+    state.generation = (state.generation || 0) + 1;
+    return state.generation;
+  }
+
+  function isCurrent(state, generation) {
+    return Boolean(state?.enabled && state.generation === generation);
+  }
+
+  function isCurrentRefresh(state, generation, controller) {
+    return isCurrent(state, generation)
+      && state.abortController === controller
+      && !controller.signal.aborted;
+  }
+
+  async function cleanupStaleDisabledLayer(meta, definition, state) {
+    if (state.enabled) return;
+    await definition?.onDisable?.({ context, meta, state, runtime: api });
+    context.renderRegistry.clearLayer(meta.id);
+  }
+
   function clearTimer(layerId) {
     const state = states.get(layerId);
     if (state.timer) {
@@ -63,21 +85,29 @@ export function createLayerRuntime({ layers, context, onStatusChange }) {
     });
   }
 
-  async function applyPayload(meta, definition, state, payload, freshness = "ready") {
+  async function applyPayload(meta, definition, state, payload, freshness, generation, controller) {
+    if (!isCurrentRefresh(state, generation, controller)) return false;
     state.lastGoodData = payload;
     if (definition.source?.key) {
       persistAdapterSnapshot(definition.source, payload);
     }
     state.lastFetchedAt = Date.now();
     await definition.applyData?.({ context, freshness, meta, payload, runtime: api, state });
+    if (!isCurrentRefresh(state, generation, controller)) {
+      await cleanupStaleDisabledLayer(meta, definition, state);
+      return false;
+    }
+    return true;
   }
 
   async function refreshLayer(layerId, reason = "poll") {
     const meta = layers.find((entry) => entry.id === layerId);
     const state = states.get(layerId);
     if (!meta || !state.enabled) return;
+    const generation = state.generation;
 
     const module = await ensureModule(meta);
+    if (!isCurrent(state, generation)) return;
     const definition = module.layerDefinition;
     const controller = new AbortController();
 
@@ -87,11 +117,13 @@ export function createLayerRuntime({ layers, context, onStatusChange }) {
 
     try {
       const rawPayload = await runLoader(meta, definition, state, controller.signal);
+      if (!isCurrentRefresh(state, generation, controller)) return;
       const payload = definition.source?.normalize ? definition.source.normalize(rawPayload) : rawPayload;
-      await applyPayload(meta, definition, state, payload);
+      const applied = await applyPayload(meta, definition, state, payload, "ready", generation, controller);
+      if (!applied) return;
       setStatus(layerId, "ready");
     } catch (error) {
-      if (controller.signal.aborted) return;
+      if (!isCurrentRefresh(state, generation, controller)) return;
 
       if (state.lastGoodData) {
         await definition.applyData?.({
@@ -102,12 +134,18 @@ export function createLayerRuntime({ layers, context, onStatusChange }) {
           runtime: api,
           state,
         });
+        if (!isCurrentRefresh(state, generation, controller)) {
+          await cleanupStaleDisabledLayer(meta, definition, state);
+          return;
+        }
         setStatus(layerId, "degraded", error);
       } else {
         setStatus(layerId, "error", error);
       }
     } finally {
-      schedule(meta);
+      if (isCurrentRefresh(state, generation, controller)) {
+        schedule(meta);
+      }
     }
   }
 
@@ -123,10 +161,11 @@ export function createLayerRuntime({ layers, context, onStatusChange }) {
     }, definition.pollMs);
   }
 
-  async function hydrateFromCache(meta, definition, state) {
+  async function hydrateFromCache(meta, definition, state, generation) {
     if (!definition.source?.key) return;
     const snapshot = loadAdapterSnapshot(definition.source);
     if (!snapshot || snapshot.status === "expired") return;
+    if (!isCurrent(state, generation)) return;
     state.lastGoodData = snapshot.snapshot.payload;
     state.lastFetchedAt = snapshot.snapshot.fetchedAt;
     await definition.applyData?.({
@@ -137,6 +176,10 @@ export function createLayerRuntime({ layers, context, onStatusChange }) {
       runtime: api,
       state,
     });
+    if (!isCurrent(state, generation)) {
+      await cleanupStaleDisabledLayer(meta, definition, state);
+      return;
+    }
     setStatus(meta.id, snapshot.status === "fresh" ? "ready" : "stale");
   }
 
@@ -145,17 +188,28 @@ export function createLayerRuntime({ layers, context, onStatusChange }) {
     const state = states.get(layerId);
     if (!meta || state.enabled) return;
     state.enabled = true;
+    const generation = bumpGeneration(state);
     setStatus(layerId, state.lastGoodData ? "ready" : "loading");
 
     const module = await ensureModule(meta);
+    if (!isCurrent(state, generation)) return;
     const definition = module.layerDefinition;
 
     if (!state.initialized) {
-      await hydrateFromCache(meta, definition, state);
+      await hydrateFromCache(meta, definition, state, generation);
+      if (!isCurrent(state, generation)) return;
       await definition.onEnable?.({ context, meta, state, runtime: api });
+      if (!isCurrent(state, generation)) {
+        await cleanupStaleDisabledLayer(meta, definition, state);
+        return;
+      }
       state.initialized = true;
     } else {
       await definition.onResume?.({ context, meta, state, runtime: api });
+      if (!isCurrent(state, generation)) {
+        await cleanupStaleDisabledLayer(meta, definition, state);
+        return;
+      }
     }
 
     const ttlMs = definition.ttlMs ?? 0;
@@ -172,6 +226,10 @@ export function createLayerRuntime({ layers, context, onStatusChange }) {
           runtime: api,
           state,
         });
+        if (!isCurrent(state, generation)) {
+          await cleanupStaleDisabledLayer(meta, definition, state);
+          return;
+        }
       }
       schedule(meta);
       emit(layerId);
@@ -184,10 +242,13 @@ export function createLayerRuntime({ layers, context, onStatusChange }) {
     if (!meta || !state.enabled) return;
 
     state.enabled = false;
+    const generation = bumpGeneration(state);
     clearTimer(layerId);
     state.abortController?.abort();
+    state.abortController = null;
     const definition = state.module?.layerDefinition;
     await definition?.onDisable?.({ context, meta, state, runtime: api });
+    if (state.enabled || state.generation !== generation) return;
     context.renderRegistry.clearLayer(layerId);
     setStatus(layerId, "idle");
   }
@@ -243,7 +304,7 @@ export function createLayerRuntime({ layers, context, onStatusChange }) {
       const meta = layers.find((entry) => entry.id === layerId);
       const state = states.get(layerId);
       const definition = state?.module?.layerDefinition;
-      if (!meta || !state?.lastGoodData || !definition?.applyData) return;
+      if (!meta || !state?.enabled || !state?.lastGoodData || !definition?.applyData) return;
       await definition.applyData({
         context,
         freshness,

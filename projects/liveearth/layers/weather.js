@@ -6,21 +6,19 @@ function buildMarker(context, weather, state) {
   const existing = state.elements.get(weather.name);
   const tempColor = weather.temp != null ? d3.interpolateRdYlBu(1 - (weather.temp + 20) / 65) : "#94a3b8";
 
-  if (existing) {
-    existing.innerHTML = `<div style="width:24px;height:24px;border-radius:50%;background:${tempColor};margin:0 auto 3px;box-shadow:0 0 12px ${tempColor}"></div><span style="font-size:27px">${weather.temp != null ? `${Math.round(weather.temp)}°` : "?"}</span>`;
-  }
-
   const element = existing || (() => {
     const node = document.createElement("div");
-    node.style.cssText = "font-size:30px;color:white;text-align:center;cursor:pointer;text-shadow:0 2px 6px rgba(0,0,0,0.8)";
+    node.className = "weather-chip";
     node.addEventListener("mouseenter", () => {
       context.globe.controls().autoRotate = false;
-      const description = WMO_CODES[weather.weatherCode] || "Unknown";
-      const wind = weather.windSpeed != null ? `${weather.windSpeed.toFixed(0)} km/h` : "";
-      const windDir = weather.windDir != null ? ` · ${weather.windDir}°` : "";
+      const current = node.__weather;
+      const title = [current?.name || "Weather", current?.country].filter(Boolean).join(", ");
+      const description = WMO_CODES[current?.weatherCode] || "Unknown";
+      const wind = current?.windSpeed != null ? `${current.windSpeed.toFixed(0)} km/h` : "";
+      const windDir = current?.windDir != null ? ` · ${current.windDir}°` : "";
       context.showHover(
-        `${weather.name}, ${weather.country}`,
-        weather.temp != null ? `${weather.temp.toFixed(1)}°C` : "No data",
+        title,
+        current?.temp != null ? `${current.temp.toFixed(1)}°C` : "No data",
         description + (wind ? ` · Wind ${wind}${windDir}` : "")
       );
     });
@@ -31,7 +29,9 @@ function buildMarker(context, weather, state) {
     return node;
   })();
 
-  element.innerHTML = `<div style="width:24px;height:24px;border-radius:50%;background:${tempColor};margin:0 auto 3px;box-shadow:0 0 12px ${tempColor}"></div><span style="font-size:27px">${weather.temp != null ? `${Math.round(weather.temp)}°` : "?"}</span>`;
+  element.__weather = weather;
+  element.style.setProperty("--chip-color", tempColor);
+  element.innerHTML = `<span class="weather-chip__pill"><span class="weather-chip__dot"></span><span class="weather-chip__temp">${weather.temp != null ? `${Math.round(weather.temp)}°` : "–"}</span></span>`;
   state.elements.set(weather.name, element);
 
   return {

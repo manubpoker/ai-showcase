@@ -361,8 +361,9 @@ const sharedState = {
     atmosphereGlowMode: "aurora",
     cinematicPulseMode: false,
     cloudsAltitude: 0.17,
-    cloudsEnabled: false,
+    cloudsEnabled: true,
     geomagneticReactiveMode: false,
+    nightLightsEnabled: true,
     hydroReactiveMode: false,
     rotateSpeed: 0.4,
     orbitalReactiveMode: false,
@@ -538,16 +539,32 @@ function normalizeVector(vector) {
   };
 }
 
+function shaderSunVector(subsolar) {
+  return normalizeVector(globeVectorForLatLng(subsolar.lat, subsolar.lng, 920));
+}
+
 function applyDaylightLighting(effect = null) {
   const shaderState = ensureDaylightShader();
+  const layerActive = Boolean(effect?.enabled && effect?.subsolar);
   if (shaderState) {
-    shaderState.uniforms.enabled.value = effect?.enabled && effect?.subsolar ? 1 : 0;
+    /* the terminator is always on — the daylight layer deepens it */
+    shaderState.uniforms.enabled.value = 1;
+    if (layerActive) {
+      shaderState.uniforms.nightFloor.value = 0.08;
+      shaderState.uniforms.softness.value = 0.18;
+      shaderState.uniforms.sunBoost.value = 0.26;
+    } else {
+      shaderState.uniforms.nightFloor.value = 0.26;
+      shaderState.uniforms.softness.value = 0.32;
+      shaderState.uniforms.sunBoost.value = 0.1;
+      Object.assign(shaderState.uniforms.sunDirection.value, shaderSunVector(getSubsolarPointNow()));
+    }
   }
 
   const lighting = ensureGlobeLighting();
   if (!lighting) return;
 
-  if (!effect?.enabled || !effect.subsolar || typeof globe.getCoords !== "function") {
+  if (!layerActive || typeof globe.getCoords !== "function") {
     lighting.ambient.intensity = lighting.defaults.ambientIntensity;
     lighting.sun.intensity = lighting.defaults.sunIntensity;
     lighting.sun.position.set(
@@ -558,18 +575,15 @@ function applyDaylightLighting(effect = null) {
     return;
   }
 
-  const sunVector = globeVectorForLatLng(effect.subsolar.lat, effect.subsolar.lng, 920);
+  const shaderSun = shaderSunVector(effect.subsolar);
 
-  if (shaderState && sunVector) {
-    Object.assign(shaderState.uniforms.sunDirection.value, normalizeVector(sunVector));
+  if (shaderState) {
+    Object.assign(shaderState.uniforms.sunDirection.value, shaderSun);
   }
 
   lighting.ambient.intensity = 0.72;
   lighting.sun.intensity = 2.35;
-
-  if (sunVector) {
-    lighting.sun.position.set(sunVector.x, sunVector.y, sunVector.z);
-  }
+  lighting.sun.position.set(shaderSun.x * 920, shaderSun.y * 920, shaderSun.z * 920);
 }
 
 function syncDaylightOverlay() {
@@ -630,11 +644,8 @@ function syncCloudOverlay(altitudeOverride = null) {
   const options = sharedState.displayOptions;
   const altitude = Number.isFinite(altitudeOverride) ? altitudeOverride : Number(options.cloudsAltitude);
   const normalizedAltitude = clamp((altitude - 0.08) / 0.27, 0, 1);
-  const baseSize = Math.min(globeContainer.clientWidth || window.innerWidth, globeContainer.clientHeight || window.innerHeight);
-  const focusScale = globeFocusScale();
-  const size = Math.max(220, baseSize * focusScale);
   const opacity = options.cloudsEnabled
-    ? clamp(0.18 + (normalizedAltitude * 0.2), 0.18, 0.48)
+    ? clamp(0.3 + (normalizedAltitude * 0.22), 0.3, 0.58)
     : 0;
   const reactiveBoost = options.cloudsEnabled
     ? clamp(
@@ -645,11 +656,200 @@ function syncCloudOverlay(altitudeOverride = null) {
     )
     : 0;
 
-  cloudOverlay.style.width = `${size}px`;
-  cloudOverlay.style.height = `${size}px`;
-  cloudOverlay.style.setProperty("--cloud-opacity", `${clamp(opacity + reactiveBoost, 0, 0.52)}`);
-  cloudOverlay.style.setProperty("--cloud-scale", `${(0.94 + (normalizedAltitude * 0.22)).toFixed(3)}`);
-  cloudOverlay.classList.toggle("visible", options.cloudsEnabled);
+  /* the legacy CSS overlay is retired — a real cloud sphere lives in the scene */
+  cloudOverlay.classList.remove("visible");
+  const extras = ensureSkyExtras();
+  if (extras?.clouds) {
+    extras.clouds.visible = options.cloudsEnabled;
+    extras.clouds.material.opacity = clamp(opacity + reactiveBoost, 0, 0.62);
+    extras.clouds.scale.setScalar(1.006 + normalizedAltitude * 0.045);
+  }
+}
+
+/* ── 3D sky extras: night city lights + a true rotating cloud sphere ──
+   Both ride as siblings of the globe mesh, inheriting its orientation,
+   so they stay registered with every texture preset. The night side is
+   an additive shader driven by the real subsolar point. */
+const skyExtras = { built: false, night: null, clouds: null, lastSunAt: 0, raf: 0, lastTick: 0, baseRotationY: 0 };
+
+function getSubsolarPointNow(date = new Date()) {
+  const rad = Math.PI / 180;
+  const julian = (date.getTime() / 86400000) + 2440587.5;
+  const d = julian - 2451545.0;
+  const g = ((357.529 + 0.98560028 * d) % 360 + 360) % 360;
+  const q = ((280.459 + 0.98564736 * d) % 360 + 360) % 360;
+  const L = ((q + 1.915 * Math.sin(g * rad) + 0.02 * Math.sin(2 * g * rad)) % 360 + 360) % 360;
+  const e = 23.439 - 0.00000036 * d;
+  const declination = Math.asin(Math.sin(e * rad) * Math.sin(L * rad)) / rad;
+  const rightAscension = ((Math.atan2(Math.cos(e * rad) * Math.sin(L * rad), Math.cos(L * rad)) / rad) + 360) % 360;
+  const eqTimeMinutes = (((q - rightAscension + 540) % 360) - 180) * 4;
+  const utcMinutes = date.getUTCHours() * 60 + date.getUTCMinutes() + date.getUTCSeconds() / 60;
+  const lng = normalizeLongitude(-(utcMinutes + eqTimeMinutes - 720) / 4);
+  return { lat: declination, lng };
+}
+
+function findGlobeSurfaceMesh() {
+  if (typeof globe.scene !== "function") return null;
+  const radius = (typeof globe.getGlobeRadius === "function" && globe.getGlobeRadius()) || 100;
+  let found = null;
+  globe.scene().traverse((object) => {
+    if (found || !object.isMesh) return;
+    const meshRadius = object.geometry?.parameters?.radius;
+    if (object.geometry?.type === "SphereGeometry" && Number.isFinite(meshRadius) && Math.abs(meshRadius - radius) < radius * 0.02) {
+      found = object;
+    }
+  });
+  return found;
+}
+
+function ensureSkyExtras() {
+  if (skyExtras.built) return skyExtras;
+  const surface = findGlobeSurfaceMesh();
+  if (!surface?.parent || !surface.material) return null;
+
+  /* Borrow the renderer's own classes from the live globe mesh — a second
+     three.js instance silently fails to render in globe.gl's pipeline. */
+  const MeshCtor = surface.constructor;
+  const MaterialCtor = surface.material.constructor;
+  const Vector3Ctor = surface.position.constructor;
+
+  const sunUniform = { value: new Vector3Ctor(1, 0, 0) };
+  skyExtras.sunUniform = sunUniform;
+  skyExtras.surface = surface;
+
+  const night = new MeshCtor(surface.geometry, new MaterialCtor({
+    color: 0x000000,
+    transparent: true,
+    blending: 2, // AdditiveBlending
+    depthWrite: false,
+    shininess: 0,
+  }));
+  night.material.emissive?.setHex?.(0x000000);
+  night.material.onBeforeCompile = (shader) => {
+    shader.uniforms.leSunDir = sunUniform;
+    shader.vertexShader = shader.vertexShader
+      .replace("#define PHONG", "#define PHONG\nvarying vec3 vLeWorldNormal;")
+      .replace(
+        "#include <beginnormal_vertex>",
+        "#include <beginnormal_vertex>\nvLeWorldNormal = normalize(mat3(modelMatrix) * objectNormal);",
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#define PHONG", "#define PHONG\nuniform vec3 leSunDir;\nvarying vec3 vLeWorldNormal;")
+      .replace(
+        "#include <dithering_fragment>",
+        `float leNight = smoothstep(0.10, -0.16, dot(normalize(vLeWorldNormal), normalize(leSunDir)));
+gl_FragColor.rgb *= leNight * 2.3;
+#include <dithering_fragment>`,
+      );
+  };
+  night.scale.setScalar(1.0015);
+  night.rotation.copy(surface.rotation);
+  night.renderOrder = 1;
+  night.visible = false;
+  surface.parent.add(night);
+
+  const clouds = new MeshCtor(surface.geometry, new MaterialCtor({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    shininess: 2,
+  }));
+  clouds.scale.setScalar(1.012);
+  clouds.rotation.copy(surface.rotation);
+  clouds.renderOrder = 2;
+  clouds.visible = false;
+  surface.parent.add(clouds);
+
+  skyExtras.built = true;
+  skyExtras.night = night;
+  skyExtras.clouds = clouds;
+  skyExtras.baseRotationY = surface.rotation.y;
+  updateSunDirection(true);
+  trySkyTextures();
+  syncSkyExtraOptions();
+  return skyExtras;
+}
+
+function trySkyTextures() {
+  if (skyExtras.texturesRequested || !skyExtras.built) return;
+  /* the globe's own day texture doubles as our template — it arrives async */
+  const template = skyExtras.surface?.material?.map;
+  if (!template) return;
+  skyExtras.texturesRequested = true;
+
+  const loadTexture = (url) => new Promise((resolve) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => {
+      /* fresh Texture (own Source) — clone() shares the Source with the day
+         map, so swapping .image would clobber every sharing texture */
+      const TextureCtor = template.constructor;
+      const texture = new TextureCtor(image);
+      if ("colorSpace" in template) texture.colorSpace = template.colorSpace;
+      else if ("encoding" in template) texture.encoding = template.encoding;
+      texture.anisotropy = template.anisotropy ?? 1;
+      texture.flipY = template.flipY;
+      texture.needsUpdate = true;
+      resolve(texture);
+    };
+    image.onerror = () => resolve(null);
+    image.src = url;
+  });
+
+  loadTexture("./textures/earth-night.jpg").then((texture) => {
+    if (!texture) return;
+    skyExtras.night.material.emissiveMap = texture;
+    skyExtras.night.material.emissive?.setHex?.(0xffffff);
+    skyExtras.night.material.needsUpdate = true;
+    syncSkyExtraOptions();
+  });
+  loadTexture("./textures/earth-clouds.png").then((texture) => {
+    if (!texture) return;
+    skyExtras.clouds.material.map = texture;
+    skyExtras.clouds.material.needsUpdate = true;
+    syncSkyExtraOptions();
+    syncCloudOverlay();
+  });
+}
+
+function updateSunDirection(force = false) {
+  if (!skyExtras.sunUniform) return;
+  const now = Date.now();
+  if (!force && now - skyExtras.lastSunAt < 30_000) return;
+  skyExtras.lastSunAt = now;
+  const subsolar = sharedState.daylightEffect?.subsolar || getSubsolarPointNow();
+  const vector = shaderSunVector(subsolar);
+  skyExtras.sunUniform.value.set(vector.x, vector.y, vector.z);
+  /* keep the base-globe terminator in step when the daylight layer is off */
+  if (!sharedState.daylightEffect?.enabled) {
+    applyDaylightLighting(null);
+  }
+}
+
+function syncSkyExtraOptions() {
+  if (!skyExtras.built) return;
+  skyExtras.night.visible = Boolean(sharedState.displayOptions.nightLightsEnabled) && Boolean(skyExtras.night.material.emissiveMap);
+  skyExtras.clouds.visible = Boolean(sharedState.displayOptions.cloudsEnabled) && Boolean(skyExtras.clouds.material.map);
+}
+
+function runSkyAnimator() {
+  if (skyExtras.raf) return;
+  const tick = (now) => {
+    skyExtras.raf = requestAnimationFrame(tick);
+    const delta = skyExtras.lastTick ? Math.min((now - skyExtras.lastTick) / 1000, 0.1) : 0.016;
+    skyExtras.lastTick = now;
+    if (!skyExtras.built) {
+      ensureSkyExtras();
+      return;
+    }
+    trySkyTextures();
+    if (skyExtras.clouds?.visible) {
+      skyExtras.clouds.rotation.y += delta * 0.0052;
+    }
+    updateSunDirection();
+  };
+  skyExtras.raf = requestAnimationFrame(tick);
 }
 
 function mean(values) {
@@ -941,6 +1141,13 @@ function collectLiveMetrics() {
   };
 }
 
+const kpiPreviousValues = new Map();
+function kpiFlashClass(key, value) {
+  const previous = kpiPreviousValues.get(key);
+  kpiPreviousValues.set(key, value);
+  return previous !== undefined && previous !== value ? " kpi-pill--flash" : "";
+}
+
 function refreshLiveKpiBar() {
   if (!liveKpiBar) return;
 
@@ -976,7 +1183,7 @@ function refreshLiveKpiBar() {
     </div>`;
 
   const metricPills = metrics.map((metric) => `
-    <div class="kpi-pill" title="${escHtml(metric.freshness)}">
+    <div class="kpi-pill${kpiFlashClass(metric.label, metric.value)}" title="${escHtml(metric.freshness)}">
       <span class="kpi-label">${escHtml(metric.label)}</span>
       <strong>${escHtml(metric.value)}</strong>
       <span class="kpi-meta">${escHtml(metric.detail || metric.freshness)}</span>
@@ -1155,6 +1362,7 @@ function applyDisplaySettings() {
     globe.cloudsAltitude(clamp(options.cloudsAltitude, 0.08, 0.35));
   }
   syncCloudOverlay();
+  syncSkyExtraOptions();
   syncDaylightOverlay();
   globe.controls().autoRotateSpeed = clamp(options.rotateSpeed, 0, 2.5);
   syncDisplayAnimatorState();
@@ -1877,6 +2085,10 @@ function renderOverlayDropdown(countryOverlays, currentOverlay) {
         <span>Atmosphere</span>
         <input type="checkbox" data-display="atmosphere" ${sharedState.displayOptions.atmosphereEnabled ? "checked" : ""} />
       </label>
+      <label class="display-lab-row display-lab-row--toggle">
+        <span>City Lights</span>
+        <input type="checkbox" data-display="night-lights" ${sharedState.displayOptions.nightLightsEnabled ? "checked" : ""} />
+      </label>
       <label class="display-lab-row">
         <span>Rotate</span>
         <input type="range" data-display="rotate-speed" min="0" max="2.5" step="0.1" value="${sharedState.displayOptions.rotateSpeed}" />
@@ -1954,6 +2166,8 @@ function renderOverlayDropdown(countryOverlays, currentOverlay) {
       sharedState.displayOptions.atmosphereGlowMode = target.value in DISPLAY_GLOWS ? target.value : "aurora";
     } else if (mode === "atmosphere") {
       sharedState.displayOptions.atmosphereEnabled = Boolean(target.checked);
+    } else if (mode === "night-lights") {
+      sharedState.displayOptions.nightLightsEnabled = Boolean(target.checked);
     } else if (mode === "rotate-speed") {
       sharedState.displayOptions.rotateSpeed = Number(target.value) || 0;
     } else if (mode === "atmosphere-altitude") {
@@ -2409,6 +2623,8 @@ updateLayerBadge();
 updateEmptyHint();
 refreshLiveKpiBar();
 startFpsMonitor();
+runSkyAnimator();
+window.__liveEarthSky = { skyExtras, getSubsolarPointNow, ensureSkyExtras, globe };
 
 clearInterval(liveKpiTimer);
 liveKpiTimer = setInterval(() => {

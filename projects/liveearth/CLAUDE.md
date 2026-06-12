@@ -65,6 +65,25 @@ All layers write to shared render buckets via the registry. The registry merges 
 
 The globe visualization reacts to live data through several modes (activity pulse, solar flux glow, hydro cloud opacity, storm/seismic rotation). These are computed in `app.js` from aggregated layer metrics.
 
+## Sky System (2026-06 visual pass)
+
+`app.js` adds an always-on day/night cycle and 3D sky extras on top of globe.gl:
+
+- **Ambient terminator** — the existing `ensureDaylightShader` injection now runs permanently
+  (nightFloor 0.26 ambient; the daylight layer deepens it to 0.08 and adds lighting boosts).
+  Sun position derives from `getSubsolarPointNow()` (NOAA approximation, 30 s refresh).
+- **City lights** — additive emissive sphere (`textures/earth-night.jpg`) masked to the night
+  side via `onBeforeCompile`; Display Lab toggle "City Lights".
+- **Cloud sphere** — real rotating mesh (`textures/earth-clouds.png`) replacing the old CSS
+  overlay; same Display Lab toggles drive it.
+- **Gotchas:** build sky meshes from the globe mesh's own constructors (a second three.js
+  instance silently fails to render in globe.gl's pipeline), and never `texture.clone()` the
+  day map to wrap a new image — clones share the underlying `Source`, which both clobbers
+  sibling textures and allocates GPU storage at the template's dimensions. Construct fresh
+  `Texture` objects instead. Debug handle: `window.__liveEarthSky`.
+- Marker polish: `.le-marker` entrance fade is applied centrally in `render-registry.js`;
+  weather markers are `.weather-chip` pills (styles in `styles.css`).
+
 ## Data & Assets
 
 - `data/countries-low.geojson` / `countries-medium.geojson` / `countries.geojson` — three LOD levels for country boundaries

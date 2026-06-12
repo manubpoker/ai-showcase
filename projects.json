@@ -1,5 +1,19 @@
 [
   {
+    "id": "fable",
+    "title": "FABLE",
+    "description": "A generative audiovisual poem in five movements — a 262k-particle nebula, GPU fluid dynamics, a 40,000-bird murmuration, a raymarched fractal tunnel and a spiral galaxy, scored live by a procedural music engine. One HTML file, zero dependencies, written by Claude Fable 5.",
+    "tags": [
+      "WebGL2",
+      "Web Audio",
+      "Generative",
+      "One File"
+    ],
+    "path": "projects/fable/",
+    "thumbnail": "thumbnails/fable.png",
+    "accent": "#ffd166"
+  },
+  {
     "id": "abalone",
     "title": "Abalone",
     "description": "A polished 3D rendition of the classic marble-pushing board game with multiple camera angles, move previews, and complete rule enforcement.",
@@ -26,6 +40,20 @@
     "path": "projects/piano/",
     "thumbnail": "thumbnails/piano.png",
     "accent": "#00d4aa"
+  },
+  {
+    "id": "drumset",
+    "title": "Drumset Studio",
+    "description": "Interactive 3D drum kit with realistic stick and ghost-hand motion, studio-quality drum samples, patterns, performances, and hundreds of full Groove MIDI songs.",
+    "tags": [
+      "Three.js",
+      "Web Audio",
+      "MIDI",
+      "3D"
+    ],
+    "path": "projects/drumset/",
+    "thumbnail": "thumbnails/drumset.png",
+    "accent": "#42d2b7"
   },
   {
     "id": "liveearth",

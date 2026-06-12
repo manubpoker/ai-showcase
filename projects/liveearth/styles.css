@@ -1367,6 +1367,7 @@ html, body {
 @media (max-width: 768px) {
   #layer-panel { transform: translateX(-100%); }
   #layer-panel.open { transform: translateX(0); }
+  #layer-panel.open .panel-header { padding-left: 4rem; }
   #menu-btn { display: grid; place-items: center; }
   #legend-bar { left: 1rem; bottom: 0.5rem; width: calc(100vw - 2rem); }
   #legend-bar.country-focus { right: auto; width: calc(100vw - 2rem); }
@@ -1404,3 +1405,84 @@ html, body {
     max-width: none;
   }
 }
+
+/* ── 2026-06 visual polish: marker design system, motion, chrome ───── */
+.le-marker {
+  animation: le-marker-in 0.55s ease both;
+  animation-delay: calc(var(--le-stagger, 0) * 38ms);
+}
+@keyframes le-marker-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.weather-chip {
+  position: relative;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: auto !important;
+  cursor: pointer;
+  z-index: 12;
+}
+.weather-chip__pill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 6px;
+  border-radius: 999px;
+  background: rgba(8, 14, 24, 0.74);
+  border: 1px solid color-mix(in srgb, var(--chip-color, #94a3b8) 55%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4), 0 0 14px color-mix(in srgb, var(--chip-color, #94a3b8) 26%, transparent);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  white-space: nowrap;
+}
+.weather-chip:hover .weather-chip__pill {
+  transform: translate(-50%, -50%) scale(1.14);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 22px color-mix(in srgb, var(--chip-color, #94a3b8) 45%, transparent);
+}
+.weather-chip__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--chip-color, #94a3b8);
+  box-shadow: 0 0 8px var(--chip-color, #94a3b8);
+  flex: none;
+}
+.weather-chip__temp {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  letter-spacing: 0.01em;
+}
+
+.flight-plane { font-size: 0.95rem; }
+
+.kpi-pill { transition: border-color 0.3s ease, box-shadow 0.3s ease; }
+.kpi-pill--flash { animation: kpi-flash 0.9s ease; }
+@keyframes kpi-flash {
+  0% { box-shadow: 0 0 0 1px rgba(141, 228, 239, 0.85), 0 0 20px rgba(141, 228, 239, 0.45); }
+  100% { box-shadow: 0 0 0 0 rgba(141, 228, 239, 0); }
+}
+
+#hover-card {
+  backdrop-filter: blur(12px) saturate(1.2);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(141, 228, 239, 0.1);
+}
+
+.layer-row { transition: background 0.16s ease, box-shadow 0.2s ease; }
+.layer-row:hover { background: rgba(141, 228, 239, 0.055); }
+
+.loading-spinner { filter: drop-shadow(0 0 18px rgba(56, 189, 248, 0.55)); }
+
+#legend-bar, .layer-badge { transition: opacity 0.3s ease, transform 0.3s ease; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.22); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.4); }
+::-webkit-scrollbar-track { background: transparent; }

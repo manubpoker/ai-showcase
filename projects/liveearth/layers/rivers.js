@@ -35,7 +35,7 @@ export const layerDefinition = {
         if (parameter === "00060") sites[siteCode].discharge = latest;
         if (parameter === "00065") sites[siteCode].gaugeHeight = latest;
       });
-      return Object.values(sites).filter((site) => site.lat && site.lng);
+      return Object.values(sites).filter((site) => Number.isFinite(site.lat) && Number.isFinite(site.lng));
     },
   }),
   async applyData({ context, payload }) {
