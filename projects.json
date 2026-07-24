@@ -2,7 +2,7 @@
   {
     "id": "dance",
     "title": "Dance Around The World",
-    "description": "Thirty dance styles — breaking, samba, voguing, tinikling, K-pop, lion dance — as a one-tap pixel-art rhythm game. Every dancer, stage, song and sound effect is AI-generated, extracted into spritesheets by a Python pipeline and played by one shared JavaScript engine. Runs in any browser, no install.",
+    "description": "A one-tap pixel-art rhythm game with thirty dance styles — breaking, samba, voguing, tinikling, K-pop — and AI-generated dancers, stages and music. Plays in any browser, no install.",
     "tags": [
       "Game",
       "Pixel Art",
