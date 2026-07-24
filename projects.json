@@ -1,5 +1,19 @@
 [
   {
+    "id": "dance",
+    "title": "Dance Around The World",
+    "description": "Thirty dance styles — breaking, samba, voguing, tinikling, K-pop, lion dance — as a one-tap pixel-art rhythm game. Every dancer, stage, song and sound effect is AI-generated, extracted into spritesheets by a Python pipeline and played by one shared JavaScript engine. Runs in any browser, no install.",
+    "tags": [
+      "Game",
+      "Pixel Art",
+      "Canvas 2D",
+      "AI Assets"
+    ],
+    "path": "https://dancearoundtheworld.ai",
+    "thumbnail": "thumbnails/dance.png",
+    "accent": "#ff4d9e"
+  },
+  {
     "id": "fable",
     "title": "FABLE",
     "description": "A generative audiovisual poem in five movements — a 262k-particle nebula, GPU fluid dynamics, a 40,000-bird murmuration, a raymarched fractal tunnel and a spiral galaxy, scored live by a procedural music engine. One HTML file, zero dependencies, written by Claude Fable 5.",
